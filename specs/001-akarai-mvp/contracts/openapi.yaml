@@ -1,0 +1,333 @@
+openapi: 3.1.0
+info:
+  title: Akarai MVP API
+  version: 0.1.0
+  description: Contract surface for the Akarai MVP modular monolith backend.
+servers:
+  - url: http://localhost:8000/api/v1
+security:
+  - bearerAuth: []
+tags:
+  - name: Auth
+  - name: Users
+  - name: Agencies
+  - name: Listings
+  - name: Search
+  - name: AI
+  - name: Comparison
+  - name: Leads
+  - name: Viewings
+  - name: RAG
+  - name: Dashboard
+  - name: PlatformAdmin
+  - name: Notifications
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register user
+      security: []
+      responses:
+        "201": { description: Registered }
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login and issue access/refresh tokens
+      security: []
+      responses:
+        "200": { description: Token pair issued }
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access token
+      responses:
+        "200": { description: Access token refreshed }
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Invalidate current session
+      responses:
+        "204": { description: Logged out }
+  /users/me:
+    get:
+      tags: [Users]
+      summary: Get simple user profile
+      responses:
+        "200": { description: Profile returned }
+    patch:
+      tags: [Users]
+      summary: Update allowed user profile fields
+      responses:
+        "200": { description: Profile updated }
+  /users/me/saved-listings:
+    get:
+      tags: [Users]
+      summary: List saved listings
+      responses:
+        "200": { description: Paginated saved listings }
+  /users/me/scheduled-viewings:
+    get:
+      tags: [Users]
+      summary: List user's scheduled viewings
+      responses:
+        "200": { description: Paginated scheduled viewings }
+  /agencies:
+    get:
+      tags: [Agencies]
+      summary: List agencies visible to caller
+      responses:
+        "200": { description: Paginated agencies }
+  /agencies/{agencyId}:
+    get:
+      tags: [Agencies]
+      summary: Get agency preview/profile
+      parameters:
+        - $ref: "#/components/parameters/AgencyId"
+      responses:
+        "200": { description: Agency returned }
+    patch:
+      tags: [Agencies]
+      summary: Agency Admin updates agency profile
+      parameters:
+        - $ref: "#/components/parameters/AgencyId"
+      responses:
+        "200": { description: Agency updated }
+  /agencies/{agencyId}/employees:
+    get:
+      tags: [Agencies]
+      summary: List agency employees
+      parameters:
+        - $ref: "#/components/parameters/AgencyId"
+      responses:
+        "200": { description: Employees returned }
+    post:
+      tags: [Agencies]
+      summary: Agency Admin creates support employee
+      parameters:
+        - $ref: "#/components/parameters/AgencyId"
+      responses:
+        "201": { description: Employee created }
+  /listings:
+    get:
+      tags: [Listings]
+      summary: Paginated listing results
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200": { description: Paginated listings }
+    post:
+      tags: [Listings]
+      summary: Agency Admin creates draft listing
+      responses:
+        "201": { description: Draft listing created }
+  /listings/{listingId}:
+    get:
+      tags: [Listings]
+      summary: Get listing detail
+      parameters:
+        - $ref: "#/components/parameters/ListingId"
+      responses:
+        "200": { description: Listing detail returned }
+    patch:
+      tags: [Listings]
+      summary: Update listing
+      parameters:
+        - $ref: "#/components/parameters/ListingId"
+      responses:
+        "200": { description: Listing updated }
+  /listings/{listingId}/publish:
+    post:
+      tags: [Listings]
+      summary: Publish listing transactionally
+      parameters:
+        - $ref: "#/components/parameters/ListingId"
+      responses:
+        "200": { description: Listing published }
+  /listings/{listingId}/photos:
+    post:
+      tags: [Listings]
+      summary: Upload listing photo for moderation and optimization
+      parameters:
+        - $ref: "#/components/parameters/ListingId"
+      responses:
+        "202": { description: Photo accepted for checks }
+  /search:
+    get:
+      tags: [Search]
+      summary: Manual listing search
+      responses:
+        "200": { description: Paginated results }
+  /search/ai:
+    post:
+      tags: [Search, AI]
+      summary: AI text search with filter extraction and optional area retrieval
+      responses:
+        "200": { description: Paginated results with extracted filters }
+  /search/voice:
+    post:
+      tags: [Search, AI]
+      summary: AI voice search
+      responses:
+        "200": { description: Paginated results with transcript and filters }
+  /listings/{listingId}/ai:
+    post:
+      tags: [AI, Listings]
+      summary: Unified listing AI widget
+      parameters:
+        - $ref: "#/components/parameters/ListingId"
+      responses:
+        "200": { description: AI response or pending confirmation action }
+  /comparisons:
+    post:
+      tags: [Comparison]
+      summary: Create comparison session
+      responses:
+        "201": { description: Comparison session created }
+  /comparisons/{comparisonId}/items:
+    post:
+      tags: [Comparison]
+      summary: Add listing to comparison, max four
+      parameters:
+        - $ref: "#/components/parameters/ComparisonId"
+      responses:
+        "201": { description: Comparison item added }
+  /comparisons/{comparisonId}/summary:
+    get:
+      tags: [Comparison, AI]
+      summary: Get AI comparison summary
+      parameters:
+        - $ref: "#/components/parameters/ComparisonId"
+      responses:
+        "200": { description: Comparison summary returned }
+  /leads:
+    get:
+      tags: [Leads]
+      summary: List valid or spam leads
+      responses:
+        "200": { description: Paginated leads }
+  /leads/{leadId}:
+    get:
+      tags: [Leads]
+      summary: Lead detail with classification and suggested reply
+      parameters:
+        - $ref: "#/components/parameters/LeadId"
+      responses:
+        "200": { description: Lead detail returned }
+  /leads/{leadId}/review:
+    post:
+      tags: [Leads]
+      summary: Mark lead reviewed with reviewer snapshot
+      parameters:
+        - $ref: "#/components/parameters/LeadId"
+      responses:
+        "200": { description: Lead reviewed }
+  /scheduled-viewings:
+    get:
+      tags: [Viewings]
+      summary: List scheduled viewings with filters
+      responses:
+        "200": { description: Paginated scheduled viewings }
+    post:
+      tags: [Viewings]
+      summary: Create scheduled viewing after user confirmation
+      responses:
+        "201": { description: Scheduled viewing created }
+  /scheduled-viewings/{viewingId}/status:
+    patch:
+      tags: [Viewings]
+      summary: Update scheduled viewing status
+      parameters:
+        - $ref: "#/components/parameters/ViewingId"
+      responses:
+        "200": { description: Status updated }
+  /agency-policy-documents:
+    get:
+      tags: [RAG]
+      summary: List agency policy documents
+      responses:
+        "200": { description: Paginated documents }
+    post:
+      tags: [RAG]
+      summary: Upload agency policy or FAQ document for ingestion
+      responses:
+        "202": { description: Document accepted for ingestion }
+  /rag/documents/{documentId}/status:
+    get:
+      tags: [RAG]
+      summary: Get RAG ingestion status
+      parameters:
+        - $ref: "#/components/parameters/DocumentId"
+      responses:
+        "200": { description: Ingestion status returned }
+  /agency-dashboard/metrics:
+    get:
+      tags: [Dashboard]
+      summary: Agency dashboard metrics
+      responses:
+        "200": { description: Agency metrics returned }
+  /platform/demand-insights:
+    get:
+      tags: [PlatformAdmin]
+      summary: Marketplace demand insights
+      responses:
+        "200": { description: Demand insights returned }
+  /platform/ai-audit-logs:
+    get:
+      tags: [PlatformAdmin]
+      summary: AI audit logs
+      responses:
+        "200": { description: Paginated audit logs }
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: List notification records
+      responses:
+        "200": { description: Paginated notifications }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    AgencyId:
+      name: agencyId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ListingId:
+      name: listingId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    LeadId:
+      name: leadId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ViewingId:
+      name: viewingId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ComparisonId:
+      name: comparisonId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    DocumentId:
+      name: documentId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Page:
+      name: page
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, default: 1 }
+    PageSize:
+      name: page_size
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
