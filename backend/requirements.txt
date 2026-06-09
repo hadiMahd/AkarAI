@@ -11,3 +11,10 @@ minio>=7.2.0
 httpx>=0.27.0
 pytest>=8.3.0
 pytest-asyncio>=0.24.0
+
+# Phase 2 foundation utilities (no unspecified auth/worker/email/AI providers)
+# JWT libraries are pre-installed; we use them for token utility foundations only.
+# Concrete email, worker, and AI provider libraries remain TBD_ASK_USER.
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+python-multipart>=0.0.12
