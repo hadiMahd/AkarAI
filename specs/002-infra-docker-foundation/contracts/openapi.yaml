@@ -1,0 +1,96 @@
+openapi: 3.1.0
+info:
+  title: AkarAI Phase 1 Health Contract
+  version: 0.1.0
+  description: >
+    Skeleton-only backend contract for validating the Phase 1 local foundation.
+    Domain APIs for auth, listings, RAG, AI, leads, and viewings are out of
+    scope.
+paths:
+  /health:
+    get:
+      summary: Backend process health
+      description: Confirms that the backend skeleton process is running.
+      operationId: getHealth
+      responses:
+        "200":
+          description: Backend process is running.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+  /ready:
+    get:
+      summary: Local foundation dependency readiness
+      description: >
+        Confirms Phase 1 dependency connectivity without exposing domain
+        behavior.
+      operationId: getReadiness
+      responses:
+        "200":
+          description: All required dependencies are reachable and ready.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessResponse"
+        "503":
+          description: One or more required dependencies are unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessResponse"
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - service
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+        service:
+          type: string
+          const: backend
+    ReadinessResponse:
+      type: object
+      required:
+        - status
+        - checks
+      properties:
+        status:
+          type: string
+          enum:
+            - ready
+            - not_ready
+        checks:
+          type: object
+          required:
+            - postgres_via_proxy
+            - pgvector_enabled
+            - redis
+            - object_storage
+          properties:
+            postgres_via_proxy:
+              $ref: "#/components/schemas/CheckResult"
+            pgvector_enabled:
+              $ref: "#/components/schemas/CheckResult"
+            redis:
+              $ref: "#/components/schemas/CheckResult"
+            object_storage:
+              $ref: "#/components/schemas/CheckResult"
+    CheckResult:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - passed
+            - failed
+        message:
+          type: string
+          description: Human-readable failure detail when status is failed.
