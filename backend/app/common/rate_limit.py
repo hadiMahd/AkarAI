@@ -51,3 +51,23 @@ async def check_auth_rate_limit(
         max_requests=limits["max_requests"],
         window_seconds=limits["window_seconds"],
     )
+
+
+PHASE4_RATE_LIMITS = {
+    "search": {"max_requests": 30, "window_seconds": 60},
+    "inquiry": {"max_requests": 5, "window_seconds": 600},
+    "viewing_booking": {"max_requests": 10, "window_seconds": 300},
+}
+
+
+async def check_phase4_rate_limit(
+    action: str,
+    identifier: str,
+) -> bool:
+    limits = PHASE4_RATE_LIMITS.get(action, {"max_requests": 30, "window_seconds": 60})
+    return await check_rate_limit(
+        key_type=f"phase4:{action}",
+        identifier=identifier,
+        max_requests=limits["max_requests"],
+        window_seconds=limits["window_seconds"],
+    )

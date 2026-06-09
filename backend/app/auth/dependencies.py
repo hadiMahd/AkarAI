@@ -82,6 +82,19 @@ async def get_current_actor(
     }
 
 
+async def get_optional_current_actor(
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
+) -> Optional[dict]:
+    auth = request.headers.get("Authorization", "")
+    if not auth.lower().startswith("bearer "):
+        return None
+    try:
+        return await get_current_actor(request, db)
+    except Exception:
+        return None
+
+
 def require_permission(*permissions: PermissionKey):
     async def _check(
         actor: dict = Depends(get_current_actor),

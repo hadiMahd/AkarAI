@@ -1,8 +1,146 @@
-from datetime import datetime, timezone
+from typing import Optional
 from uuid import UUID
+from datetime import datetime, timezone
 
-from app.agencies.models import AgencyEmployeeMembership
-from app.agencies.repository import AgenciesRepository
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.agencies.models import AgencyProfile, AgencyEmployeeMembership
+from app.agencies.repository import AgencyProfileRepository, AgencyEmployeeRepository, AgenciesRepository
+from app.common.exceptions import NotFoundError, ForbiddenError, ValidationError
+from app.common.pagination import PaginationRequest, PaginationResult
+from app.common.tenant import TenantContext, require_tenant, ensure_tenant_match
+from app.common.events import write_domain_event_log
+
+
+class AgencyService:
+    def __init__(self, session: AsyncSession, tenant: Optional[TenantContext] = None):
+        self._session = session
+        self._tenant = tenant
+        self._profile_repo = AgencyProfileRepository(session, tenant)
+        self._employee_repo = AgencyEmployeeRepository(session, tenant)
+
+    async def get_profile(self) -> AgencyProfile:
+        ctx = require_tenant(self._tenant)
+        profile = await self._profile_repo.get_by_tenant(ctx.tenant_id)
+        if profile is None:
+            raise NotFoundError(detail="Agency profile not found")
+        return profile
+
+    async def update_profile(self, data: dict) -> AgencyProfile:
+        ctx = require_tenant(self._tenant)
+        if ctx.role == "support_employee":
+            raise ForbiddenError(detail="Support employees cannot update agency profile")
+        profile = await self._profile_repo.get_by_tenant(ctx.tenant_id)
+        if profile is None:
+            profile = AgencyProfile(agency_tenant_id=ctx.tenant_id, display_name="")
+            self._session.add(profile)
+
+        if "display_name" in data and data["display_name"] is not None:
+            profile.display_name = data["display_name"]
+        if "legal_name" in data:
+            profile.legal_name = data["legal_name"]
+        if "description" in data:
+            profile.description = data["description"]
+        if "phone" in data:
+            profile.phone = data["phone"]
+        if "email" in data:
+            profile.email = data["email"]
+        if "website_url" in data:
+            profile.website_url = data["website_url"]
+        if "address" in data:
+            profile.address = data["address"]
+        if "city" in data:
+            profile.city = data["city"]
+        if "country" in data:
+            profile.country = data["country"]
+        if "status" in data and data["status"] is not None:
+            profile.status = data["status"]
+
+        await self._session.flush()
+        await write_domain_event_log(
+            self._session, "agency.profile_updated",
+            aggregate_type="agency", aggregate_id=str(ctx.tenant_id),
+            agency_tenant_id=ctx.tenant_id, actor_user_id=ctx.actor_id,
+        )
+        return profile
+
+    async def list_employees(self, pagination: PaginationRequest) -> PaginationResult:
+        ctx = require_tenant(self._tenant)
+        items, total = await self._employee_repo.list_by_tenant(
+            ctx.tenant_id, offset=pagination.offset, limit=pagination.limit
+        )
+        return PaginationResult(items=items, total=total, pagination=pagination)
+
+    async def get_employee(self, employee_id: UUID) -> AgencyEmployeeMembership:
+        ctx = require_tenant(self._tenant)
+        membership = await self._employee_repo.get_by_id(employee_id)
+        if membership is None:
+            raise NotFoundError(detail="Employee not found")
+        ensure_tenant_match(self._tenant, membership.agency_tenant_id)
+        return membership
+
+    async def create_employee(self, data: dict) -> AgencyEmployeeMembership:
+        ctx = require_tenant(self._tenant)
+        if ctx.role == "support_employee":
+            raise ForbiddenError(detail="Support employees cannot manage employees")
+
+        membership = AgencyEmployeeMembership(
+            agency_tenant_id=ctx.tenant_id,
+            user_id=data["user_id"],
+            role_id=data["role_id"],
+            status="active",
+        )
+        membership = await self._employee_repo.create(membership)
+        await write_domain_event_log(
+            self._session, "agency.employee_added",
+            aggregate_type="employee", aggregate_id=str(membership.id),
+            agency_tenant_id=ctx.tenant_id, actor_user_id=ctx.actor_id,
+            payload={"user_id": str(data["user_id"]), "role_id": str(data["role_id"])},
+        )
+        return membership
+
+    async def update_employee(self, employee_id: UUID, data: dict) -> AgencyEmployeeMembership:
+        ctx = require_tenant(self._tenant)
+        if ctx.role == "support_employee":
+            raise ForbiddenError(detail="Support employees cannot manage employees")
+
+        membership = await self._employee_repo.get_by_id(employee_id)
+        if membership is None:
+            raise NotFoundError(detail="Employee not found")
+        ensure_tenant_match(self._tenant, membership.agency_tenant_id)
+
+        if data.get("role_id") is not None:
+            membership.role_id = data["role_id"]
+        if data.get("display_name") is not None:
+            membership.display_name = data.get("display_name")
+        if data.get("work_email") is not None:
+            membership.work_email = data.get("work_email")
+
+        await self._session.flush()
+        await write_domain_event_log(
+            self._session, "agency.employee_updated",
+            aggregate_type="employee", aggregate_id=str(employee_id),
+            agency_tenant_id=ctx.tenant_id, actor_user_id=ctx.actor_id,
+        )
+        return membership
+
+    async def deactivate_employee(self, employee_id: UUID) -> None:
+        ctx = require_tenant(self._tenant)
+        if ctx.role == "support_employee":
+            raise ForbiddenError(detail="Support employees cannot manage employees")
+
+        membership = await self._employee_repo.get_by_id(employee_id)
+        if membership is None:
+            raise NotFoundError(detail="Employee not found")
+        ensure_tenant_match(self._tenant, membership.agency_tenant_id)
+
+        membership.status = "deactivated"
+        await self._session.flush()
+        await write_domain_event_log(
+            self._session, "agency.employee_deactivated",
+            aggregate_type="employee", aggregate_id=str(employee_id),
+            agency_tenant_id=ctx.tenant_id, actor_user_id=ctx.actor_id,
+        )
 
 
 class AgenciesService:

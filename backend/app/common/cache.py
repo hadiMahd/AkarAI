@@ -1,7 +1,7 @@
 import json
 from typing import Optional
 
-from app.common.redis import redis_delete, redis_get, redis_set
+from app.common.redis import redis_delete, redis_get, redis_set, redis_scan_delete
 
 
 def _cache_key(namespace: str, key: str) -> str:
@@ -24,5 +24,14 @@ async def cache_delete(namespace: str, key: str) -> None:
 
 
 async def cache_invalidate_namespace(namespace: str) -> None:
-    # Pattern-based invalidation requires SCAN; stub for Phase 2.
-    pass
+    pattern = _cache_key(namespace, "*")
+    await redis_scan_delete(pattern)
+
+
+LISTING_SEARCH_NAMESPACE = "listing_search"
+
+
+async def invalidate_listing_search_cache(listing_id: str | None = None) -> None:
+    if listing_id:
+        await cache_delete(LISTING_SEARCH_NAMESPACE, f"detail:{listing_id}")
+    await redis_scan_delete(_cache_key(LISTING_SEARCH_NAMESPACE, "search:*"))
