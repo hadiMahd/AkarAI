@@ -20,6 +20,8 @@ depends_on: str | None = None
 
 
 def upgrade() -> None:
+    op.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto;")
+
     op.create_table(
         "roles",
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
@@ -186,3 +188,4 @@ def downgrade() -> None:
     op.drop_table("role_permissions")
     op.drop_table("permissions")
     op.drop_table("roles")
+    op.execute("DROP EXTENSION IF EXISTS pgcrypto;")

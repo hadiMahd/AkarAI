@@ -36,19 +36,19 @@ class Settings(BaseSettings):
     vault_token: str = "root"
 
     # JWT (Phase 2 foundation; secrets must come from Vault in production)
-    jwt_access_secret: str = "TBD_ASK_USER"
-    jwt_refresh_secret: str = "TBD_ASK_USER"
+    jwt_access_secret: str = "hadi-jihad-sika-bika-shiko"
+    jwt_refresh_secret: str = "amrikashikabika"
     jwt_access_ttl_minutes: int = 15
     jwt_refresh_ttl_days: int = 7
     jwt_algorithm: str = "HS256"
 
-    # AI Providers (TBD_ASK_USER)
-    ai_primary_provider: str = "TBD_ASK_USER"
-    ai_fallback_providers: str = "TBD_ASK_USER"
+    # AI Providers
+    ai_primary_provider: str = "azure_openai"
+    ai_fallback_providers: str = "openrouter"
     cohere_api_key: str = "TBD_ASK_USER"
 
-    # Email Provider (TBD_ASK_USER)
-    email_provider: str = "TBD_ASK_USER"
+    # Email Provider
+    email_provider: str = "resend"
 
     # Pagination
     pagination_default_page_size: int = 20

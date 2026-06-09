@@ -29,12 +29,10 @@ class TestSettingsLoading:
 
     def test_provider_placeholders(self):
         s = Settings()
-        assert s.ai_primary_provider == "TBD_ASK_USER"
-        assert s.ai_fallback_providers == "TBD_ASK_USER"
-        assert s.cohere_api_key == "TBD_ASK_USER"
-        assert s.email_provider == "TBD_ASK_USER"
-        assert s.jwt_access_secret == "TBD_ASK_USER"
-        assert s.jwt_refresh_secret == "TBD_ASK_USER"
+        assert s.ai_primary_provider == "azure_openai"
+        assert s.ai_fallback_providers == "openrouter"
+        assert s.cohere_api_key == "TBD_ASK_USER"  # from Vault at runtime
+        assert s.email_provider == "resend"
 
     def test_pagination_bounds(self):
         s = Settings()

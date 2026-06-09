@@ -21,11 +21,7 @@ def _timestamp() -> str:
 async def _timed_check(name: str, fn) -> dict:
     started = time.monotonic()
     try:
-        result = fn()
-        if asyncio.iscoroutine(result):
-            passed = await result
-        else:
-            passed = result
+        passed = await fn() if asyncio.iscoroutinefunction(fn) else fn()
         status = "passed" if passed else "failed"
     except Exception:
         status = "failed"
