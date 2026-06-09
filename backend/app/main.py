@@ -53,4 +53,8 @@ async def validation_exception_handler(request: Request, exc: ValidationError) -
     )
 
 
+from app.auth.router import router as auth_router, tenant_router
+
 app.include_router(health_router)
+app.include_router(auth_router)
+app.include_router(tenant_router)

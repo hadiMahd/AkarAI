@@ -8,13 +8,14 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Import Phase 2 foundation models so Alembic can detect them for autogenerate
+# Import Phase 2+3 foundation models so Alembic can detect them for autogenerate
 from app.common.database import Base  # noqa: F401
-from app.auth.models import Role, Permission, RolePermission, RefreshSession  # noqa: F401
+from app.auth.models import Role, Permission, RolePermission, RefreshSession, AccessRevocation  # noqa: F401
 from app.users.models import User  # noqa: F401
 from app.audit.models import AuditLog  # noqa: F401
 from app.common.events import OutboxEvent, InboxEvent  # noqa: F401
 from app.notifications.models import Notification  # noqa: F401
+from app.agencies.models import AgencyTenant, AgencyEmployeeMembership  # noqa: F401
 
 target_metadata = Base.metadata
 

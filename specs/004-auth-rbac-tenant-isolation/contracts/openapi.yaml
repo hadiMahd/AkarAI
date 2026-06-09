@@ -1,0 +1,353 @@
+openapi: 3.1.0
+info:
+  title: Akarai Auth, RBAC, and Tenant Isolation API
+  version: 0.3.0
+  description: Phase 3 security contract for authentication, session revocation, role guards, and tenant context only.
+servers:
+  - url: http://localhost:8000
+tags:
+  - name: Auth
+  - name: Security
+  - name: Tenant
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Sign in an existing active actor
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Actor signed in.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSessionResponse"
+        "401":
+          description: Credentials are invalid or actor cannot sign in.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Authentication rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access from a valid refresh session
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+      responses:
+        "200":
+          description: Access refreshed and refresh session rotated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSessionResponse"
+        "401":
+          description: Refresh session is invalid, expired, revoked, or reused.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Refresh rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Sign out current session
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LogoutRequest"
+      responses:
+        "204":
+          description: Session invalidated. Repeated logout is accepted.
+        "401":
+          description: Access credential is missing or invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /auth/password-reset:
+    post:
+      tags: [Auth]
+      summary: Password reset skeleton without email sending
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordResetRequest"
+      responses:
+        "204":
+          description: Password reset accepted if eligible; previous sessions invalidated.
+        "400":
+          description: Reset request is malformed or not eligible.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Password reset rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /auth/sessions/{session_id}/revoke:
+    post:
+      tags: [Security]
+      summary: Revoke a single refresh session
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SessionRevocationRequest"
+      responses:
+        "204":
+          description: Session revoked.
+        "403":
+          description: Actor lacks permission to revoke this session.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /auth/employees/{membership_id}/deactivate:
+    post:
+      tags: [Security]
+      summary: Deactivate an agency employee membership and revoke sessions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: membership_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmployeeDeactivationRequest"
+      responses:
+        "204":
+          description: Employee deactivated and sessions revoked.
+        "403":
+          description: Actor lacks permission or tenant access.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Membership is not visible to this actor.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Return current actor security context
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current actor context.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentActorResponse"
+        "401":
+          description: Access credential is missing, invalid, expired, or revoked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /tenant/context:
+    get:
+      tags: [Tenant]
+      summary: Return current tenant context for protected work
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Tenant context is available.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantContextResponse"
+        "403":
+          description: Tenant context is missing or not allowed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+    RefreshRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+    LogoutRequest:
+      type: object
+      properties:
+        refresh_token:
+          type: string
+    PasswordResetRequest:
+      type: object
+      required: [current_password, new_password]
+      properties:
+        current_password:
+          type: string
+        new_password:
+          type: string
+          minLength: 8
+    SessionRevocationRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          enum: [suspicious_session, admin_revocation]
+    EmployeeDeactivationRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          minLength: 1
+    AuthSessionResponse:
+      type: object
+      required: [access_token, refresh_token, token_type, expires_in, actor]
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        token_type:
+          type: string
+          enum: [bearer]
+        expires_in:
+          type: integer
+        actor:
+          $ref: "#/components/schemas/ActorSummary"
+    CurrentActorResponse:
+      type: object
+      required: [actor]
+      properties:
+        actor:
+          $ref: "#/components/schemas/ActorSummary"
+    TenantContextResponse:
+      type: object
+      required: [actor_id, role, permissions, tenant_id, is_platform_actor]
+      properties:
+        actor_id:
+          type: string
+          format: uuid
+        role:
+          type: string
+        permissions:
+          type: array
+          items:
+            type: string
+        tenant_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        membership_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        is_platform_actor:
+          type: boolean
+    ActorSummary:
+      type: object
+      required: [id, email, role, permissions, is_active]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+        permissions:
+          type: array
+          items:
+            type: string
+        tenant_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        is_active:
+          type: boolean
+    ErrorResponse:
+      type: object
+      required: [status, detail, error_code, request_id]
+      properties:
+        status:
+          type: string
+          enum: [error]
+        detail:
+          type: string
+        error_code:
+          type: string
+        request_id:
+          type: string

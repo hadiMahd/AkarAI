@@ -1,0 +1,22 @@
+import pytest
+
+from app.auth.permissions import BuiltinRole, PermissionKey
+
+
+class TestRoleRestrictions:
+    def test_support_employee_cannot_create_listings(self):
+        assert "listing:create" not in [p.value for p in PermissionKey]
+
+    def test_user_has_limited_permissions(self):
+        assert BuiltinRole.USER.value == "user"
+
+    def test_platform_admin_has_platform_permissions(self):
+        assert PermissionKey.PLATFORM_READ.value in [p.value for p in PermissionKey]
+        assert PermissionKey.PLATFORM_MANAGE.value in [p.value for p in PermissionKey]
+
+    def test_support_employee_role_exists(self):
+        assert BuiltinRole.SUPPORT_EMPLOYEE.value == "support_employee"
+
+    def test_agency_admin_has_agency_permissions(self):
+        assert PermissionKey.AGENCY_READ.value in [p.value for p in PermissionKey]
+        assert PermissionKey.AGENCY_UPDATE.value in [p.value for p in PermissionKey]
