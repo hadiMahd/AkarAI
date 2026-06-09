@@ -10,7 +10,6 @@ import asyncio
 import logging
 import os
 import signal
-import sys
 from typing import Callable
 
 import asyncpg
@@ -77,7 +76,7 @@ def _foundation_test_handler(payload: dict) -> None:
 async def _poll_loop() -> None:
     from outbox import claim_and_dispatch
 
-    conn = await asyncpg.connect(PG_URL)
+    conn = await asyncpg.connect(PG_URL, statement_cache_size=0)
     logger.info("Connected to database for outbox polling")
 
     try:
