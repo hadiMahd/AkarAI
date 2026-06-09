@@ -1,0 +1,74 @@
+# Spec Kit local / generated noise
+.specify/extensions/.cache/
+.specify/extensions/.backup/
+.specify/extensions/*/local-config.yml
+
+# Optional local backups created before upgrades
+.specify/memory/*-backup.md
+.specify/templates-backup/
+.specify/scripts-backup/
+
+# Local env / logs
+.env
+.env.local
+*.log
+*.tmp
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+*.egg
+.pytest_cache/
+
+# Node.js
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+.next/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker (generated files)
+.dockerignore
+
+# Test / Coverage
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# Terraform
+.terraform/
+*.tfstate*
+*.tfvars
+.terraform.lock.hcl
+
+# MinIO data (local dev)
+miniodata/
+data/
+
+# Streamlit
+.streamlit/
+
+# Alembic
+backend/alembic/versions/*_backup_*
+
+# Vault (local dev)
+vault-data/
