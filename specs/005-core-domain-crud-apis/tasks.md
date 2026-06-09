@@ -70,14 +70,14 @@
 
 ### Tests for User Story 1
 
-- [ ] T026 [P] [US1] Create agency profile and employee service unit tests in `backend/tests/unit/test_agency_core_service.py`
-- [ ] T027 [P] [US1] Create listing management service unit tests for status validation and support-employee restrictions in `backend/tests/unit/test_listing_management_service.py`
-- [ ] T028 [P] [US1] Create viewing slot service unit tests for slot validation and capacity rules in `backend/tests/unit/test_viewing_slot_service.py`
-- [ ] T029 [P] [US1] Create agency profile and employee API integration tests in `backend/tests/integration/test_agency_core_api.py`
-- [ ] T030 [P] [US1] Create agency listing, photo metadata, and viewing slot API integration tests in `backend/tests/integration/test_agency_listing_api.py`
-- [ ] T031 [P] [US1] Create support employee restriction tests in `backend/tests/rbac/test_support_employee_restrictions.py`
-- [ ] T032 [P] [US1] Create agency tenant isolation tests for profile, employees, listings, photo metadata, and viewing slots in `backend/tests/rbac/test_agency_core_tenant_isolation.py`
-- [ ] T033 [P] [US1] Create agency list pagination tests in `backend/tests/integration/test_agency_core_pagination.py`
+- [X] T026 [P] [US1] Create agency profile and employee service unit tests in `backend/tests/unit/test_agency_core_service.py`
+- [X] T027 [P] [US1] Create listing management service unit tests for status validation and support-employee restrictions in `backend/tests/unit/test_listing_management_service.py`
+- [X] T028 [P] [US1] Create viewing slot service unit tests for slot validation and capacity rules in `backend/tests/unit/test_viewing_slot_service.py`
+- [X] T029 [P] [US1] Create agency profile and employee API integration tests in `backend/tests/integration/test_agency_core_api.py`
+- [X] T030 [P] [US1] Create agency listing, photo metadata, and viewing slot API integration tests in `backend/tests/integration/test_agency_listing_api.py`
+- [X] T031 [P] [US1] Create support employee restriction tests in `backend/tests/rbac/test_support_employee_restrictions.py`
+- [X] T032 [P] [US1] Create agency tenant isolation tests for profile, employees, listings, photo metadata, and viewing slots in `backend/tests/rbac/test_agency_core_tenant_isolation.py`
+- [X] T033 [P] [US1] Create agency list pagination tests in `backend/tests/integration/test_agency_core_pagination.py`
 
 ### Implementation for User Story 1
 
@@ -111,15 +111,15 @@
 
 ### Tests for User Story 2
 
-- [ ] T051 [P] [US2] Create public listing search filter, sort, rate-limit, and cache invalidation unit tests in `backend/tests/unit/test_listing_search_service.py`
-- [ ] T052 [P] [US2] Create saved listing service unit tests for duplicate prevention and ownership in `backend/tests/unit/test_saved_listing_service.py`
-- [ ] T053 [P] [US2] Create comparison service unit tests for four-item limit and ownership in `backend/tests/unit/test_comparison_service.py`
-- [ ] T054 [P] [US2] Create user inquiry lead creation service unit tests in `backend/tests/unit/test_user_inquiry_service.py`
-- [ ] T055 [P] [US2] Create viewing booking transaction and rate-limit tests for atomic viewing and initial history creation in `backend/tests/integration/test_viewing_booking_transaction.py`
-- [ ] T056 [P] [US2] Create public listing search and detail API integration tests including search rate limits in `backend/tests/integration/test_public_listing_api.py`
-- [ ] T057 [P] [US2] Create saved listings and comparison API integration tests in `backend/tests/integration/test_user_listing_actions_api.py`
-- [ ] T058 [P] [US2] Create inquiry and viewing booking API integration tests including rate limits in `backend/tests/integration/test_user_inquiry_viewing_api.py`
-- [ ] T059 [P] [US2] Create user ownership isolation tests for saved listings, comparison sessions, inquiries, and viewing detail access in `backend/tests/rbac/test_user_owned_domain_isolation.py`
+- [X] T051 [P] [US2] Create public listing search filter, sort, rate-limit, and cache invalidation unit tests in `backend/tests/unit/test_listing_search_service.py`
+- [X] T052 [P] [US2] Create saved listing service unit tests for duplicate prevention and ownership in `backend/tests/unit/test_saved_listing_service.py`
+- [X] T053 [P] [US2] Create comparison service unit tests for four-item limit and ownership in `backend/tests/unit/test_comparison_service.py`
+- [X] T054 [P] [US2] Create user inquiry lead creation service unit tests in `backend/tests/unit/test_user_inquiry_service.py`
+- [X] T055 [P] [US2] Create viewing booking transaction and rate-limit tests for atomic viewing and initial history creation in `backend/tests/integration/test_viewing_booking_transaction.py`
+- [X] T056 [P] [US2] Create public listing search and detail API integration tests including search rate limits in `backend/tests/integration/test_public_listing_api.py`
+- [X] T057 [P] [US2] Create saved listings and comparison API integration tests in `backend/tests/integration/test_user_listing_actions_api.py`
+- [X] T058 [P] [US2] Create inquiry and viewing booking API integration tests including rate limits in `backend/tests/integration/test_user_inquiry_viewing_api.py`
+- [X] T059 [P] [US2] Create user ownership isolation tests for saved listings, comparison sessions, inquiries, and viewing detail access in `backend/tests/rbac/test_user_owned_domain_isolation.py`
 
 ### Implementation for User Story 2
 
@@ -158,14 +158,14 @@
 
 ### Tests for User Story 3
 
-- [ ] T082 [P] [US3] Create agency lead status and review service unit tests in `backend/tests/unit/test_agency_lead_service.py`
-- [ ] T083 [P] [US3] Create scheduled viewing status transition unit tests in `backend/tests/unit/test_scheduled_viewing_status_service.py`
-- [ ] T084 [P] [US3] Create notification access and state service unit tests in `backend/tests/unit/test_notification_domain_service.py`
-- [ ] T085 [P] [US3] Create agency lead API integration tests in `backend/tests/integration/test_agency_lead_api.py`
-- [ ] T086 [P] [US3] Create agency viewing API integration tests in `backend/tests/integration/test_agency_viewing_api.py`
-- [ ] T087 [P] [US3] Create notification, search-log, and domain-log API integration tests in `backend/tests/integration/test_notification_domain_api.py` and `backend/tests/integration/test_operational_logs_api.py`
-- [ ] T088 [P] [US3] Create lead, viewing, notification, search log, and domain log tenant isolation tests in `backend/tests/rbac/test_operational_tenant_isolation.py`
-- [ ] T089 [P] [US3] Create domain event log, search log list, and scheduled viewing detail integration tests in `backend/tests/integration/test_domain_event_logs.py` and `backend/tests/integration/test_viewing_detail_api.py`
+- [X] T082 [P] [US3] Create agency lead status and review service unit tests in `backend/tests/unit/test_agency_lead_service.py`
+- [X] T083 [P] [US3] Create scheduled viewing status transition unit tests in `backend/tests/unit/test_scheduled_viewing_status_service.py`
+- [X] T084 [P] [US3] Create notification access and state service unit tests in `backend/tests/unit/test_notification_domain_service.py`
+- [X] T085 [P] [US3] Create agency lead API integration tests in `backend/tests/integration/test_agency_lead_api.py`
+- [X] T086 [P] [US3] Create agency viewing API integration tests in `backend/tests/integration/test_agency_viewing_api.py`
+- [X] T087 [P] [US3] Create notification, search-log, and domain-log API integration tests in `backend/tests/integration/test_notification_domain_api.py` and `backend/tests/integration/test_operational_logs_api.py`
+- [X] T088 [P] [US3] Create lead, viewing, notification, search log, and domain log tenant isolation tests in `backend/tests/rbac/test_operational_tenant_isolation.py`
+- [X] T089 [P] [US3] Create domain event log, search log list, and scheduled viewing detail integration tests in `backend/tests/integration/test_domain_event_logs.py` and `backend/tests/integration/test_viewing_detail_api.py`
 
 ### Implementation for User Story 3
 

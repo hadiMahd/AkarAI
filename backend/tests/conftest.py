@@ -8,6 +8,24 @@ import pytest
 
 os.environ["APP_ENV"] = "testing"
 
+from app.auth.models import Role, Permission, RolePermission
+from app.users.models import User
+from app.agencies.models import AgencyTenant, AgencyEmployeeMembership
+from app.listings.models import Listing
+from app.leads.models import Lead, ReviewedLeadRecord
+from app.viewings.models import ListingViewingSlot, ScheduledViewing, ScheduledViewingStatusHistory
+from app.notifications.models import Notification
+from app.search.models import SearchLog
+from app.common.events import DomainEventLog, OutboxEvent, InboxEvent
+
+
+@pytest.fixture(autouse=True)
+async def clear_rate_limits():
+    from app.common.redis import redis_scan_delete
+    await redis_scan_delete("ratelimit:*")
+    yield
+    await redis_scan_delete("ratelimit:*")
+
 
 @pytest.fixture(scope="session")
 def event_loop():
