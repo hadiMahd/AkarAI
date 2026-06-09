@@ -111,15 +111,15 @@
 
 ### Tests for User Story 2
 
-- [ ] T051 [P] [US2] Create public listing search filter, sort, rate-limit, and cache invalidation unit tests in `backend/tests/unit/test_listing_search_service.py`
-- [ ] T052 [P] [US2] Create saved listing service unit tests for duplicate prevention and ownership in `backend/tests/unit/test_saved_listing_service.py`
-- [ ] T053 [P] [US2] Create comparison service unit tests for four-item limit and ownership in `backend/tests/unit/test_comparison_service.py`
-- [ ] T054 [P] [US2] Create user inquiry lead creation service unit tests in `backend/tests/unit/test_user_inquiry_service.py`
-- [ ] T055 [P] [US2] Create viewing booking transaction and rate-limit tests for atomic viewing and initial history creation in `backend/tests/integration/test_viewing_booking_transaction.py`
-- [ ] T056 [P] [US2] Create public listing search and detail API integration tests including search rate limits in `backend/tests/integration/test_public_listing_api.py`
-- [ ] T057 [P] [US2] Create saved listings and comparison API integration tests in `backend/tests/integration/test_user_listing_actions_api.py`
-- [ ] T058 [P] [US2] Create inquiry and viewing booking API integration tests including rate limits in `backend/tests/integration/test_user_inquiry_viewing_api.py`
-- [ ] T059 [P] [US2] Create user ownership isolation tests for saved listings, comparison sessions, inquiries, and viewing detail access in `backend/tests/rbac/test_user_owned_domain_isolation.py`
+- [X] T051 [P] [US2] Create public listing search filter, sort, rate-limit, and cache invalidation unit tests in `backend/tests/unit/test_listing_search_service.py`
+- [X] T052 [P] [US2] Create saved listing service unit tests for duplicate prevention and ownership in `backend/tests/unit/test_saved_listing_service.py`
+- [X] T053 [P] [US2] Create comparison service unit tests for four-item limit and ownership in `backend/tests/unit/test_comparison_service.py`
+- [X] T054 [P] [US2] Create user inquiry lead creation service unit tests in `backend/tests/unit/test_user_inquiry_service.py`
+- [X] T055 [P] [US2] Create viewing booking transaction and rate-limit tests for atomic viewing and initial history creation in `backend/tests/integration/test_viewing_booking_transaction.py`
+- [X] T056 [P] [US2] Create public listing search and detail API integration tests including search rate limits in `backend/tests/integration/test_public_listing_api.py`
+- [X] T057 [P] [US2] Create saved listings and comparison API integration tests in `backend/tests/integration/test_user_listing_actions_api.py`
+- [X] T058 [P] [US2] Create inquiry and viewing booking API integration tests including rate limits in `backend/tests/integration/test_user_inquiry_viewing_api.py`
+- [X] T059 [P] [US2] Create user ownership isolation tests for saved listings, comparison sessions, inquiries, and viewing detail access in `backend/tests/rbac/test_user_owned_domain_isolation.py`
 
 ### Implementation for User Story 2
 
