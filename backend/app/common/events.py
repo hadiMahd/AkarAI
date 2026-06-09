@@ -3,11 +3,8 @@ from datetime import datetime, timezone
 
 from sqlalchemy import Column, DateTime, Integer, JSON, String, Text, select, update
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import declarative_base
 
-from app.common.database import async_session_factory
-
-Base = declarative_base()
+from app.common.database import Base, async_session_factory
 
 # Event status constants
 OUTBOX_PENDING = "pending"

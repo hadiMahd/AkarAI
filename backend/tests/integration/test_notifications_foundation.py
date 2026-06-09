@@ -1,5 +1,6 @@
 import pytest
 
+import app.users.models  # noqa: F401  # ensure users table is registered for FK resolution
 from app.common.database import async_session_factory
 from app.notifications.models import Notification
 from app.notifications.repository import NotificationRepository

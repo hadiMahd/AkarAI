@@ -3,9 +3,8 @@ from datetime import datetime
 
 from sqlalchemy import Column, DateTime, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import declarative_base
 
-Base = declarative_base()
+from app.common.database import Base
 
 
 class Role(Base):

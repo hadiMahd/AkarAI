@@ -2,6 +2,7 @@ import uuid
 
 import pytest
 
+import app.users.models  # noqa: F401  # ensure users table is registered for FK resolution
 from app.audit.models import AuditLog
 from app.audit.repository import AuditLogRepository
 from app.audit.service import AuditService

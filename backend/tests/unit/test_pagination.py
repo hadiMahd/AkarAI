@@ -41,10 +41,10 @@ class TestPaginationResult:
     def test_has_previous(self):
         p = PaginationRequest(page=2, page_size=10)
         result = PaginationResult(items=list(range(10)), total=25, pagination=p)
-        assert result.has_next is False
+        assert result.has_next is True
         assert result.has_previous is True
 
-    def test_no_next_on_exact_fit(self):
+    def test_no_next_on_last_page(self):
         p = PaginationRequest(page=1, page_size=10)
         result = PaginationResult(items=list(range(10)), total=10, pagination=p)
         assert result.has_next is False

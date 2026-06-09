@@ -1,3 +1,4 @@
+import asyncio
 import time
 
 from fastapi import APIRouter, Request
@@ -17,10 +18,14 @@ def _timestamp() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _timed_check(name: str, fn) -> dict:
+async def _timed_check(name: str, fn) -> dict:
     started = time.monotonic()
     try:
-        passed = fn()
+        result = fn()
+        if asyncio.iscoroutine(result):
+            passed = await result
+        else:
+            passed = result
         status = "passed" if passed else "failed"
     except Exception:
         status = "failed"
@@ -45,10 +50,10 @@ async def health(request: Request) -> dict:
 @router.get("/ready")
 async def ready(request: Request) -> JSONResponse:
     checks = {
-        "postgres_via_proxy": _timed_check("postgres_via_proxy", check_database_connectivity),
-        "pgvector_enabled": _timed_check("pgvector_enabled", check_pgvector_enabled),
-        "redis": _timed_check("redis", check_redis_connectivity),
-        "object_storage": _timed_check(
+        "postgres_via_proxy": await _timed_check("postgres_via_proxy", check_database_connectivity),
+        "pgvector_enabled": await _timed_check("pgvector_enabled", check_pgvector_enabled),
+        "redis": await _timed_check("redis", check_redis_connectivity),
+        "object_storage": await _timed_check(
             "object_storage",
             lambda: (
                 check_minio_connectivity()
@@ -75,10 +80,10 @@ async def ready(request: Request) -> JSONResponse:
 @router.get("/health/dependencies")
 async def health_dependencies(request: Request) -> JSONResponse:
     dependencies = {
-        "postgres": _timed_check("postgres", check_database_connectivity),
-        "pgvector": _timed_check("pgvector", check_pgvector_enabled),
-        "redis": _timed_check("redis", check_redis_connectivity),
-        "minio": _timed_check("minio", check_minio_connectivity),
+        "postgres": await _timed_check("postgres", check_database_connectivity),
+        "pgvector": await _timed_check("pgvector", check_pgvector_enabled),
+        "redis": await _timed_check("redis", check_redis_connectivity),
+        "minio": await _timed_check("minio", check_minio_connectivity),
     }
 
     all_passed = all(d["status"] == "passed" for d in dependencies.values())

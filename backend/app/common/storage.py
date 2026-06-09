@@ -71,8 +71,9 @@ def delete_object(bucket: str, object_path: str) -> None:
 
 
 def presigned_get_url(bucket: str, object_path: str, expires_seconds: int = 3600) -> str:
+    from datetime import timedelta
     client = get_minio()
-    return client.presigned_get_object(bucket_name=bucket, object_name=object_path, expires=expires_seconds)
+    return client.presigned_get_object(bucket_name=bucket, object_name=object_path, expires=timedelta(seconds=expires_seconds))
 
 
 def ensure_bucket_exists(bucket_name: str) -> None:

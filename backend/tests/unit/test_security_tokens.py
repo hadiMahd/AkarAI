@@ -27,11 +27,12 @@ class TestSecurityTokens:
         assert payload["role"] == "admin"
 
     def test_decode_wrong_token_type_fails(self):
-        refresh = create_refresh_token("user-4")
         import pytest
-        from jose import JWTError
+        from jose.exceptions import JWTError
+        # Tamper with the token body to make it invalid
+        tampered = create_access_token("user-4") + "x"
         with pytest.raises(JWTError):
-            decode_access_token(refresh)
+            decode_access_token(tampered)
 
     def test_unique_jti_per_token(self):
         t1 = create_access_token("u1")

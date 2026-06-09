@@ -3,9 +3,8 @@ from datetime import datetime
 
 from sqlalchemy import Column, DateTime, ForeignKey, JSON, String, Text
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import declarative_base
 
-Base = declarative_base()
+from app.common.database import Base
 
 
 class AuditLog(Base):
@@ -19,7 +18,7 @@ class AuditLog(Base):
     resource_type = Column(String(64), nullable=True)
     resource_id = Column(String(64), nullable=True)
     result = Column(String(16), nullable=True)
-    metadata = Column(JSON, nullable=True)
+    event_metadata = Column("metadata", JSON, nullable=True)
     ip_address = Column(String(64), nullable=True)
     user_agent = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
