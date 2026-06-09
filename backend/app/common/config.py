@@ -1,5 +1,6 @@
 from typing import Optional
 
+import hvac
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
 
@@ -35,9 +36,9 @@ class Settings(BaseSettings):
     vault_addr: str = "http://vault:8200"
     vault_token: str = "root"
 
-    # JWT (Phase 2 foundation; secrets must come from Vault in production)
-    jwt_access_secret: str = "hadi-jihad-sika-bika-shiko"
-    jwt_refresh_secret: str = "amrikashikabika"
+    # JWT (secrets loaded from Vault at startup via configure_secrets())
+    jwt_access_secret: str = ""
+    jwt_refresh_secret: str = ""
     jwt_access_ttl_minutes: int = 15
     jwt_refresh_ttl_days: int = 7
     jwt_algorithm: str = "HS256"
@@ -73,3 +74,47 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def _get_vault_client():
+    return hvac.Client(url=settings.vault_addr, token=settings.vault_token)
+
+
+def check_vault_health() -> bool:
+    try:
+        client = _get_vault_client()
+        return client.sys.is_initialized() and not client.sys.is_sealed()
+    except Exception:
+        return False
+
+
+def configure_secrets(target=None) -> None:
+    s = target if target is not None else settings
+    if s.app_env == "testing":
+        s.jwt_access_secret = "test-access-secret-for-unit-tests"
+        s.jwt_refresh_secret = "test-refresh-secret-for-unit-tests"
+        return
+
+    client = hvac.Client(url=s.vault_addr, token=s.vault_token)
+    try:
+        initialized = client.sys.is_initialized()
+        sealed = client.sys.is_sealed()
+    except Exception as e:
+        raise RuntimeError(f"Vault is unreachable at {s.vault_addr}: {e}") from e
+
+    if not initialized:
+        raise RuntimeError("Vault is not initialized — cannot load secrets")
+    if sealed:
+        raise RuntimeError("Vault is sealed — cannot load secrets")
+
+    try:
+        secret = client.secrets.kv.v2.read_secret_version(
+            path="jwt", mount_point="akarai"
+        )
+        data = secret["data"]["data"]
+        s.jwt_access_secret = data["access_secret"]
+        s.jwt_refresh_secret = data["refresh_secret"]
+    except hvac.exceptions.InvalidPath:
+        raise RuntimeError("Vault secret akarai/jwt not found — has vault-init run?") from None
+    except Exception as e:
+        raise RuntimeError(f"Failed to read secret akarai/jwt from Vault: {e}") from e

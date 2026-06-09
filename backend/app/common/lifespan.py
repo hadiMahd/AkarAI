@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.common.config import settings
+from app.common.config import configure_secrets, settings
 from app.common.database import engine
 from app.common.logging import setup_logging
 from app.common.redis import close_redis, get_redis
@@ -25,6 +25,12 @@ async def lifespan(app: FastAPI):
             settings.app_env,
             settings.app_debug,
         )
+        try:
+            configure_secrets()
+            logger.info("Secrets loaded from Vault")
+        except RuntimeError as e:
+            logger.critical("Startup aborted: %s", e)
+            raise
         _initialised = True
 
     try:

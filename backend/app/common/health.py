@@ -4,7 +4,7 @@ import time
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-from app.common.config import settings
+from app.common.config import check_vault_health, settings
 from app.common.database import check_database_connectivity, check_pgvector_enabled
 from app.common.request_id import get_request_id
 from app.common.redis import check_redis_connectivity
@@ -46,6 +46,7 @@ async def health(request: Request) -> dict:
 @router.get("/ready")
 async def ready(request: Request) -> JSONResponse:
     checks = {
+        "vault": await _timed_check("vault", check_vault_health),
         "postgres_via_proxy": await _timed_check("postgres_via_proxy", check_database_connectivity),
         "pgvector_enabled": await _timed_check("pgvector_enabled", check_pgvector_enabled),
         "redis": await _timed_check("redis", check_redis_connectivity),
@@ -76,6 +77,7 @@ async def ready(request: Request) -> JSONResponse:
 @router.get("/health/dependencies")
 async def health_dependencies(request: Request) -> JSONResponse:
     dependencies = {
+        "vault": await _timed_check("vault", check_vault_health),
         "postgres": await _timed_check("postgres", check_database_connectivity),
         "pgvector": await _timed_check("pgvector", check_pgvector_enabled),
         "redis": await _timed_check("redis", check_redis_connectivity),
