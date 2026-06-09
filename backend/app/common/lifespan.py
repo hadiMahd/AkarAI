@@ -3,23 +3,41 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.common.config import settings
+from app.common.config import configure_secrets, settings
 from app.common.database import engine
 from app.common.logging import setup_logging
 from app.common.redis import close_redis, get_redis
 
+_initialised = False
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global _initialised
+
     setup_logging()
     logger = logging.getLogger(__name__)
-    logger.info(f"Starting {settings.project_name} (env={settings.app_env})")
+
+    if not _initialised:
+        logger.info(
+            "Starting %s (env=%s, debug=%s)",
+            settings.project_name,
+            settings.app_env,
+            settings.app_debug,
+        )
+        try:
+            configure_secrets()
+            logger.info("Secrets loaded from Vault")
+        except RuntimeError as e:
+            logger.critical("Startup aborted: %s", e)
+            raise
+        _initialised = True
 
     try:
         await get_redis()
         logger.info("Redis connected")
     except Exception as e:
-        logger.warning(f"Redis not available at startup: {e}")
+        logger.warning("Redis not available at startup: %s", e)
 
     yield
 

@@ -1,22 +1,24 @@
+from typing import Optional
+
 from redis.asyncio import Redis
 
 from app.common.config import settings
 
-redis_client: Redis | None = None
+_redis_client: Optional[Redis] = None
 
 
 async def get_redis() -> Redis:
-    global redis_client
-    if redis_client is None:
-        redis_client = Redis.from_url(settings.redis_url, decode_responses=True)
-    return redis_client
+    global _redis_client
+    if _redis_client is None:
+        _redis_client = Redis.from_url(settings.redis_url, decode_responses=True)
+    return _redis_client
 
 
 async def close_redis() -> None:
-    global redis_client
-    if redis_client is not None:
-        await redis_client.close()
-        redis_client = None
+    global _redis_client
+    if _redis_client is not None:
+        await _redis_client.close()
+        _redis_client = None
 
 
 async def check_redis_connectivity() -> bool:
@@ -25,3 +27,23 @@ async def check_redis_connectivity() -> bool:
         return await client.ping()
     except Exception:
         return False
+
+
+async def redis_set(key: str, value: str, ttl: Optional[int] = None) -> None:
+    client = await get_redis()
+    await client.set(key, value, ex=ttl)
+
+
+async def redis_get(key: str) -> Optional[str]:
+    client = await get_redis()
+    return await client.get(key)
+
+
+async def redis_delete(key: str) -> None:
+    client = await get_redis()
+    await client.delete(key)
+
+
+async def redis_exists(key: str) -> bool:
+    client = await get_redis()
+    return await client.exists(key) > 0

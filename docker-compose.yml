@@ -101,6 +101,39 @@ services:
         condition: service_healthy
     restart: "no"
 
+  # ── Vault (secret store for local dev) ─────────────────────────────
+
+  vault:
+    image: hashicorp/vault:latest
+    container_name: akarai-vault
+    entrypoint: vault
+    command: server -dev -dev-root-token-id=root -dev-listen-address=0.0.0.0:8200
+    ports:
+      - "8200:8200"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "vault", "status", "-address=http://127.0.0.1:8200"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  vault-init:
+    build:
+      context: ./vault
+      dockerfile: Dockerfile
+    container_name: akarai-vault-init
+    volumes:
+      - ./.env:/.env:ro
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: root
+      DOTENV_PATH: /.env
+    depends_on:
+      vault:
+        condition: service_healthy
+    restart: "no"
+
   # ── Application Services ────────────────────────────────────────────
 
   backend:
@@ -137,6 +170,8 @@ services:
       minio:
         condition: service_healthy
       minio-bootstrap:
+        condition: service_completed_successfully
+      vault-init:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -217,21 +252,12 @@ services:
       APP_ENV: development
       APP_DEBUG: "true"
       DATABASE_URL: postgresql+asyncpg://akarai:akarai@pgbouncer:6432/akarai
-      REDIS_URL: redis://redis:6379/0
-      MINIO_ENDPOINT: minio:9000
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-      MINIO_SECURE: "false"
     restart: unless-stopped
     depends_on:
       pgbouncer:
         condition: service_healthy
-      redis:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import redis; r=redis.from_url('redis://redis:6379/0'); r.ping()"]
+      test: ["CMD", "python", "healthcheck.py"]
       interval: 15s
       timeout: 5s
       retries: 3

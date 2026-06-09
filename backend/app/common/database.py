@@ -1,10 +1,13 @@
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import declarative_base
 
 from app.common.config import settings
 
+Base = declarative_base()
+
 engine = create_async_engine(
-    settings.database_url,
+    settings.pgbouncer_database_url,
     echo=settings.app_debug,
     pool_size=20,
     max_overflow=10,
@@ -39,9 +42,9 @@ async def check_pgvector_enabled() -> bool:
     try:
         async with async_session_factory() as session:
             result = await session.execute(
-                text("SELECT installed_version FROM pg_available_extensions WHERE name = 'vector'")
+                text("SELECT extname FROM pg_extension WHERE extname = 'vector'")
             )
             row = result.fetchone()
-            return row is not None and row[0] is not None
+            return row is not None
     except Exception:
         return False

@@ -1,0 +1,111 @@
+openapi: 3.1.0
+info:
+  title: Akarai Backend Foundation API
+  version: 0.2.0
+  description: Phase 2 foundation contract for health, dependency readiness, and system diagnostics only.
+servers:
+  - url: http://localhost:8000
+tags:
+  - name: System
+paths:
+  /health:
+    get:
+      tags: [System]
+      summary: Runtime health check
+      description: Returns process-level backend health with request correlation.
+      security: []
+      responses:
+        "200":
+          description: Backend process is healthy.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+  /ready:
+    get:
+      tags: [System]
+      summary: Dependency readiness check
+      description: Returns readiness across required backing services with timing and timestamps.
+      security: []
+      responses:
+        "200":
+          description: Backend and required dependencies are ready.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessResponse"
+        "503":
+          description: One or more required dependencies are unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessResponse"
+  /health/dependencies:
+    get:
+      tags: [System]
+      summary: Detailed dependency health check
+      description: Returns named dependency checks with latency and timestamps.
+      security: []
+      responses:
+        "200":
+          description: Dependency status returned (ok or degraded).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DependencyHealthResponse"
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status, service, request_id]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        service:
+          type: string
+          example: backend
+        request_id:
+          type: string
+    ReadinessResponse:
+      type: object
+      required: [status, checks, request_id]
+      properties:
+        status:
+          type: string
+          enum: [ready, not_ready]
+        request_id:
+          type: string
+        checks:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/DependencyCheck"
+    DependencyHealthResponse:
+      type: object
+      required: [status, dependencies, request_id]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        request_id:
+          type: string
+        dependencies:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/DependencyCheck"
+    DependencyCheck:
+      type: object
+      required: [status, latency_ms, checked_at]
+      properties:
+        status:
+          type: string
+          enum: [passed, failed]
+        message:
+          type:
+            - string
+            - "null"
+        latency_ms:
+          type: number
+        checked_at:
+          type: string
+          format: date-time

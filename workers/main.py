@@ -1,10 +1,18 @@
+"""AkarAI Worker — DB outbox polling, job registry, event dispatch.
+
+Phase 2: Replaces Redis polling with database outbox_events polling.
+No business handlers — foundation.test is the only registered handler.
+"""
+
+from __future__ import annotations
+
+import asyncio
 import logging
 import os
 import signal
-import sys
-import time
+from typing import Callable
 
-import redis
+import asyncpg
 
 logging.basicConfig(
     level=logging.INFO,
@@ -12,27 +20,31 @@ logging.basicConfig(
 )
 logger = logging.getLogger("worker")
 
-redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://akarai:akarai@pgbouncer:6432/akarai")
+PG_URL = DATABASE_URL.replace("+asyncpg", "")
+
 shutdown_flag = False
 
 
-def handle_signal(signum: int, _frame) -> None:
+def _handle_signal() -> None:
     global shutdown_flag
-    logger.info(f"Received signal {signum}, shutting down gracefully...")
+    logger.info("Received shutdown signal — draining...")
     shutdown_flag = True
 
 
-signal.signal(signal.SIGTERM, handle_signal)
-signal.signal(signal.SIGINT, handle_signal)
+for _sig in (signal.SIGTERM, signal.SIGINT):
+    try:
+        signal.signal(_sig, lambda s, f: _handle_signal())
+    except Exception:
+        pass
 
-JOBS = {}
+JOBS: dict[str, Callable] = {}
 
 
 def register_job(name: str):
     def decorator(fn):
         JOBS[name] = fn
         return fn
-
     return decorator
 
 
@@ -46,21 +58,51 @@ def health_job() -> dict:
     return {"status": "ok", "worker": "akarai-worker", "jobs": list(JOBS.keys())}
 
 
-def main():
-    logger.info("AkarAI Worker starting...")
+EVENT_HANDLERS: dict[str, Callable] = {}
+
+
+def register_event_handler(event_name: str):
+    def decorator(fn):
+        EVENT_HANDLERS[event_name] = fn
+        return fn
+    return decorator
+
+
+@register_event_handler("foundation.test")
+def _foundation_test_handler(payload: dict) -> None:
+    logger.info("foundation.test handler invoked with payload: %s", payload)
+
+
+async def _poll_loop() -> None:
+    from outbox import claim_and_dispatch
+
+    conn = await asyncpg.connect(PG_URL, statement_cache_size=0)
+    logger.info("Connected to database for outbox polling")
 
     try:
-        r = redis.from_url(redis_url, socket_connect_timeout=5)
-        r.ping()
-        logger.info("Connected to Redis")
-    except Exception as e:
-        logger.error(f"Failed to connect to Redis: {e}")
-        sys.exit(1)
+        while not shutdown_flag:
+            try:
+                processed = await claim_and_dispatch(conn, EVENT_HANDLERS)
+                if not processed:
+                    await asyncio.sleep(1)
+            except Exception:
+                logger.exception("Unexpected polling error — retrying in 5s")
+                await asyncio.sleep(5)
+    finally:
+        await conn.close()
+        logger.info("Database connection closed")
 
-    logger.info(f"Registered jobs: {list(JOBS.keys())}")
 
-    while not shutdown_flag:
-        time.sleep(1)
+def main() -> None:
+    logger.info("AkarAI Worker starting (DB outbox mode)")
+    logger.info("Database URL: %s", DATABASE_URL)
+    logger.info("Registered jobs: %s", list(JOBS.keys()))
+    logger.info("Registered handlers: %s", list(EVENT_HANDLERS.keys()))
+
+    try:
+        asyncio.run(_poll_loop())
+    except KeyboardInterrupt:
+        pass
 
     logger.info("Worker stopped")
 
