@@ -158,14 +158,14 @@
 
 ### Tests for User Story 3
 
-- [ ] T082 [P] [US3] Create agency lead status and review service unit tests in `backend/tests/unit/test_agency_lead_service.py`
-- [ ] T083 [P] [US3] Create scheduled viewing status transition unit tests in `backend/tests/unit/test_scheduled_viewing_status_service.py`
-- [ ] T084 [P] [US3] Create notification access and state service unit tests in `backend/tests/unit/test_notification_domain_service.py`
-- [ ] T085 [P] [US3] Create agency lead API integration tests in `backend/tests/integration/test_agency_lead_api.py`
-- [ ] T086 [P] [US3] Create agency viewing API integration tests in `backend/tests/integration/test_agency_viewing_api.py`
-- [ ] T087 [P] [US3] Create notification, search-log, and domain-log API integration tests in `backend/tests/integration/test_notification_domain_api.py` and `backend/tests/integration/test_operational_logs_api.py`
-- [ ] T088 [P] [US3] Create lead, viewing, notification, search log, and domain log tenant isolation tests in `backend/tests/rbac/test_operational_tenant_isolation.py`
-- [ ] T089 [P] [US3] Create domain event log, search log list, and scheduled viewing detail integration tests in `backend/tests/integration/test_domain_event_logs.py` and `backend/tests/integration/test_viewing_detail_api.py`
+- [X] T082 [P] [US3] Create agency lead status and review service unit tests in `backend/tests/unit/test_agency_lead_service.py`
+- [X] T083 [P] [US3] Create scheduled viewing status transition unit tests in `backend/tests/unit/test_scheduled_viewing_status_service.py`
+- [X] T084 [P] [US3] Create notification access and state service unit tests in `backend/tests/unit/test_notification_domain_service.py`
+- [X] T085 [P] [US3] Create agency lead API integration tests in `backend/tests/integration/test_agency_lead_api.py`
+- [X] T086 [P] [US3] Create agency viewing API integration tests in `backend/tests/integration/test_agency_viewing_api.py`
+- [X] T087 [P] [US3] Create notification, search-log, and domain-log API integration tests in `backend/tests/integration/test_notification_domain_api.py` and `backend/tests/integration/test_operational_logs_api.py`
+- [X] T088 [P] [US3] Create lead, viewing, notification, search log, and domain log tenant isolation tests in `backend/tests/rbac/test_operational_tenant_isolation.py`
+- [X] T089 [P] [US3] Create domain event log, search log list, and scheduled viewing detail integration tests in `backend/tests/integration/test_domain_event_logs.py` and `backend/tests/integration/test_viewing_detail_api.py`
 
 ### Implementation for User Story 3
 
