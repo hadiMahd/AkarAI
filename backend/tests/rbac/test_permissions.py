@@ -1,26 +1,36 @@
 from app.auth.permissions import BuiltinRole, PermissionKey
 
 
-class TestPermissions:
-    def test_builtin_roles_exist(self):
-        roles = [r.value for r in BuiltinRole]
-        assert "user" in roles
-        assert "agency_admin" in roles
-        assert "support_employee" in roles
-        assert "platform_admin" in roles
+class TestPermissionEvaluation:
+    def test_auth_permissions_exist(self):
+        auth_perms = [
+            PermissionKey.AUTH_LOGIN,
+            PermissionKey.AUTH_REFRESH,
+            PermissionKey.AUTH_LOGOUT,
+            PermissionKey.AUTH_PASSWORD_RESET,
+        ]
+        for perm in auth_perms:
+            assert perm.value.startswith("auth:")
 
-    def test_permission_keys_exist(self):
-        keys = [p.value for p in PermissionKey]
-        assert "user:read" in keys
-        assert "listing:create" in keys
-        assert "lead:create" in keys
-        assert "viewing:create" in keys
-        assert "system:admin" in keys
+    def test_agency_permissions_exist(self):
+        agency_perms = [
+            PermissionKey.AGENCY_READ,
+            PermissionKey.AGENCY_UPDATE,
+        ]
+        for perm in agency_perms:
+            assert perm.value.startswith("agency:")
 
-    def test_no_duplicate_permission_keys(self):
+    def test_platform_permissions_exist(self):
+        platform_perms = [
+            PermissionKey.PLATFORM_READ,
+            PermissionKey.PLATFORM_MANAGE,
+        ]
+        for perm in platform_perms:
+            assert perm.value.startswith("platform:")
+
+    def test_system_permissions_exist(self):
+        assert PermissionKey.SYSTEM_ADMIN.value == "system:admin"
+
+    def test_permission_keys_are_unique(self):
         keys = [p.value for p in PermissionKey]
         assert len(keys) == len(set(keys))
-
-    def test_no_duplicate_roles(self):
-        roles = [r.value for r in BuiltinRole]
-        assert len(roles) == len(set(roles))

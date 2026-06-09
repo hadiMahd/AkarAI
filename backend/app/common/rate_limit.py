@@ -12,7 +12,6 @@ async def check_rate_limit(
     max_requests: int | None = None,
     window_seconds: int | None = None,
 ) -> bool:
-    """Returns True if request is allowed, False if rate limit exceeded."""
     max_req = max_requests or settings.rate_limit_default_max_requests
     window = window_seconds or settings.rate_limit_default_window_seconds
 
@@ -27,6 +26,28 @@ async def check_rate_limit(
     if count >= max_req:
         return False
 
-    # Increment without resetting TTL (approximate; production needs Lua)
     await redis_set(key, str(count + 1), ttl=window)
     return True
+
+
+AUTH_RATE_LIMITS = {
+    "login": {"max_requests": 10, "window_seconds": 300},
+    "refresh": {"max_requests": 30, "window_seconds": 300},
+    "logout": {"max_requests": 30, "window_seconds": 300},
+    "password_reset": {"max_requests": 5, "window_seconds": 600},
+    "session_revoke": {"max_requests": 20, "window_seconds": 300},
+    "employee_deactivate": {"max_requests": 10, "window_seconds": 300},
+}
+
+
+async def check_auth_rate_limit(
+    action: str,
+    identifier: str,
+) -> bool:
+    limits = AUTH_RATE_LIMITS.get(action, {"max_requests": 30, "window_seconds": 300})
+    return await check_rate_limit(
+        key_type=f"auth:{action}",
+        identifier=identifier,
+        max_requests=limits["max_requests"],
+        window_seconds=limits["window_seconds"],
+    )
