@@ -1,9 +1,11 @@
 """Healthcheck script for the worker container. Exits 0 if DB reachable."""
 
 import asyncio
+import os
+
 import asyncpg
 
-DB_URL = "postgresql://akarai:akarai@pgbouncer:6432/akarai"
+DB_URL = os.getenv("DATABASE_URL").replace("+asyncpg", "")
 
 
 async def _check() -> None:
