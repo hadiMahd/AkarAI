@@ -1,6 +1,7 @@
 import pytest
+from uuid import uuid4
 
-import app.users.models  # noqa: F401  # ensure users table is registered for FK resolution
+import app.users.models  # noqa: F401
 from app.common.database import async_session_factory
 from app.notifications.models import Notification
 from app.notifications.repository import NotificationRepository
@@ -11,16 +12,13 @@ class TestNotificationsFoundation:
     @pytest.mark.integration
     async def test_create_notification(self):
         async with async_session_factory() as session:
-            repo = NotificationRepository(session)
-            service = NotificationService(repo)
+            svc = NotificationService(session)
 
-            notif = Notification(
-                channel="email",
-                template_key="welcome",
-                payload={"message": "hello"},
-                status="pending",
-            )
-            created = await service.create_notification(notif)
+            created = await svc.create_notification({
+                "channel": "email",
+                "template_key": "welcome",
+                "payload": {"message": "hello"},
+            })
             assert created.id is not None
             assert created.channel == "email"
             await session.rollback()
@@ -28,10 +26,12 @@ class TestNotificationsFoundation:
     @pytest.mark.integration
     async def test_notification_persists(self):
         async with async_session_factory() as session:
-            repo = NotificationRepository(session)
-            service = NotificationService(repo)
-            notif = Notification(channel="system", template_key="test", payload={}, status="pending")
-            created = await service.create_notification(notif)
+            svc = NotificationService(session)
+            created = await svc.create_notification({
+                "channel": "system",
+                "template_key": "test",
+                "payload": {},
+            })
             await session.commit()
 
             from sqlalchemy import select

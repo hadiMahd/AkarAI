@@ -32,3 +32,22 @@ class AgencyEmployeeMembership(Base):
     deactivation_reason = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class AgencyProfile(Base):
+    __tablename__ = "agency_profiles"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    agency_tenant_id = Column(UUID(as_uuid=True), ForeignKey("agency_tenants.id"), nullable=False)
+    display_name = Column(String(255), nullable=False)
+    legal_name = Column(String(255), nullable=True)
+    description = Column(Text, nullable=True)
+    phone = Column(String(64), nullable=True)
+    email = Column(String(255), nullable=True)
+    website_url = Column(String(512), nullable=True)
+    address = Column(Text, nullable=True)
+    city = Column(String(128), nullable=True)
+    country = Column(String(128), nullable=True)
+    status = Column(String(16), default="active", nullable=False)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

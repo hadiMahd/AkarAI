@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, DateTime, Integer, JSON, String, Text, select, update
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, JSON, String, Text, select, update
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.common.database import Base, async_session_factory
@@ -98,3 +98,37 @@ async def record_inbox_event(
         await session.commit()
         await session.refresh(inbox)
         return inbox
+
+
+class DomainEventLog(Base):
+    __tablename__ = "domain_event_logs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    agency_tenant_id = Column(UUID(as_uuid=True), ForeignKey("agency_tenants.id", ondelete="SET NULL"), nullable=True)
+    actor_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    event_name = Column(String(128), nullable=False)
+    aggregate_type = Column(String(64), nullable=True)
+    aggregate_id = Column(String(64), nullable=True)
+    payload = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc), nullable=False)
+
+
+async def write_domain_event_log(
+    session,
+    event_name: str,
+    aggregate_type: str | None = None,
+    aggregate_id: str | None = None,
+    payload: dict | None = None,
+    agency_tenant_id=None,
+    actor_user_id=None,
+) -> DomainEventLog:
+    log = DomainEventLog(
+        event_name=event_name,
+        aggregate_type=aggregate_type,
+        aggregate_id=aggregate_id,
+        payload=payload,
+        agency_tenant_id=agency_tenant_id,
+        actor_user_id=actor_user_id,
+    )
+    session.add(log)
+    return log

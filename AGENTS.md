@@ -1,7 +1,7 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/004-auth-rbac-tenant-isolation/plan.md
+at specs/005-core-domain-crud-apis/plan.md
 <!-- SPECKIT END -->
 
 ## Architecture Rules
@@ -9,7 +9,7 @@ at specs/004-auth-rbac-tenant-isolation/plan.md
 - **No `dao.py` files**: `repository.py` is the data access layer. DAO files are forbidden.
 - Module conventions: `router.py`, `service.py`, `repository.py`, `schemas.py`, `models.py`, optional `query_service.py`.
 - See `backend/app/README.md` for full module conventions.
-- **Phase 3 auth/RBAC/tenant**: Fail-closed authorization, Vault-backed secrets only, no self-registration, minimal agency tenant records for isolation.
+- **Phase 4 core domain CRUD**: Create only non-AI domain database and CRUD foundations for agencies, listings, viewing slots, viewings, leads, saved listings, comparisons, notifications, search logs, and domain logs. No AI, RAG, media processing, OCR, email sending, dashboards, chat, spam classification, lead scoring, or generated replies.
 
 ## graphify
 

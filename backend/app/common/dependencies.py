@@ -10,26 +10,7 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
-# Conventions for Phase 2 dependency injection:
-#
-# 1. All shared dependencies live in this module or feature-specific
-#    `dependencies.py` (e.g. `backend/app/auth/dependencies.py`).
-#
-# 2. Use `fastapi.Depends` in router signatures. Example:
-#       @router.get("/items")
-#       async def list_items(
-#           db: AsyncSession = Depends(get_db_session),
-#           current_user: User = Depends(get_current_user),
-#       ):
-#
-# 3. Transaction boundary: services receive a session, not a dependency
-#    callable. Repositories receive the session from their service.
-#
-# 4. Tenant context: when tenant-aware features land, a `get_tenant_context`
-#    dependency will inject `TenantContext` from request state.
-#
-# 5. Permission checks: a `require_permission(permission)` dependency factory
-#    will guard protected endpoints.
-#
-# 6. Rate limiting: a `rate_limit(key_factory)` dependency factory will
-#    enforce per-endpoint throttling.
+def pagination_params(page: int = 1, page_size: int = 20) -> dict:
+    page = max(1, page)
+    page_size = max(1, min(page_size, 100))
+    return {"page": page, "page_size": page_size, "offset": (page - 1) * page_size, "limit": page_size}

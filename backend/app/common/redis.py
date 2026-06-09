@@ -47,3 +47,16 @@ async def redis_delete(key: str) -> None:
 async def redis_exists(key: str) -> bool:
     client = await get_redis()
     return await client.exists(key) > 0
+
+
+async def redis_scan_delete(pattern: str) -> int:
+    client = await get_redis()
+    deleted = 0
+    cursor = 0
+    while True:
+        cursor, keys = await client.scan(cursor, match=pattern, count=100)
+        if keys:
+            deleted += await client.delete(*keys)
+        if cursor == 0:
+            break
+    return deleted

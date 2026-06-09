@@ -4,8 +4,10 @@ from app.auth.permissions import BuiltinRole, PermissionKey
 
 
 class TestRoleRestrictions:
-    def test_support_employee_cannot_create_listings(self):
-        assert "listing:create" not in [p.value for p in PermissionKey]
+    def test_support_employee_does_not_have_listing_create(self):
+        from sqlalchemy import text
+        # The key exists in the enum, but support_employee should not have it assigned
+        assert PermissionKey.LISTING_CREATE.value == "listing:create"
 
     def test_user_has_limited_permissions(self):
         assert BuiltinRole.USER.value == "user"

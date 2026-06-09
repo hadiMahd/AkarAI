@@ -58,3 +58,28 @@ from app.auth.router import router as auth_router, tenant_router
 app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(tenant_router)
+
+from app.agencies.router import router as agencies_router
+from app.listings.router import (
+    router as listings_router,
+    public_router as public_listings_router,
+    saved_router as saved_listings_router,
+    comparison_router as comparison_sessions_router,
+)
+from app.viewings.router import router as viewings_router, booking_router, agency_viewings_router
+from app.leads.router import router as leads_router, agency_router as agency_leads_router
+from app.notifications.router import router as notifications_router
+from app.search.router import router as search_router
+
+app.include_router(agencies_router)
+app.include_router(listings_router)
+app.include_router(public_listings_router)
+app.include_router(saved_listings_router)
+app.include_router(comparison_sessions_router)
+app.include_router(viewings_router)
+app.include_router(booking_router)
+app.include_router(agency_viewings_router)
+app.include_router(leads_router)
+app.include_router(agency_leads_router)
+app.include_router(notifications_router)
+app.include_router(search_router)

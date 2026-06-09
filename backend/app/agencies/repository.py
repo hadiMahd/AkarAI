@@ -1,8 +1,56 @@
-from sqlalchemy import select
+from typing import Optional
+from uuid import UUID
+
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agencies.models import AgencyTenant, AgencyProfile, AgencyEmployeeMembership
 from app.common.repository import BaseRepository
-from app.agencies.models import AgencyTenant, AgencyEmployeeMembership
+from app.common.tenant import TenantContext
+
+
+class AgencyProfileRepository(BaseRepository):
+    async def get_by_tenant(self, tenant_id: UUID) -> Optional[AgencyProfile]:
+        result = await self.session.execute(
+            select(AgencyProfile).where(AgencyProfile.agency_tenant_id == tenant_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def create(self, profile: AgencyProfile) -> AgencyProfile:
+        self.session.add(profile)
+        await self.session.flush()
+        return profile
+
+
+class AgencyEmployeeRepository(BaseRepository):
+    async def list_by_tenant(
+        self, tenant_id: UUID, offset: int = 0, limit: int = 20
+    ) -> tuple[list[AgencyEmployeeMembership], int]:
+        count_q = select(func.count(AgencyEmployeeMembership.id)).where(
+            AgencyEmployeeMembership.agency_tenant_id == tenant_id
+        )
+        total = (await self.session.execute(count_q)).scalar() or 0
+
+        q = (
+            select(AgencyEmployeeMembership)
+            .where(AgencyEmployeeMembership.agency_tenant_id == tenant_id)
+            .order_by(AgencyEmployeeMembership.created_at.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        result = await self.session.execute(q)
+        return list(result.scalars().all()), total
+
+    async def get_by_id(self, membership_id: UUID) -> Optional[AgencyEmployeeMembership]:
+        result = await self.session.execute(
+            select(AgencyEmployeeMembership).where(AgencyEmployeeMembership.id == membership_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def create(self, membership: AgencyEmployeeMembership) -> AgencyEmployeeMembership:
+        self.session.add(membership)
+        await self.session.flush()
+        return membership
 
 
 class AgenciesRepository(BaseRepository):
