@@ -70,14 +70,14 @@
 
 ### Tests for User Story 1
 
-- [ ] T026 [P] [US1] Create agency profile and employee service unit tests in `backend/tests/unit/test_agency_core_service.py`
-- [ ] T027 [P] [US1] Create listing management service unit tests for status validation and support-employee restrictions in `backend/tests/unit/test_listing_management_service.py`
-- [ ] T028 [P] [US1] Create viewing slot service unit tests for slot validation and capacity rules in `backend/tests/unit/test_viewing_slot_service.py`
-- [ ] T029 [P] [US1] Create agency profile and employee API integration tests in `backend/tests/integration/test_agency_core_api.py`
-- [ ] T030 [P] [US1] Create agency listing, photo metadata, and viewing slot API integration tests in `backend/tests/integration/test_agency_listing_api.py`
-- [ ] T031 [P] [US1] Create support employee restriction tests in `backend/tests/rbac/test_support_employee_restrictions.py`
-- [ ] T032 [P] [US1] Create agency tenant isolation tests for profile, employees, listings, photo metadata, and viewing slots in `backend/tests/rbac/test_agency_core_tenant_isolation.py`
-- [ ] T033 [P] [US1] Create agency list pagination tests in `backend/tests/integration/test_agency_core_pagination.py`
+- [X] T026 [P] [US1] Create agency profile and employee service unit tests in `backend/tests/unit/test_agency_core_service.py`
+- [X] T027 [P] [US1] Create listing management service unit tests for status validation and support-employee restrictions in `backend/tests/unit/test_listing_management_service.py`
+- [X] T028 [P] [US1] Create viewing slot service unit tests for slot validation and capacity rules in `backend/tests/unit/test_viewing_slot_service.py`
+- [X] T029 [P] [US1] Create agency profile and employee API integration tests in `backend/tests/integration/test_agency_core_api.py`
+- [X] T030 [P] [US1] Create agency listing, photo metadata, and viewing slot API integration tests in `backend/tests/integration/test_agency_listing_api.py`
+- [X] T031 [P] [US1] Create support employee restriction tests in `backend/tests/rbac/test_support_employee_restrictions.py`
+- [X] T032 [P] [US1] Create agency tenant isolation tests for profile, employees, listings, photo metadata, and viewing slots in `backend/tests/rbac/test_agency_core_tenant_isolation.py`
+- [X] T033 [P] [US1] Create agency list pagination tests in `backend/tests/integration/test_agency_core_pagination.py`
 
 ### Implementation for User Story 1
 
