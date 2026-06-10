@@ -6,7 +6,12 @@ from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import get_current_actor, get_optional_current_actor, get_tenant_context
+from app.auth.dependencies import (
+    get_current_actor,
+    get_optional_current_actor,
+    get_rls_db_session,
+    get_tenant_context,
+)
 from app.common.cache import cache_get, cache_set, LISTING_SEARCH_NAMESPACE
 from app.common.dependencies import get_db_session
 from app.common.domain import MAX_COMPARISON_ITEMS
@@ -26,7 +31,9 @@ from app.listings.schemas import (
     ListingPhotoMetadataUpdateRequest,
     ListingPhotoMetadataResponse,
     SavedListingResponse,
+    SavedListingWithDetailsResponse,
     PaginatedSavedListingsResponse,
+    PaginatedSavedListingsWithDetailsResponse,
     ComparisonSessionCreateRequest,
     ComparisonSessionUpdateRequest,
     ComparisonSessionResponse,
@@ -231,7 +238,7 @@ async def public_search_listings(
 @public_router.get("/{listing_id}", response_model=PublicListingResponse)
 async def public_get_listing(
     listing_id: UUID,
-    db: AsyncSession = Depends(get_db_session),
+    db: AsyncSession = Depends(get_rls_db_session),
 ):
     from app.listings.repository import ListingRepository
 
@@ -260,7 +267,7 @@ async def list_saved_listings(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     actor: dict = Depends(get_current_actor),
-    db: AsyncSession = Depends(get_db_session),
+    db: AsyncSession = Depends(get_rls_db_session),
 ):
     from app.listings.repository import SavedListingRepository
 
@@ -275,11 +282,45 @@ async def list_saved_listings(
     )
 
 
+@saved_router.get("/with-details", response_model=PaginatedSavedListingsWithDetailsResponse)
+async def list_saved_listings_with_details(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    actor: dict = Depends(get_current_actor),
+    db: AsyncSession = Depends(get_rls_db_session),
+):
+    from app.listings.repository import SavedListingRepository
+
+    repo = SavedListingRepository(db)
+    user_id = UUID(actor["user_id"])
+    rows, total = await repo.list_by_user_with_details(
+        user_id, offset=(page - 1) * page_size, limit=page_size,
+    )
+    items = []
+    for row in rows:
+        saved = row.saved
+        listing = row.listing
+        items.append(
+            SavedListingWithDetailsResponse(
+                id=saved.id,
+                user_id=saved.user_id,
+                listing_id=saved.listing_id,
+                created_at=saved.created_at,
+                deleted_at=saved.deleted_at,
+                listing=PublicListingResponse.model_validate(listing),
+            )
+        )
+    return PaginatedSavedListingsWithDetailsResponse(
+        items=items, page=page, page_size=page_size,
+        total=total, has_next=(page * page_size) < total, has_previous=page > 1,
+    )
+
+
 @saved_router.put("/{listing_id}", response_model=SavedListingResponse)
 async def save_listing(
     listing_id: UUID,
     actor: dict = Depends(get_current_actor),
-    db: AsyncSession = Depends(get_db_session),
+    db: AsyncSession = Depends(get_rls_db_session),
 ):
     from app.listings.models import SavedListing
     from app.listings.repository import SavedListingRepository, ListingRepository
@@ -304,7 +345,7 @@ async def save_listing(
 async def unsave_listing(
     listing_id: UUID,
     actor: dict = Depends(get_current_actor),
-    db: AsyncSession = Depends(get_db_session),
+    db: AsyncSession = Depends(get_rls_db_session),
 ):
     from app.listings.repository import SavedListingRepository
 
@@ -326,7 +367,7 @@ async def list_comparison_sessions(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     actor: dict = Depends(get_current_actor),
-    db: AsyncSession = Depends(get_db_session),
+    db: AsyncSession = Depends(get_rls_db_session),
 ):
     from app.listings.repository import ComparisonRepository
 
@@ -345,7 +386,7 @@ async def list_comparison_sessions(
 async def create_comparison_session(
     body: ComparisonSessionCreateRequest,
     actor: dict = Depends(get_current_actor),
-    db: AsyncSession = Depends(get_db_session),
+    db: AsyncSession = Depends(get_rls_db_session),
 ):
     from app.listings.models import ComparisonSession
     from app.listings.repository import ComparisonRepository
@@ -359,7 +400,7 @@ async def create_comparison_session(
 async def get_comparison_session(
     session_id: UUID,
     actor: dict = Depends(get_current_actor),
-    db: AsyncSession = Depends(get_db_session),
+    db: AsyncSession = Depends(get_rls_db_session),
 ):
     from app.listings.repository import ComparisonRepository
 
@@ -377,7 +418,7 @@ async def update_comparison_session(
     session_id: UUID,
     body: ComparisonSessionUpdateRequest,
     actor: dict = Depends(get_current_actor),
-    db: AsyncSession = Depends(get_db_session),
+    db: AsyncSession = Depends(get_rls_db_session),
 ):
     from app.listings.repository import ComparisonRepository
 
@@ -397,7 +438,7 @@ async def update_comparison_session(
 async def delete_comparison_session(
     session_id: UUID,
     actor: dict = Depends(get_current_actor),
-    db: AsyncSession = Depends(get_db_session),
+    db: AsyncSession = Depends(get_rls_db_session),
 ):
     from app.listings.repository import ComparisonRepository
 

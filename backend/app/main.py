@@ -1,5 +1,3 @@
-import json
-
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -18,8 +16,8 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=json.loads(settings.cors_origins),
-    allow_credentials=True,
+    allow_origins=settings.effective_cors_origins,
+    allow_credentials=settings.effective_cors_allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )

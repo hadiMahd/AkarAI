@@ -165,8 +165,28 @@ class SavedListingResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class SavedListingWithDetailsResponse(BaseModel):
+    id: UUID
+    user_id: UUID
+    listing_id: UUID
+    created_at: datetime
+    deleted_at: Optional[datetime] = None
+    listing: PublicListingResponse
+
+    model_config = {"from_attributes": True}
+
+
 class PaginatedSavedListingsResponse(BaseModel):
     items: list[SavedListingResponse]
+    page: int
+    page_size: int
+    total: int
+    has_next: bool
+    has_previous: bool
+
+
+class PaginatedSavedListingsWithDetailsResponse(BaseModel):
+    items: list[SavedListingWithDetailsResponse]
     page: int
     page_size: int
     total: int

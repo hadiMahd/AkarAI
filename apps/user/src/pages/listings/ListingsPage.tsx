@@ -6,7 +6,7 @@ import { queryKeys } from "@/lib/query/query-client";
 import { SearchForm } from "@/features/search/SearchForm";
 import { ListingCard } from "@/features/listings/ListingCard";
 import { ListingsToolbar } from "@/features/listings/ListingsToolbar";
-import { useSavedListings } from "@/features/saved-listings/useSavedListings";
+import { useSavedListings, useSavedListingsFull } from "@/features/saved-listings/useSavedListings";
 import { ListSkeleton } from "@/components/LoadingSkeleton";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
@@ -58,6 +58,7 @@ export function ListingsPage() {
   const [filters, setFilters] = useState<SearchFilters>({});
   const showSaved = searchParams.get("saved") === "true";
   const { savedListings } = useSavedListings();
+  const { savedListings: savedListingsFull } = useSavedListingsFull();
 
   useEffect(() => {
     const newFilters: SearchFilters = {
@@ -84,13 +85,30 @@ export function ListingsPage() {
         const page = filters.page || 1;
         const pageSize = filters.page_size || 12;
         const start = (page - 1) * pageSize;
-        const items = savedListings.slice(start, start + pageSize) as ListingListItem[];
+        const items: ListingListItem[] = savedListingsFull
+          .slice(start, start + pageSize)
+          .map((item) => ({
+            id: item.listing.id,
+            title: item.listing.title,
+            description: item.listing.description || "",
+            property_type: item.listing.property_type || "",
+            listing_purpose: item.listing.listing_purpose || "sale",
+            price: item.listing.price || 0,
+            currency: item.listing.currency || "USD",
+            bedrooms: item.listing.bedrooms,
+            bathrooms: item.listing.bathrooms,
+            area_size: item.listing.area_size,
+            area_unit: item.listing.area_unit || "sqm",
+            city: item.listing.city || "",
+            address: item.listing.location_text || "",
+            status: item.listing.status,
+          }));
         return {
           items,
-          total: savedListings.length,
+          total: savedListingsFull.length,
           page,
           page_size: pageSize,
-          has_next: start + pageSize < savedListings.length,
+          has_next: start + pageSize < savedListingsFull.length,
           has_previous: page > 1,
         };
       }

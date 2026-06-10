@@ -985,6 +985,31 @@ Fetch full parent page from MinIO
 LLM answers using parent context
 ```
 
+### 5.9a RAG Quality Evaluation
+
+RAG features must ship with evaluation, not just manual testing.
+
+Use RAGAS or equivalent evaluation tooling for:
+
+```text
+retrieval precision/recall where measurable
+faithfulness
+answer relevance
+context relevance
+groundedness regressions
+```
+
+RAG evaluation requires:
+
+```text
+representative eval dataset
+baseline scores before release
+repeatable local/CI eval command
+tracked regressions when chunking, retrieval, reranking, or prompts change
+```
+
+Do not call RAG production-ready until eval coverage exists for the relevant RAG context.
+
 ### 5.10 Area/Neighborhood RAG Document Shape
 
 Reference shape:
@@ -1070,6 +1095,35 @@ agency dashboard summarization
 platform demand insight summarization
 ```
 
+### 6.4 Guardrails and Streaming
+
+Chatbot-style AI flows must use a guardrail layer before production release.
+
+Use NeMo Guardrails or equivalent for:
+
+```text
+input policy checks
+output policy checks
+unsafe request handling
+tenant/agency boundary constraints
+fallback behavior when guardrails trigger
+```
+
+AI chat/widget responses should support HTTP streaming where the UX benefits from it.
+
+Streaming implementation must include:
+
+```text
+chunked HTTP response transport
+client-side incremental rendering
+cancel handling
+timeout handling
+partial-response recovery
+safe logging without storing raw sensitive text by default
+```
+
+Do not implement full-buffered chatbot responses as the final production path.
+
 ---
 
 ## 7. Reliability, Events, Queues
@@ -1148,6 +1202,46 @@ outbox event creation
 reviewed lead update
 viewing status update
 ```
+
+### 7.6 Worker Reliability
+
+Background workers must be production reliable before handling user-visible or AI-heavy workflows.
+
+Worker reliability includes:
+
+```text
+bounded concurrency
+retry policy with exponential backoff
+dead-letter state and visibility
+idempotency keys per job/event
+job timeout handling
+poison-message handling
+operational metrics
+structured worker logs
+replay/recovery procedure
+```
+
+Outbox-backed jobs must be at-least-once and idempotent by design.
+
+### 7.7 Semantic Cache
+
+Semantic caching may be added only after the source-of-truth search/RAG behavior is correct.
+
+Use Redis vector search or equivalent for semantic cache when AI/search traffic justifies it.
+
+Semantic cache requirements:
+
+```text
+separate cache from source-of-truth database results
+tenant-aware cache keys and metadata
+vector similarity lookup
+TTL policy
+explicit invalidation policy
+cache hit/miss metrics
+guardrail-aware cache reads for AI responses
+```
+
+Do not use semantic cache to bypass tenant isolation, RAG freshness, or moderation/guardrail checks.
 
 ---
 
@@ -1554,12 +1648,16 @@ Implement:
 listing photo upload to MinIO
 property-media bucket/prefix
 image metadata table updates
+upload validation
+file type/size limits
 NSFW provider interface
 image quality provider interface
 worker job for listing.image_uploaded
 NSFW rejection flow
 low-quality warning flow
 WebP optimization
+image derivative storage strategy
+signed URL or CDN-ready access strategy
 image upload audit logs
 ```
 
@@ -1567,10 +1665,12 @@ Acceptance criteria:
 
 ```text
 safe image uploads successfully
+invalid files are rejected before storage
 NSFW image is rejected
 low-quality image is accepted with warning
 WebP optimized image is stored
 photo metadata has blob path and status
+media URLs are access-controlled or explicitly public-safe
 ```
 
 If exact image moderation/quality libraries are unknown, mark NEEDS CLARIFICATION.
@@ -1637,6 +1737,10 @@ company_internal tenant for area docs
 area metadata filtering
 doc_source/page_source resolution via Postgres joins
 RAG retrieval logs
+RAGAS evaluation dataset
+RAGAS evaluation command
+baseline retrieval/answer-quality metrics
+semantic cache design spike only if retrieval load justifies it
 ```
 
 Acceptance criteria:
@@ -1647,6 +1751,8 @@ support assistant RAG retrieves only employee agency docs
 area RAG expands vague locations like around Beirut
 retrieval fetches parent page from MinIO after child match
 Cohere reranking works where configured
+RAGAS evaluation runs and records baseline quality
+retrieval changes can be regression-tested
 ```
 
 ---
@@ -1693,6 +1799,11 @@ Implement:
 ```text
 listing widget UI
 listing widget API
+HTTP streaming response endpoint
+client-side streaming renderer
+cancel/timeout handling
+NeMo Guardrails or equivalent guardrail layer
+guardrail fallback UI
 intent router
 listing_question flow
 agency_policy_question flow
@@ -1704,6 +1815,7 @@ viewing confirmation flow
 controlled tool calls
 AI audit logs
 PII redaction where needed
+semantic cache integration only for safe repeat AI/RAG responses
 ```
 
 Acceptance criteria:
@@ -1711,10 +1823,13 @@ Acceptance criteria:
 ```text
 widget answers listing questions from listing data
 widget answers policy questions from selected agency RAG
+widget streams responses with cancel/timeout behavior
+guardrails block unsafe or out-of-scope requests
 widget creates structured Lead only after user confirmation
 widget creates ScheduledViewing only after user confirmation
 widget cannot access wrong agency data
 no buyer-agency chat is created
+semantic cache never bypasses tenant isolation or guardrails
 ```
 
 ---
@@ -1794,6 +1909,10 @@ viewing status transitions
 agency viewing filters
 user scheduled viewings tab updates
 idempotent notification worker
+worker retry/backoff policy
+worker concurrency limits
+dead-letter visibility for failed notification/reminder jobs
+job timeout handling
 ```
 
 Acceptance criteria:
@@ -1804,6 +1923,8 @@ user sees scheduled viewing
 agency admin/support employee sees scheduled viewing
 status transitions work
 emails/reminders are queued and idempotent
+failed jobs retry with backoff and become visible when dead-lettered
+duplicate events do not create duplicate notifications
 ```
 
 ---
@@ -1848,13 +1969,22 @@ AI audit logs
 tool call logs
 RAG retrieval logs
 request/error logs
+distributed request tracing
+security event visibility
+metrics and alerts
+worker/job monitoring
+dead-letter dashboards or admin visibility
+semantic cache hit/miss metrics where enabled
+RAGAS scheduled or CI regression evaluation
 Presidio or equivalent PII redaction
 rate limit coverage
 JWT invalidation tests
 tenant isolation tests
 RBAC tests
 outbox/inbox idempotency tests
+worker retry/dead-letter/idempotency tests
 RAG deletion/hash tests
+RAGAS quality regression tests
 cache invalidation tests
 ```
 
@@ -1865,6 +1995,9 @@ sensitive AI flows are logged safely
 PII redaction applied where needed
 unauthorized tenant access is blocked
 queue jobs are idempotent
+worker failures are observable and recoverable
+critical metrics and alerts exist for API, workers, RAG, and AI flows
+RAG quality regressions are caught before release
 critical tests pass
 ```
 
@@ -1959,9 +2092,9 @@ Phase 17: Demo Data, Integration Testing, and MVP Validation
 
 ---
 
-# 12. MVP Completion Definition
+# 12. Production Readiness Definition
 
-The MVP is complete when:
+The implementation is production-ready when:
 
 ```text
 all apps boot locally through Docker Compose
@@ -1974,8 +2107,15 @@ inquiries create leads
 viewings create ScheduledViewing records, not leads
 agency dashboard handles listings/leads/viewings/policies/employees
 RAG ingestion/retrieval/deletion works
+RAGAS or equivalent RAG quality evaluation exists
+NeMo Guardrails or equivalent guardrails protect chatbot-style AI flows
+HTTP streaming works for chatbot-style responses
+semantic cache, where enabled, is tenant-safe and observable
 images go through NSFW/quality/WebP pipeline
+media uploads enforce validation and access strategy
 platform admin Streamlit shows demand insights and audit logs
+workers have retry/backoff, idempotency, dead-letter visibility, and monitoring
+observability covers API, workers, RAG, AI, security, and critical user journeys
 critical tests pass
 seed demo data exists
 ```

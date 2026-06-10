@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import get_current_actor
+from app.auth.dependencies import get_current_actor, get_rls_db_session
 from app.common.dependencies import get_db_session
 from app.common.pagination import PaginationRequest
 from app.notifications.schemas import NotificationResponse, PaginatedNotificationsResponse
@@ -17,7 +17,7 @@ async def list_notifications(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     actor: dict = Depends(get_current_actor),
-    db: AsyncSession = Depends(get_db_session),
+    db: AsyncSession = Depends(get_rls_db_session),
 ):
     pp = PaginationRequest(page=page, page_size=page_size)
     svc = NotificationService(db)
@@ -32,7 +32,7 @@ async def list_notifications(
 async def get_notification(
     notification_id: UUID,
     actor: dict = Depends(get_current_actor),
-    db: AsyncSession = Depends(get_db_session),
+    db: AsyncSession = Depends(get_rls_db_session),
 ):
     svc = NotificationService(db)
     return await svc.get_notification(notification_id, UUID(actor["user_id"]))
@@ -42,7 +42,7 @@ async def get_notification(
 async def mark_read(
     notification_id: UUID,
     actor: dict = Depends(get_current_actor),
-    db: AsyncSession = Depends(get_db_session),
+    db: AsyncSession = Depends(get_rls_db_session),
 ):
     svc = NotificationService(db)
     return await svc.mark_read(notification_id, UUID(actor["user_id"]))
@@ -52,7 +52,7 @@ async def mark_read(
 async def dismiss_notification(
     notification_id: UUID,
     actor: dict = Depends(get_current_actor),
-    db: AsyncSession = Depends(get_db_session),
+    db: AsyncSession = Depends(get_rls_db_session),
 ):
     svc = NotificationService(db)
     return await svc.dismiss(notification_id, UUID(actor["user_id"]))

@@ -26,8 +26,8 @@ interface ListingCardProps {
 }
 
 export function ListingCard({ listing }: ListingCardProps) {
-  const { savedListings, toggleSaved } = useSavedListings();
-  const isSaved = savedListings.some((l) => l.id === listing.id);
+  const { toggleSaved, isSaved: checkIsSaved } = useSavedListings();
+  const isSaved = checkIsSaved(listing.id);
 
   const formatPrice = (price: number, currency: string) => {
     return new Intl.NumberFormat("en-US", {
@@ -50,7 +50,7 @@ export function ListingCard({ listing }: ListingCardProps) {
             size="icon"
             onClick={(e) => {
               e.preventDefault();
-              toggleSaved(listing);
+              toggleSaved(listing.id);
             }}
           >
             <Heart className={`h-5 w-5 ${isSaved ? "fill-red-500 text-red-500" : ""}`} />

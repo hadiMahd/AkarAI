@@ -57,8 +57,8 @@ def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
         key=settings.auth_refresh_cookie_name,
         value=refresh_token,
         httponly=settings.auth_cookie_httponly,
-        secure=settings.auth_cookie_secure,
-        samesite=settings.auth_cookie_samesite,
+        secure=settings.effective_cookie_secure,
+        samesite=settings.effective_cookie_samesite,
         path=settings.auth_refresh_cookie_path,
         domain=settings.auth_cookie_domain,
         max_age=settings.jwt_refresh_ttl_days * 86400,
@@ -70,8 +70,8 @@ def _set_csrf_cookie(response: Response, csrf_token: str) -> None:
         key=CSRF_COOKIE_NAME,
         value=csrf_token,
         httponly=False,
-        secure=settings.auth_cookie_secure,
-        samesite=settings.auth_cookie_samesite,
+        secure=settings.effective_cookie_secure,
+        samesite=settings.effective_cookie_samesite,
         path="/",
         domain=settings.auth_cookie_domain,
         max_age=settings.jwt_refresh_ttl_days * 86400,
@@ -283,10 +283,6 @@ async def refresh(
     response: Response,
     db: AsyncSession = Depends(get_db_session),
 ):
-    identifier = request.client.host if request.client else "unknown"
-    if not await check_auth_rate_limit("refresh", identifier):
-        raise RateLimitExceededError(detail="Too many refresh attempts. Try again later.")
-
     refresh_token = _get_refresh_token_from_cookie(request)
 
     if not refresh_token:
@@ -295,6 +291,10 @@ async def refresh(
             detail="No refresh token provided",
             error_code="NO_REFRESH_TOKEN",
         )
+
+    identifier = hashlib.sha256(refresh_token.encode()).hexdigest()
+    if not await check_auth_rate_limit("refresh", identifier):
+        raise RateLimitExceededError(detail="Too many refresh attempts. Try again later.")
 
     repo = AuthRepository(db)
     svc = AuthService(repo)

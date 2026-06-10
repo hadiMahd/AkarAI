@@ -32,7 +32,7 @@ function renderWithProviders(ui: React.ReactElement, { route = "/" } = {}) {
             <Route path="/public" element={<div>Public Content</div>} />
           </Route>
           <Route path="/sign-in" element={<div>Sign In Page</div>} />
-          <Route path="/" element={<div>Home Page</div>} />
+          <Route path="/home" element={<div>Home Page</div>} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>
