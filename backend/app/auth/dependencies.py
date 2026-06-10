@@ -73,7 +73,7 @@ async def get_current_actor(
             )
             perm_keys = [row[0] for row in perm_result.all()]
 
-    return {
+    actor = {
         "id": str(user.id),
         "email": user.email,
         "role": role.slug if role else None,
@@ -81,6 +81,16 @@ async def get_current_actor(
         "is_active": user.is_active,
         "user_id": str(user.id),
     }
+
+    # Apply transaction-scoped RLS context for the current request so user-owned
+    # tables (saved listings, comparison sessions, refresh sessions, etc.) are
+    # visible through the same DB session used by downstream route handlers.
+    ctx = await _resolve_tenant_context(request, actor, db)
+    await apply_rls_context_from_tenant_context(db, ctx)
+    actor["tenant_id"] = str(ctx.tenant_id) if ctx.tenant_id else None
+    actor["membership_id"] = str(ctx.membership_id) if ctx.membership_id else None
+
+    return actor
 
 
 async def get_optional_current_actor(
@@ -191,6 +201,7 @@ async def get_rls_db_session(
     db: AsyncSession = Depends(get_db_session),
     ctx: TenantContext = Depends(get_tenant_context),
 ) -> AsyncSession:
+    await apply_rls_context_from_tenant_context(db, ctx)
     return db
 
 
@@ -198,4 +209,6 @@ async def get_optional_rls_db_session(
     db: AsyncSession = Depends(get_db_session),
     ctx: Optional[TenantContext] = Depends(get_optional_tenant_context),
 ) -> AsyncSession:
+    if ctx is not None:
+        await apply_rls_context_from_tenant_context(db, ctx)
     return db

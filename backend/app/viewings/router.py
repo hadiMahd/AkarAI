@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import get_current_actor, get_tenant_context
+from app.auth.dependencies import get_current_actor, get_rls_db_session, get_tenant_context
 from app.common.dependencies import get_db_session
 from app.common.exceptions import RateLimitExceededError
 from app.common.pagination import PaginationRequest
@@ -28,7 +28,7 @@ router = APIRouter(prefix="/agency/listings", tags=["Viewing Slots"])
 async def list_viewing_slots(
     listing_id: UUID,
     tenant: TenantContext = Depends(get_tenant_context),
-    db: AsyncSession = Depends(get_db_session),
+    db: AsyncSession = Depends(get_rls_db_session),
 ):
     svc = ViewingSlotService(db, tenant)
     return await svc.list_slots(listing_id)
@@ -39,7 +39,7 @@ async def create_viewing_slot(
     listing_id: UUID,
     body: ViewingSlotCreateRequest,
     tenant: TenantContext = Depends(get_tenant_context),
-    db: AsyncSession = Depends(get_db_session),
+    db: AsyncSession = Depends(get_rls_db_session),
 ):
     svc = ViewingSlotService(db, tenant)
     return await svc.create_slot(listing_id, body.model_dump())
@@ -51,7 +51,7 @@ async def update_viewing_slot(
     slot_id: UUID,
     body: ViewingSlotUpdateRequest,
     tenant: TenantContext = Depends(get_tenant_context),
-    db: AsyncSession = Depends(get_db_session),
+    db: AsyncSession = Depends(get_rls_db_session),
 ):
     svc = ViewingSlotService(db, tenant)
     return await svc.update_slot(listing_id, slot_id, body.model_dump(exclude_none=True))
@@ -62,7 +62,7 @@ async def deactivate_viewing_slot(
     listing_id: UUID,
     slot_id: UUID,
     tenant: TenantContext = Depends(get_tenant_context),
-    db: AsyncSession = Depends(get_db_session),
+    db: AsyncSession = Depends(get_rls_db_session),
 ):
     svc = ViewingSlotService(db, tenant)
     await svc.deactivate_slot(listing_id, slot_id)

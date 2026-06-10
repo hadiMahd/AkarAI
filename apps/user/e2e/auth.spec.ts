@@ -23,13 +23,7 @@ test("sign-up creates account and redirects", async ({ page }) => {
   await page.getByLabel("Confirm Password").fill(password);
   await page.getByRole("button", { name: "Sign Up" }).click();
 
-  // After sign-up, user should be redirected away from sign-up page
-  await page.waitForURL((url) => url.pathname !== "/sign-up", { timeout: 10000 });
-  
-  // The redirect might go to /home or / depending on session restoration
-  // The important thing is that sign-up succeeded
-  const currentUrl = page.url();
-  expect(currentUrl).toMatch(/\/(home)?$/);
+  await page.waitForURL(/\/home$/, { timeout: 10000 });
 });
 
 test("sign-in with valid credentials authenticates user", async ({ page }) => {
@@ -45,32 +39,51 @@ test("sign-in with valid credentials authenticates user", async ({ page }) => {
   await page.getByLabel("Confirm Password").fill(password);
   await page.getByRole("button", { name: "Sign Up" }).click();
   
-  // Wait for redirect
-  await page.waitForURL((url) => url.pathname !== "/sign-up", { timeout: 10000 });
+  await page.waitForURL(/\/home$/, { timeout: 10000 });
 
-  // Sign out if we're on home
-  if (page.url().includes("/home")) {
-    // Try to sign out
-    const accountMenu = page.getByRole("button", { name: "Account menu" });
-    if (await accountMenu.isVisible()) {
-      await accountMenu.click();
-      await page.getByRole("menuitem", { name: "Sign Out" }).click();
-      await expect(page).toHaveURL(/\/$/);
-    }
-  }
+  // Clear all storage and cookies to simulate sign-out
+  await page.evaluate(() => {
+    sessionStorage.clear();
+    localStorage.clear();
+  });
+  
+  // Clear cookies
+  const context = page.context();
+  await context.clearCookies();
 
-  // Now sign in
+  // Reload to clear React state and query cache
+  await page.reload();
+
+  // Navigate to sign-in page
   await page.goto("/sign-in");
+  
+  // Wait for the form to be visible
+  await expect(page.getByLabel("Email")).toBeVisible({ timeout: 5000 });
+  
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Sign In" }).click();
 
-  // Should redirect away from sign-in (either to /home or /)
-  await page.waitForURL((url) => url.pathname !== "/sign-in", { timeout: 10000 });
-  
-  // The important thing is that sign-in succeeded and we're not on sign-in page
-  const currentUrl = page.url();
-  expect(currentUrl).toMatch(/\/(home)?$/);
+  await page.waitForURL(/\/home$/, { timeout: 10000 });
+});
+
+test("refresh keeps authenticated session on protected route", async ({ page }) => {
+  const email = uniqueEmail();
+  const password = "Playwright123!";
+
+  await page.goto("/sign-up");
+  await page.getByLabel("Full Name").fill("Refresh Session User");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password", { exact: true }).fill(password);
+  await page.getByLabel("Confirm Password").fill(password);
+  await page.getByRole("button", { name: "Sign Up" }).click();
+
+  await page.waitForURL(/\/home$/, { timeout: 10000 });
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+
+  await expect(page).toHaveURL(/\/home$/);
+  await expect(page.getByText(/welcome back/i)).toBeVisible();
 });
 
 test("sign-in with invalid credentials shows error", async ({ page }) => {

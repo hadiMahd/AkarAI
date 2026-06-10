@@ -183,9 +183,13 @@ async function restoreSessionOnce(): Promise<boolean> {
     return true;
   }
 
-  try {
-    const token = csrfToken || getCsrfTokenFromCookie();
+  const token = csrfToken || getCsrfTokenFromCookie();
+  if (!token) {
+    clearSession();
+    return false;
+  }
 
+  try {
     const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
       method: "POST",
       credentials: "include",

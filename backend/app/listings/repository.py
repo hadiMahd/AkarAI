@@ -84,6 +84,35 @@ class SavedListingRepository(BaseRepository):
         result = await self.session.execute(q)
         return list(result.scalars().all()), total
 
+    async def list_by_user_with_details(
+        self, user_id: UUID, offset: int = 0, limit: int = 20
+    ) -> tuple[list, int]:
+        from app.listings.models import SavedListing, Listing
+        count_q = (
+            select(func.count(SavedListing.id))
+            .join(Listing, SavedListing.listing_id == Listing.id)
+            .where(
+                SavedListing.user_id == user_id,
+                SavedListing.deleted_at.is_(None),
+                Listing.status == "active",
+            )
+        )
+        total = (await self.session.execute(count_q)).scalar() or 0
+        q = (
+            select(SavedListing, Listing)
+            .join(Listing, SavedListing.listing_id == Listing.id)
+            .where(SavedListing.user_id == user_id, SavedListing.deleted_at.is_(None), Listing.status == "active")
+            .order_by(SavedListing.created_at.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        result = await self.session.execute(q)
+        rows = result.all()
+        return [
+            type("SavedListingWithListing", (), {"saved": row[0], "listing": row[1]})
+            for row in rows
+        ], total
+
     async def get_by_user_and_listing(self, user_id: UUID, listing_id: UUID) -> Optional:
         from app.listings.models import SavedListing
         result = await self.session.execute(

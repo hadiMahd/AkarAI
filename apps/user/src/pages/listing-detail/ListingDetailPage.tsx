@@ -31,7 +31,7 @@ export function ListingDetailPage() {
     );
   }
 
-  const isSaved = savedListings.some((l) => l.id === listing.id);
+  const isSaved = savedListings.includes(listing.id);
   const inComparison = isInComparison(listing.id);
 
   const formatPrice = (price: number, currency: string) => {
@@ -133,7 +133,7 @@ export function ListingDetailPage() {
               <Button
                 variant={isSaved ? "default" : "outline"}
                 className="w-full"
-                onClick={() => toggleSaved(listing)}
+                onClick={() => toggleSaved(listing.id)}
               >
                 <Heart className={`h-4 w-4 mr-2 ${isSaved ? "fill-current" : ""}`} />
                 {isSaved ? "Saved" : "Save Listing"}

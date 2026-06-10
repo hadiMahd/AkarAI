@@ -1,7 +1,8 @@
-from typing import Optional
+import json
+from typing import Optional, List
 
 import hvac
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, computed_field
 from pydantic_settings import BaseSettings
 
 
@@ -29,8 +30,10 @@ class Settings(BaseSettings):
     minio_bucket_rag: str = "rag-vault"
     minio_bucket_media: str = "property-media"
 
-    # CORS
+    # CORS — explicit allowlist; production requires explicit configuration
     cors_origins: str = '["http://localhost:3000","http://localhost:3001","http://localhost:8501"]'
+    # In production, cors_origins MUST be set via env var to explicit production domains
+    # No wildcard (*) allowed when allow_credentials=True
 
     # Vault (bootstrap only — secrets at runtime)
     vault_addr: str = "http://vault:8200"
@@ -94,6 +97,57 @@ class Settings(BaseSettings):
         if v_lower not in allowed:
             raise ValueError(f"auth_cookie_samesite must be one of {allowed}, got '{v}'")
         return v_lower
+
+    @field_validator("cors_origins")
+    @classmethod
+    def validate_cors_origins(cls, v: str) -> str:
+        try:
+            parsed = json.loads(v)
+            if not isinstance(parsed, list):
+                raise ValueError("cors_origins must be a JSON array")
+            for origin in parsed:
+                if not isinstance(origin, str):
+                    raise ValueError("Each CORS origin must be a string")
+            return v
+        except json.JSONDecodeError as e:
+            raise ValueError(f"cors_origins must be valid JSON array: {e}") from e
+
+    @computed_field
+    @property
+    def effective_cors_origins(self) -> List[str]:
+        origins = json.loads(self.cors_origins)
+        if self.app_env in ("production", "staging"):
+            # In production/staging, reject wildcard and require explicit origins
+            if "*" in origins:
+                raise ValueError("Wildcard CORS origin (*) not allowed in production with credentials")
+            if not origins:
+                raise ValueError("cors_origins must be explicitly configured for production")
+        return origins
+
+    @computed_field
+    @property
+    def effective_cookie_secure(self) -> bool:
+        if self.app_env in ("production", "staging"):
+            return True
+        return self.auth_cookie_secure
+
+    @computed_field
+    @property
+    def effective_cookie_samesite(self) -> str:
+        if self.app_env in ("production", "staging"):
+            return "strict"
+        return self.auth_cookie_samesite
+
+    @computed_field
+    @property
+    def effective_cors_allow_credentials(self) -> bool:
+        # Only allow credentials with explicit origins (never with wildcard)
+        if self.app_env in ("production", "staging"):
+            origins = json.loads(self.cors_origins)
+            if "*" in origins:
+                raise ValueError("Wildcard CORS origin (*) not allowed with credentials in production")
+            return len(origins) > 0
+        return True
 
     model_config = {"env_prefix": "", "case_sensitive": False}
 

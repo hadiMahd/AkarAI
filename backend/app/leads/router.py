@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import get_current_actor, get_tenant_context
+from app.auth.dependencies import get_current_actor, get_rls_db_session, get_tenant_context
 from app.common.dependencies import get_db_session, pagination_params
 from app.common.exceptions import RateLimitExceededError
 from app.common.pagination import PaginationRequest
@@ -31,7 +31,7 @@ async def submit_inquiry(
     body: LeadInquiryRequest,
     request: Request,
     actor: dict = Depends(get_current_actor),
-    db: AsyncSession = Depends(get_db_session),
+    db: AsyncSession = Depends(get_rls_db_session),
 ):
     identifier = request.client.host if request.client else "unknown"
     if not await check_phase4_rate_limit("inquiry", identifier):
@@ -46,7 +46,7 @@ async def list_my_inquiries(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     actor: dict = Depends(get_current_actor),
-    db: AsyncSession = Depends(get_db_session),
+    db: AsyncSession = Depends(get_rls_db_session),
 ):
     pp = PaginationRequest(page=page, page_size=page_size)
     svc = LeadService(db)
