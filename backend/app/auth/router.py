@@ -1,4 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+import hashlib
+import secrets
+import uuid
+
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
+from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,12 +17,15 @@ from app.auth.permissions import PermissionKey
 from app.auth.schemas import (
     ActorSummary,
     AuthSessionResponse,
+    CsrfTokenResponse,
     CurrentActorResponse,
     EmployeeDeactivationRequest,
     LoginRequest,
     LogoutRequest,
     PasswordResetRequest,
     RefreshRequest,
+    RegisterRequest,
+    SessionResponse,
     SessionRevocationRequest,
     TenantContextResponse,
 )
@@ -35,9 +43,67 @@ from app.agencies.repository import AgenciesRepository
 from app.agencies.models import AgencyEmployeeMembership
 from app.common.tenant import TenantContext
 from app.users.models import User
+from app.common.config import settings
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 tenant_router = APIRouter(prefix="/tenant", tags=["Tenant"])
+
+CSRF_COOKIE_NAME = "akarai_csrf"
+CSRF_HEADER_NAME = "X-CSRF-Token"
+
+
+def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
+    response.set_cookie(
+        key=settings.auth_refresh_cookie_name,
+        value=refresh_token,
+        httponly=settings.auth_cookie_httponly,
+        secure=settings.auth_cookie_secure,
+        samesite=settings.auth_cookie_samesite,
+        path=settings.auth_refresh_cookie_path,
+        domain=settings.auth_cookie_domain,
+        max_age=settings.jwt_refresh_ttl_days * 86400,
+    )
+
+
+def _set_csrf_cookie(response: Response, csrf_token: str) -> None:
+    response.set_cookie(
+        key=CSRF_COOKIE_NAME,
+        value=csrf_token,
+        httponly=False,
+        secure=settings.auth_cookie_secure,
+        samesite=settings.auth_cookie_samesite,
+        path="/",
+        domain=settings.auth_cookie_domain,
+        max_age=settings.jwt_refresh_ttl_days * 86400,
+    )
+
+
+def _clear_refresh_cookie(response: Response) -> None:
+    response.delete_cookie(
+        key=settings.auth_refresh_cookie_name,
+        path=settings.auth_refresh_cookie_path,
+        domain=settings.auth_cookie_domain,
+    )
+
+
+def _clear_csrf_cookie(response: Response) -> None:
+    response.delete_cookie(
+        key=CSRF_COOKIE_NAME,
+        path="/",
+        domain=settings.auth_cookie_domain,
+    )
+
+
+def _get_refresh_token_from_cookie(request: Request) -> str | None:
+    return request.cookies.get(settings.auth_refresh_cookie_name)
+
+
+def _get_csrf_token_from_cookie(request: Request) -> str | None:
+    return request.cookies.get(CSRF_COOKIE_NAME)
+
+
+def _generate_csrf_token() -> str:
+    return secrets.token_urlsafe(32)
 
 
 async def _build_actor_summary(user: User, db: AsyncSession) -> ActorSummary:
@@ -66,10 +132,41 @@ async def _build_actor_summary(user: User, db: AsyncSession) -> ActorSummary:
     )
 
 
-@router.post("/login", response_model=AuthSessionResponse)
+async def verify_csrf_token(request: Request) -> None:
+    cookie_token = _get_csrf_token_from_cookie(request)
+    header_token = request.headers.get(CSRF_HEADER_NAME)
+
+    if not cookie_token or not header_token:
+        raise AppException(
+            status_code=403,
+            detail="CSRF token missing",
+            error_code="CSRF_TOKEN_MISSING",
+        )
+
+    if not secrets.compare_digest(cookie_token, header_token):
+        raise AppException(
+            status_code=403,
+            detail="CSRF token invalid",
+            error_code="CSRF_TOKEN_INVALID",
+        )
+
+
+@router.get("/csrf-token", response_model=CsrfTokenResponse)
+async def get_csrf_token(request: Request):
+    csrf_token = _get_csrf_token_from_cookie(request)
+    if not csrf_token:
+        csrf_token = _generate_csrf_token()
+
+    response = JSONResponse(content={"csrf_token": csrf_token})
+    _set_csrf_cookie(response, csrf_token)
+    return response
+
+
+@router.post("/login", response_model=SessionResponse)
 async def login(
     body: LoginRequest,
     request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db_session),
 ):
     identifier = body.email
@@ -110,24 +207,30 @@ async def login(
     )
 
     actor = await _build_actor_summary(user, db)
-    return AuthSessionResponse(
+
+    _set_refresh_cookie(response, result["refresh_token"])
+
+    csrf_token = _generate_csrf_token()
+    _set_csrf_cookie(response, csrf_token)
+
+    return SessionResponse(
         access_token=result["access_token"],
-        refresh_token=result["refresh_token"],
         token_type=result["token_type"],
         expires_in=result["expires_in"],
         actor=actor,
     )
 
 
-@router.post("/refresh", response_model=AuthSessionResponse)
-async def refresh(
-    body: RefreshRequest,
+@router.post("/register", response_model=SessionResponse, status_code=201)
+async def register(
+    body: RegisterRequest,
     request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db_session),
 ):
-    identifier = request.client.host if request.client else "unknown"
-    if not await check_auth_rate_limit("refresh", identifier):
-        raise RateLimitExceededError(detail="Too many refresh attempts. Try again later.")
+    identifier = body.email
+    if not await check_auth_rate_limit("register", identifier):
+        raise RateLimitExceededError(detail="Too many registration attempts. Try again later.")
 
     repo = AuthRepository(db)
     svc = AuthService(repo)
@@ -135,7 +238,71 @@ async def refresh(
     ip = request.client.host if request.client else None
     ua = request.headers.get("User-Agent")
 
-    result = await svc.refresh(body.refresh_token, ip_address=ip, user_agent=ua)
+    result = await svc.register(body.email, body.password, body.name, ip_address=ip, user_agent=ua)
+
+    if result is None:
+        raise AppException(status_code=409, detail="User with this email already exists", error_code="USER_EXISTS")
+
+    user = result["user"]
+
+    audit_repo = AuditLogRepository(db)
+    audit_svc = AuditService(audit_repo)
+
+    await audit_svc.log_auth_event(
+        action="auth.register.success",
+        result="success",
+        actor_user_id=user.id,
+        request_id=get_request_id(request),
+        ip_address=ip,
+        user_agent=ua,
+    )
+
+    actor = await _build_actor_summary(user, db)
+
+    _set_refresh_cookie(response, result["refresh_token"])
+
+    csrf_token = _generate_csrf_token()
+    _set_csrf_cookie(response, csrf_token)
+
+    return SessionResponse(
+        access_token=result["access_token"],
+        token_type=result["token_type"],
+        expires_in=result["expires_in"],
+        actor=actor,
+    )
+
+
+# CSRF PROTECTION NOTE:
+# This endpoint relies on SameSite cookie policy for CSRF protection (not explicit token validation).
+# The refresh token is stored in an HttpOnly cookie with SameSite=lax, which prevents cross-site requests.
+# If you change to SameSite=None (cross-site cookies) or a different deployment shape,
+# you MUST add dependencies=[Depends(verify_csrf_token)] to this endpoint.
+@router.post("/refresh", response_model=SessionResponse)
+async def refresh(
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db_session),
+):
+    identifier = request.client.host if request.client else "unknown"
+    if not await check_auth_rate_limit("refresh", identifier):
+        raise RateLimitExceededError(detail="Too many refresh attempts. Try again later.")
+
+    refresh_token = _get_refresh_token_from_cookie(request)
+
+    if not refresh_token:
+        raise AppException(
+            status_code=401,
+            detail="No refresh token provided",
+            error_code="NO_REFRESH_TOKEN",
+        )
+
+    repo = AuthRepository(db)
+    svc = AuthService(repo)
+
+    ip = request.client.host if request.client else None
+    ua = request.headers.get("User-Agent")
+
+    result = await svc.refresh(refresh_token, ip_address=ip, user_agent=ua)
 
     audit_repo = AuditLogRepository(db)
     audit_svc = AuditService(audit_repo)
@@ -162,9 +329,11 @@ async def refresh(
     )
 
     actor = await _build_actor_summary(user, db)
-    return AuthSessionResponse(
+
+    _set_refresh_cookie(response, result["refresh_token"])
+
+    return SessionResponse(
         access_token=result["access_token"],
-        refresh_token=result["refresh_token"],
         token_type=result["token_type"],
         expires_in=result["expires_in"],
         actor=actor,
@@ -173,14 +342,17 @@ async def refresh(
 
 @router.post("/logout", status_code=204)
 async def logout(
-    body: LogoutRequest | None = None,
+    request: Request,
+    response: Response,
     actor: dict = Depends(get_current_actor),
     db: AsyncSession = Depends(get_db_session),
-    request: Request = None,
 ):
     repo = AuthRepository(db)
     svc = AuthService(repo)
-    await svc.logout(actor["user_id"], body.refresh_token if body else None)
+
+    refresh_token = _get_refresh_token_from_cookie(request)
+
+    await svc.logout(actor["user_id"], refresh_token)
 
     audit_repo = AuditLogRepository(db)
     audit_svc = AuditService(audit_repo)
@@ -190,6 +362,11 @@ async def logout(
         actor_user_id=actor["user_id"],
         request_id=get_request_id(request) if request else None,
     )
+
+    _clear_refresh_cookie(response)
+    _clear_csrf_cookie(response)
+
+    return None
 
 
 @router.post("/password-reset", status_code=204)

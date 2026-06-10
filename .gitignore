@@ -13,6 +13,8 @@
 .env.local
 *.log
 *.tmp
+.codex
+graphify-out/
 
 # Python
 __pycache__/
@@ -53,6 +55,8 @@ htmlcov/
 .coverage.*
 coverage.xml
 *.cover
+playwright-report/
+test-results/
 
 # Terraform
 .terraform/
@@ -72,3 +76,5 @@ backend/alembic/versions/*_backup_*
 
 # Vault (local dev)
 vault-data/
+
+.local-production-hardening-notes.md

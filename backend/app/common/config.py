@@ -43,6 +43,22 @@ class Settings(BaseSettings):
     jwt_refresh_ttl_days: int = 7
     jwt_algorithm: str = "HS256"
 
+    # Auth Cookie Settings
+    auth_refresh_cookie_name: str = "akarai_refresh"
+    auth_refresh_cookie_path: str = "/"
+    auth_cookie_secure: bool = False
+    # CSRF PROTECTION NOTE:
+    # Current CSRF protection relies on SameSite=lax cookie policy for cookie-authenticated endpoints.
+    # This is acceptable as long as:
+    # 1. Refresh tokens stay in HttpOnly cookies with SameSite=lax or strict
+    # 2. The deployment uses the same host/site (frontend and backend on same domain)
+    # If you change to SameSite=None (cross-site cookies) or a different deployment shape,
+    # you MUST reintroduce explicit CSRF token enforcement (verify_csrf_token dependency)
+    # on all cookie-authenticated state-changing endpoints.
+    auth_cookie_samesite: str = "lax"
+    auth_cookie_domain: Optional[str] = None
+    auth_cookie_httponly: bool = True
+
     # AI Providers
     ai_primary_provider: str = "azure_openai"
     ai_fallback_providers: str = "openrouter"
@@ -69,6 +85,15 @@ class Settings(BaseSettings):
         if v not in allowed:
             raise ValueError(f"app_env must be one of {allowed}, got '{v}'")
         return v
+
+    @field_validator("auth_cookie_samesite")
+    @classmethod
+    def validate_samesite(cls, v: str) -> str:
+        allowed = {"lax", "strict", "none"}
+        v_lower = v.lower()
+        if v_lower not in allowed:
+            raise ValueError(f"auth_cookie_samesite must be one of {allowed}, got '{v}'")
+        return v_lower
 
     model_config = {"env_prefix": "", "case_sensitive": False}
 

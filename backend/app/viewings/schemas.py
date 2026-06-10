@@ -41,6 +41,17 @@ class ViewingSlotResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class PublicViewingSlotResponse(BaseModel):
+    id: UUID
+    starts_at: datetime
+    ends_at: datetime
+    capacity: int
+    reserved_count: int
+    status: str
+
+    model_config = {"from_attributes": True}
+
+
 class ViewingBookingRequest(BaseModel):
     viewing_slot_id: UUID
     notes: Optional[str] = None

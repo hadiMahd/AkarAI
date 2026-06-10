@@ -9,6 +9,18 @@ from app.viewings.models import ListingViewingSlot, ScheduledViewing, ScheduledV
 
 
 class ViewingSlotRepository(BaseRepository):
+    async def list_active_by_listing(self, listing_id: UUID) -> list[ListingViewingSlot]:
+        q = (
+            select(ListingViewingSlot)
+            .where(
+                ListingViewingSlot.listing_id == listing_id,
+                ListingViewingSlot.status == "active",
+            )
+            .order_by(ListingViewingSlot.starts_at)
+        )
+        result = await self.session.execute(q)
+        return list(result.scalars().all())
+
     async def list_by_listing(self, listing_id: UUID) -> list[ListingViewingSlot]:
         q = (
             select(ListingViewingSlot)

@@ -13,8 +13,35 @@ class LoginRequest(BaseModel):
         return v.lower().strip()
 
 
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+    name: str
+
+    @field_validator("email")
+    @classmethod
+    def email_not_empty(cls, v: str) -> str:
+        if not v or "@" not in v:
+            raise ValueError("Invalid email address")
+        return v.lower().strip()
+
+    @field_validator("password")
+    @classmethod
+    def password_strength(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+        return v
+
+    @field_validator("name")
+    @classmethod
+    def name_not_empty(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("Name cannot be empty")
+        return v.strip()
+
+
 class RefreshRequest(BaseModel):
-    refresh_token: str
+    refresh_token: str | None = None
 
 
 class LogoutRequest(BaseModel):
@@ -43,6 +70,13 @@ class ActorSummary(BaseModel):
     is_active: bool
 
 
+class SessionResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int
+    actor: ActorSummary
+
+
 class AuthSessionResponse(BaseModel):
     access_token: str
     refresh_token: str
@@ -62,3 +96,7 @@ class TenantContextResponse(BaseModel):
     tenant_id: str | None
     membership_id: str | None
     is_platform_actor: bool
+
+
+class CsrfTokenResponse(BaseModel):
+    csrf_token: str

@@ -20,6 +20,8 @@ from app.listings.schemas import (
     ListingUpdateRequest,
     ListingResponse,
     PaginatedListingsResponse,
+    PublicListingResponse,
+    PaginatedPublicListingsResponse,
     ListingPhotoMetadataCreateRequest,
     ListingPhotoMetadataUpdateRequest,
     ListingPhotoMetadataResponse,
@@ -147,7 +149,7 @@ async def remove_photo(
 public_router = APIRouter(prefix="/listings", tags=["Public Listings"])
 
 
-@public_router.get("", response_model=PaginatedListingsResponse)
+@public_router.get("", response_model=PaginatedPublicListingsResponse)
 async def public_search_listings(
     request: Request,
     location: Optional[str] = Query(None),
@@ -186,7 +188,7 @@ async def public_search_listings(
     if page == 1:
         cached = await cache_get(LISTING_SEARCH_NAMESPACE, cache_key)
         if cached is not None and "items" in cached:
-            from app.listings.schemas import PaginatedListingsResponse as PLR
+            from app.listings.schemas import PaginatedPublicListingsResponse as PLR
             return PLR(**cached)
 
     q = ListingQueryService.build_public_search_query(
@@ -206,7 +208,7 @@ async def public_search_listings(
     items = list(result.scalars().all())
 
     has_next = (page * page_size) < total
-    response_data = PaginatedListingsResponse(
+    response_data = PaginatedPublicListingsResponse(
         items=items, page=page, page_size=page_size,
         total=total, has_next=has_next, has_previous=page > 1,
     )
@@ -226,7 +228,7 @@ async def public_search_listings(
     return response_data
 
 
-@public_router.get("/{listing_id}", response_model=ListingResponse)
+@public_router.get("/{listing_id}", response_model=PublicListingResponse)
 async def public_get_listing(
     listing_id: UUID,
     db: AsyncSession = Depends(get_db_session),
@@ -235,15 +237,15 @@ async def public_get_listing(
 
     cached = await cache_get(LISTING_SEARCH_NAMESPACE, f"detail:{listing_id}")
     if cached is not None and "id" in cached:
-        from app.listings.schemas import ListingResponse as LR
-        return LR(**cached)
+        from app.listings.schemas import PublicListingResponse as PLR
+        return PLR(**cached)
 
     repo = ListingRepository(db)
     listing = await repo.get_by_id(listing_id)
     if listing is None or listing.status != "active":
         raise NotFoundError(detail="Listing not found")
 
-    serializable = ListingResponse.model_validate(listing).model_dump(mode="json")
+    serializable = PublicListingResponse.model_validate(listing).model_dump(mode="json")
     await cache_set(LISTING_SEARCH_NAMESPACE, f"detail:{listing_id}", serializable, ttl=300)
     return listing
 

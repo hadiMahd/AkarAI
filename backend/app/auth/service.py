@@ -1,12 +1,14 @@
 import hashlib
 import uuid
 from datetime import datetime, timedelta, timezone
+from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import RefreshSession, AccessRevocation
 from app.auth.repository import AuthRepository
 from app.common.config import settings
+from app.common.rls import apply_rls_context_to_session
 from app.common.redis import redis_delete, redis_get, redis_set
 from app.common.security import (
     create_access_token,
@@ -53,6 +55,7 @@ async def revoke_user_all_sessions(
     user_id: str,
     reason: str,
 ) -> int:
+    await _apply_refresh_session_rls(repo.session, user_id)
     sessions = await repo.get_active_sessions_for_user(user_id)
     now = datetime.now(timezone.utc)
     count = 0
@@ -105,6 +108,53 @@ class AuthService:
             "session": session,
         }
 
+    async def register(
+        self,
+        email: str,
+        password: str,
+        name: str,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+    ) -> dict | None:
+        existing_user = await self._repo.get_user_by_email(email)
+        if existing_user is not None:
+            return None
+
+        from app.users.models import User
+        from app.auth.models import Role
+        from sqlalchemy import select
+
+        role_result = await self._repo.session.execute(
+            select(Role).where(Role.slug == "user")
+        )
+        user_role = role_result.scalar_one_or_none()
+
+        password_hash = hash_password(password)
+        new_user = User(
+            email=email,
+            name=name,
+            password_hash=password_hash,
+            role_id=user_role.id if user_role else None,
+            is_active=True,
+            status="active",
+        )
+        self._repo.session.add(new_user)
+        await self._repo.session.flush()
+
+        role_slug = await self._lookup_role_slug(new_user.role_id)
+        access_token, refresh_token, session = await self._issue_session(
+            str(new_user.id), role=role_slug, ip_address=ip_address, user_agent=user_agent
+        )
+
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer",
+            "expires_in": settings.jwt_access_ttl_minutes * 60,
+            "user": new_user,
+            "session": session,
+        }
+
     async def refresh(
         self,
         refresh_token: str,
@@ -120,6 +170,8 @@ class AuthService:
         user_id = payload.get("sub")
         if not user_id or not jti:
             return None
+
+        await _apply_refresh_session_rls(self._repo.session, user_id)
 
         if await is_token_blacklisted(jti):
             return None
@@ -162,6 +214,7 @@ class AuthService:
         }
 
     async def logout(self, user_id: str, refresh_token: str | None = None) -> None:
+        await _apply_refresh_session_rls(self._repo.session, user_id)
         if refresh_token:
             try:
                 payload = decode_refresh_token(refresh_token)
@@ -208,6 +261,7 @@ class AuthService:
         reason: str,
         revoker_user_id: str,
     ) -> bool:
+        await _apply_refresh_session_rls(self._repo.session, revoker_user_id)
         target = await self._repo.get_refresh_session_by_id(session_id)
         if target is None:
             return False
@@ -262,6 +316,7 @@ class AuthService:
         return access_token, refresh_token, session
 
     async def _revoke_family(self, user_id: uuid.UUID, family_id: str, reason: str) -> None:
+        await _apply_refresh_session_rls(self._repo.session, str(user_id))
         sessions = await self._repo.get_active_sessions_for_user(str(user_id))
         now = datetime.now(timezone.utc)
         for session in sessions:
@@ -270,3 +325,7 @@ class AuthService:
                 session.revocation_reason = reason
                 await self._repo.update_refresh_session(session)
         await invalidate_user_sessions(str(user_id))
+
+
+async def _apply_refresh_session_rls(session: AsyncSession, user_id: str) -> None:
+    await apply_rls_context_to_session(session, user_id=UUID(user_id))

@@ -7,11 +7,12 @@ services:
     image: pgvector/pgvector:pg17
     container_name: akarai-postgres
     environment:
-      POSTGRES_USER: akarai
-      POSTGRES_PASSWORD: akarai
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
       POSTGRES_DB: akarai
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d
     ports:
       - "5432:5432"
     restart: unless-stopped
@@ -156,7 +157,7 @@ services:
       MINIO_SECURE: "false"
       MINIO_BUCKET_RAG: rag-vault
       MINIO_BUCKET_MEDIA: property-media
-      CORS_ORIGINS: '["http://localhost:3000","http://localhost:3001","http://localhost:8501"]'
+      CORS_ORIGINS: '["http://localhost:3000","http://127.0.0.1:3000","http://localhost:3001","http://127.0.0.1:3001","http://localhost:8501","http://127.0.0.1:8501"]'
       VAULT_ADDR: http://vault:8200
       VAULT_TOKEN: root
     ports:
@@ -186,7 +187,7 @@ services:
       dockerfile: Dockerfile
     container_name: akarai-user-app
     environment:
-      VITE_API_BASE_URL: http://localhost:8000
+      VITE_API_BASE_URL: http://127.0.0.1:8000
     ports:
       - "3000:3000"
     restart: unless-stopped
