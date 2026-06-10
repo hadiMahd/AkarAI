@@ -41,6 +41,22 @@ async def submit_inquiry(
     return await svc.create_inquiry(listing_id, UUID(actor["user_id"]), body.model_dump())
 
 
+@router.get("/me/inquiries", response_model=PaginatedLeadsResponse)
+async def list_my_inquiries(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    actor: dict = Depends(get_current_actor),
+    db: AsyncSession = Depends(get_db_session),
+):
+    pp = PaginationRequest(page=page, page_size=page_size)
+    svc = LeadService(db)
+    result = await svc.list_user_inquiries(UUID(actor["user_id"]), pp)
+    return PaginatedLeadsResponse(
+        items=result.items, page=result.page, page_size=result.page_size,
+        total=result.total, has_next=result.has_next, has_previous=result.has_previous,
+    )
+
+
 @agency_router.get("", response_model=PaginatedLeadsResponse)
 async def list_agency_leads(
     page: int = Query(1, ge=1),

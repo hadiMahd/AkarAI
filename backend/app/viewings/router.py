@@ -13,6 +13,7 @@ from app.viewings.schemas import (
     ViewingSlotCreateRequest,
     ViewingSlotUpdateRequest,
     ViewingSlotResponse,
+    PublicViewingSlotResponse,
     ViewingBookingRequest,
     ScheduledViewingResponse,
     PaginatedScheduledViewingsResponse,
@@ -69,6 +70,18 @@ async def deactivate_viewing_slot(
 
 booking_router = APIRouter(tags=["Viewings"])
 agency_viewings_router = APIRouter(prefix="/agency/viewings", tags=["Viewings"])
+
+
+@booking_router.get("/listings/{listing_id}/viewing-slots", response_model=list[PublicViewingSlotResponse])
+async def list_public_viewing_slots(
+    listing_id: UUID,
+    actor: dict = Depends(get_current_actor),
+    db: AsyncSession = Depends(get_db_session),
+):
+    from app.viewings.repository import ViewingSlotRepository
+
+    repo = ViewingSlotRepository(db)
+    return await repo.list_active_by_listing(listing_id)
 
 
 @booking_router.post("/listings/{listing_id}/viewings", response_model=ScheduledViewingResponse, status_code=201)

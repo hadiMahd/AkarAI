@@ -72,6 +72,38 @@ class ListingResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class PublicListingResponse(BaseModel):
+    id: UUID
+    title: str
+    description: Optional[str] = None
+    property_type: Optional[str] = None
+    listing_purpose: Optional[str] = None
+    price: Optional[Decimal] = None
+    currency: Optional[str] = None
+    bedrooms: Optional[int] = None
+    bathrooms: Optional[int] = None
+    area_size: Optional[Decimal] = None
+    area_unit: Optional[str] = None
+    furnishing: Optional[str] = None
+    location_text: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class PaginatedPublicListingsResponse(BaseModel):
+    items: list[PublicListingResponse]
+    page: int
+    page_size: int
+    total: int
+    has_next: bool
+    has_previous: bool
+
+
 class PaginatedListingsResponse(BaseModel):
     items: list[ListingResponse]
     page: int

@@ -1,0 +1,540 @@
+openapi: 3.0.3
+info:
+  title: AkarAI Phase 5 User App Core UI Contract
+  version: 0.1.0
+  description: >
+    Backend contract consumed by the Phase 5 user app. This phase covers landing
+    and auth entry, protected manual browse, save listing, session-only
+    comparison in the browser, inquiry submission, manual viewing booking, and
+    activity-only profile tabs. Comparison remains client session state only and
+    does not require a backend persistence contract in this phase.
+servers:
+  - url: http://localhost:8000
+tags:
+  - name: Auth
+  - name: Listings
+  - name: Saved Listings
+  - name: Leads
+  - name: Viewings
+  - name: Profile
+paths:
+  /auth/register:
+    post:
+      summary: Register a new user account
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: User account created
+        "409":
+          description: Email already exists
+        "422":
+          description: Validation failed
+  /auth/login:
+    post:
+      summary: Sign in to the user app
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Auth session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSessionResponse"
+        "401":
+          description: Invalid credentials
+        "429":
+          description: Login rate limit exceeded
+  /auth/refresh:
+    post:
+      summary: Refresh an auth session
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+      responses:
+        "200":
+          description: Refreshed auth session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSessionResponse"
+        "401":
+          description: Invalid or expired refresh token
+  /auth/logout:
+    post:
+      summary: Sign out of the user app
+      tags: [Auth]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "204":
+          description: Logged out
+  /auth/me:
+    get:
+      summary: Get current signed-in actor
+      tags: [Auth]
+      responses:
+        "200":
+          description: Current actor details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentActorResponse"
+        "401":
+          description: Not authenticated
+  /listings:
+    get:
+      summary: Search listings for the signed-in user app
+      tags: [Listings]
+      parameters:
+        - $ref: "#/components/parameters/Location"
+        - $ref: "#/components/parameters/MinPrice"
+        - $ref: "#/components/parameters/MaxPrice"
+        - $ref: "#/components/parameters/Bedrooms"
+        - $ref: "#/components/parameters/Bathrooms"
+        - $ref: "#/components/parameters/PropertyType"
+        - $ref: "#/components/parameters/ListingPurpose"
+        - $ref: "#/components/parameters/Furnishing"
+        - $ref: "#/components/parameters/MinAreaSize"
+        - $ref: "#/components/parameters/MaxAreaSize"
+        - $ref: "#/components/parameters/Sort"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: Paginated listing search results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedListingsResponse"
+        "429":
+          description: Search rate limit exceeded
+  /listings/{listing_id}:
+    get:
+      summary: Get listing detail
+      tags: [Listings]
+      parameters:
+        - $ref: "#/components/parameters/ListingId"
+      responses:
+        "200":
+          description: Listing detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListingResponse"
+        "404":
+          description: Listing unavailable
+  /listings/{listing_id}/viewing-slots:
+    get:
+      summary: List user-visible available viewing slots for a listing
+      tags: [Viewings]
+      parameters:
+        - $ref: "#/components/parameters/ListingId"
+      responses:
+        "200":
+          description: Available viewing slots
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ViewingSlotResponse"
+        "404":
+          description: Listing unavailable
+  /me/saved-listings:
+    get:
+      summary: List the signed-in user's saved listings
+      tags: [Saved Listings, Profile]
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: Paginated saved listings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedSavedListingsResponse"
+        "401":
+          description: Not authenticated
+  /me/saved-listings/{listing_id}:
+    put:
+      summary: Save a listing
+      tags: [Saved Listings]
+      parameters:
+        - $ref: "#/components/parameters/ListingId"
+      responses:
+        "200":
+          description: Listing saved
+        "401":
+          description: Not authenticated
+    delete:
+      summary: Unsave a listing
+      tags: [Saved Listings]
+      parameters:
+        - $ref: "#/components/parameters/ListingId"
+      responses:
+        "204":
+          description: Listing unsaved
+        "401":
+          description: Not authenticated
+  /listings/{listing_id}/inquiries:
+    post:
+      summary: Submit a listing inquiry
+      tags: [Leads]
+      parameters:
+        - $ref: "#/components/parameters/ListingId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeadInquiryRequest"
+      responses:
+        "201":
+          description: Inquiry submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeadResponse"
+        "401":
+          description: Not authenticated
+        "429":
+          description: Inquiry rate limit exceeded
+  /me/inquiries:
+    get:
+      summary: List the signed-in user's submitted inquiries
+      tags: [Leads, Profile]
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: Paginated inquiry history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedLeadResponses"
+        "401":
+          description: Not authenticated
+  /listings/{listing_id}/viewings:
+    post:
+      summary: Book a viewing for a listing
+      tags: [Viewings]
+      parameters:
+        - $ref: "#/components/parameters/ListingId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ViewingBookingRequest"
+      responses:
+        "201":
+          description: Viewing booked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduledViewingResponse"
+        "401":
+          description: Not authenticated
+        "429":
+          description: Viewing booking rate limit exceeded
+  /me/viewings:
+    get:
+      summary: List the signed-in user's scheduled viewings
+      tags: [Viewings, Profile]
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: Paginated scheduled viewings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedScheduledViewingsResponse"
+        "401":
+          description: Not authenticated
+  /me/viewings/{viewing_id}:
+    get:
+      summary: Get one scheduled viewing owned by the signed-in user
+      tags: [Viewings, Profile]
+      parameters:
+        - $ref: "#/components/parameters/ViewingId"
+      responses:
+        "200":
+          description: Scheduled viewing detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduledViewingResponse"
+        "401":
+          description: Not authenticated
+        "404":
+          description: Viewing missing or not owned by user
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    ListingId:
+      name: listing_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ViewingId:
+      name: viewing_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: page_size
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    Location:
+      name: location
+      in: query
+      schema:
+        type: string
+    MinPrice:
+      name: min_price
+      in: query
+      schema:
+        type: number
+    MaxPrice:
+      name: max_price
+      in: query
+      schema:
+        type: number
+    Bedrooms:
+      name: bedrooms
+      in: query
+      schema:
+        type: integer
+    Bathrooms:
+      name: bathrooms
+      in: query
+      schema:
+        type: integer
+    PropertyType:
+      name: property_type
+      in: query
+      schema:
+        type: string
+    ListingPurpose:
+      name: listing_purpose
+      in: query
+      schema:
+        type: string
+    Furnishing:
+      name: furnishing
+      in: query
+      schema:
+        type: string
+    MinAreaSize:
+      name: min_area_size
+      in: query
+      schema:
+        type: number
+    MaxAreaSize:
+      name: max_area_size
+      in: query
+      schema:
+        type: number
+    Sort:
+      name: sort
+      in: query
+      schema:
+        type: string
+        enum: [newest, price_asc, price_desc, area_size_asc, area_size_desc]
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [name, email, phone, password, confirm_password]
+      properties:
+        name: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        password: { type: string, format: password }
+        confirm_password: { type: string, format: password }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, format: password }
+    RefreshRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token: { type: string }
+    ActorSummary:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string }
+        role: { type: string }
+        permissions:
+          type: array
+          items: { type: string }
+    AuthSessionResponse:
+      type: object
+      properties:
+        access_token: { type: string }
+        refresh_token: { type: string }
+        token_type: { type: string }
+        expires_in: { type: integer }
+        actor:
+          $ref: "#/components/schemas/ActorSummary"
+    CurrentActorResponse:
+      type: object
+      properties:
+        actor:
+          $ref: "#/components/schemas/ActorSummary"
+        tenant:
+          type: object
+          nullable: true
+    ListingResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        price: { type: number }
+        currency: { type: string }
+        location_text: { type: string }
+        property_type: { type: string }
+        listing_purpose: { type: string }
+        bedrooms: { type: integer }
+        bathrooms: { type: integer }
+        area_size: { type: number }
+        furnishing: { type: string }
+    PaginatedListingsResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ListingResponse"
+        page: { type: integer }
+        page_size: { type: integer }
+        total: { type: integer }
+        has_next: { type: boolean }
+        has_previous: { type: boolean }
+    SavedListingResponse:
+      type: object
+      properties:
+        listing_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+    PaginatedSavedListingsResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SavedListingResponse"
+        page: { type: integer }
+        page_size: { type: integer }
+        total: { type: integer }
+        has_next: { type: boolean }
+        has_previous: { type: boolean }
+    LeadInquiryRequest:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string }
+        contact_phone: { type: string, nullable: true }
+    LeadResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        listing_id: { type: string, format: uuid }
+        status: { type: string }
+        created_at: { type: string, format: date-time }
+    PaginatedLeadResponses:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeadResponse"
+        page: { type: integer }
+        page_size: { type: integer }
+        total: { type: integer }
+        has_next: { type: boolean }
+        has_previous: { type: boolean }
+    ViewingSlotResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time }
+        capacity: { type: integer }
+        reserved_count: { type: integer }
+        status: { type: string }
+    ViewingBookingRequest:
+      type: object
+      required: [viewing_slot_id]
+      properties:
+        viewing_slot_id: { type: string, format: uuid }
+        notes: { type: string, nullable: true }
+    ScheduledViewingResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        listing_id: { type: string, format: uuid }
+        viewing_slot_id: { type: string, format: uuid }
+        status: { type: string }
+        scheduled_start_at: { type: string, format: date-time }
+        scheduled_end_at: { type: string, format: date-time }
+    PaginatedScheduledViewingsResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScheduledViewingResponse"
+        page: { type: integer }
+        page_size: { type: integer }
+        total: { type: integer }
+        has_next: { type: boolean }
+        has_previous: { type: boolean }

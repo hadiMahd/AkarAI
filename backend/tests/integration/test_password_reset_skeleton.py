@@ -49,14 +49,15 @@ class TestPasswordReset:
             "password": password,
         })
         access_token = login_resp.json()["access_token"]
-        refresh_token = login_resp.json()["refresh_token"]
+        csrf_token = login_resp.cookies.get("akarai_csrf")
 
         await async_client.post("/auth/password-reset", json={
             "current_password": password,
             "new_password": "NewTest5678!",
         }, headers={"Authorization": f"Bearer {access_token}"})
 
-        refresh_resp = await async_client.post("/auth/refresh", json={
-            "refresh_token": refresh_token,
-        })
+        refresh_resp = await async_client.post(
+            "/auth/refresh",
+            headers={"X-CSRF-Token": csrf_token},
+        )
         assert refresh_resp.status_code == 401

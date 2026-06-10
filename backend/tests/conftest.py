@@ -8,6 +8,49 @@ import pytest
 
 os.environ["APP_ENV"] = "testing"
 
+import app.common.database as _db_module
+from app.common.rls import apply_rls_context_to_session
+
+_orig_factory = _db_module.async_session_factory
+
+
+class _TestAsyncSession:
+    def __init__(self, session):
+        self._session = session
+        self._wrapped = False
+
+    async def __aenter__(self):
+        s = await self._session.__aenter__()
+        if not self._wrapped:
+            _orig_commit = s.commit
+            async def _commit():
+                if s.in_transaction() and not s.is_active:
+                    await s.rollback()
+                await _orig_commit()
+                await apply_rls_context_to_session(
+                    s, role="platform_admin", is_platform_admin=True,
+                )
+            s.commit = _commit
+            self._wrapped = True
+        await apply_rls_context_to_session(
+            s, role="platform_admin", is_platform_admin=True,
+        )
+        return s
+
+    async def __aexit__(self, *args):
+        return await self._session.__aexit__(*args)
+
+    def __getattr__(self, name):
+        return getattr(self._session, name)
+
+
+class _TestAsyncSessionFactory:
+    def __call__(self, **kwargs):
+        return _TestAsyncSession(_orig_factory(**kwargs))
+
+
+_db_module.async_session_factory = _TestAsyncSessionFactory()
+
 from app.auth.models import Role, Permission, RolePermission
 from app.users.models import User
 from app.agencies.models import AgencyTenant, AgencyEmployeeMembership
@@ -50,11 +93,25 @@ async def async_client():
 
 @pytest.fixture
 async def db_session() -> AsyncGenerator:
-    from sqlalchemy.ext.asyncio import AsyncSession
     from app.common.database import async_session_factory
 
     async with async_session_factory() as session:
-        yield session
+        _orig_commit = session.commit
+
+        async def _commit():
+            if session.in_transaction() and not session.is_active:
+                await session.rollback()
+            await _orig_commit()
+            await apply_rls_context_to_session(
+                session, role="platform_admin", is_platform_admin=True,
+            )
+
+        session.commit = _commit
+        try:
+            yield session
+        except Exception:
+            await session.rollback()
+            raise
 
 
 @pytest.fixture
@@ -220,6 +277,7 @@ async def test_listing(db_session, test_tenant, agency_admin_user):
 
     yield listing
 
+    await db_session.rollback()
     from sqlalchemy import text
     await db_session.execute(text(f"DELETE FROM listings WHERE id = '{lid}'"))
     await db_session.commit()

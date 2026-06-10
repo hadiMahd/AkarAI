@@ -9,6 +9,21 @@ from app.leads.models import Lead, ReviewedLeadRecord
 
 
 class LeadRepository(BaseRepository):
+    async def list_by_user(
+        self, user_id: UUID, offset: int = 0, limit: int = 20
+    ) -> tuple[list[Lead], int]:
+        count_q = select(func.count(Lead.id)).where(Lead.user_id == user_id)
+        total = (await self.session.execute(count_q)).scalar() or 0
+        q = (
+            select(Lead)
+            .where(Lead.user_id == user_id)
+            .order_by(Lead.created_at.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        result = await self.session.execute(q)
+        return list(result.scalars().all()), total
+
     async def list_by_tenant(
         self, tenant_id: UUID, offset: int = 0, limit: int = 20
     ) -> tuple[list[Lead], int]:

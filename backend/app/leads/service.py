@@ -47,6 +47,12 @@ class LeadService:
         )
         return lead
 
+    async def list_user_inquiries(self, user_id: UUID, pagination: PaginationRequest) -> PaginationResult:
+        items, total = await self._repo.list_by_user(
+            user_id, offset=pagination.offset, limit=pagination.limit
+        )
+        return PaginationResult(items=items, total=total, pagination=pagination)
+
     async def list_tenant_leads(self, pagination: PaginationRequest) -> PaginationResult:
         ctx = require_tenant(self._tenant)
         items, total = await self._repo.list_by_tenant(

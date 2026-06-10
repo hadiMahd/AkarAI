@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import AsyncGenerator, Optional
 from uuid import UUID
 
 from fastapi import Depends, Request
@@ -9,6 +9,7 @@ from app.common.config import settings
 from app.common.exceptions import UnauthorizedError, ForbiddenError
 from app.common.security import decode_access_token
 from app.common.tenant import TenantContext
+from app.common.rls import apply_rls_context_from_tenant_context
 from app.auth.permissions import PermissionKey
 from app.auth.models import Role as RoleModel, Permission as PermissionModel, RolePermission
 from app.auth.service import is_token_blacklisted, get_session_invalidation_timestamp
@@ -131,6 +132,32 @@ async def get_tenant_context(
     actor: dict = Depends(get_current_actor),
     db: AsyncSession = Depends(get_db_session),
 ) -> TenantContext:
+    ctx = await _resolve_tenant_context(request, actor, db)
+    await apply_rls_context_from_tenant_context(db, ctx)
+    return ctx
+
+
+async def get_optional_tenant_context(
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
+) -> Optional[TenantContext]:
+    auth = request.headers.get("Authorization", "")
+    if not auth.lower().startswith("bearer "):
+        return None
+    try:
+        actor = await get_current_actor(request, db)
+        ctx = await _resolve_tenant_context(request, actor, db)
+        await apply_rls_context_from_tenant_context(db, ctx)
+        return ctx
+    except Exception:
+        return None
+
+
+async def _resolve_tenant_context(
+    request: Request,
+    actor: dict,
+    db: AsyncSession,
+) -> TenantContext:
     actor_id = UUID(actor["id"])
     actor_role = actor.get("role")
 
@@ -158,3 +185,17 @@ async def get_tenant_context(
         request_id=getattr(request.state, "request_id", None),
         source="api",
     )
+
+
+async def get_rls_db_session(
+    db: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
+) -> AsyncSession:
+    return db
+
+
+async def get_optional_rls_db_session(
+    db: AsyncSession = Depends(get_db_session),
+    ctx: Optional[TenantContext] = Depends(get_optional_tenant_context),
+) -> AsyncSession:
+    return db
