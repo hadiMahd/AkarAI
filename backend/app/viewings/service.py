@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
@@ -184,10 +185,17 @@ class ViewingBookingService:
             raise ForbiddenError(detail="Not your scheduled viewing")
         return viewing
 
-    async def list_tenant_viewings(self, pagination: PaginationRequest) -> PaginationResult:
+    async def list_tenant_viewings(
+        self, pagination: PaginationRequest,
+        status: Optional[str] = None,
+        listing_id: Optional[UUID] = None,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None,
+    ) -> PaginationResult:
         ctx = require_tenant(self._tenant)
         items, total = await self._viewing_repo.list_by_tenant(
-            ctx.tenant_id, offset=pagination.offset, limit=pagination.limit
+            ctx.tenant_id, offset=pagination.offset, limit=pagination.limit,
+            status=status, listing_id=listing_id, date_from=date_from, date_to=date_to,
         )
         return PaginationResult(items=items, total=total, pagination=pagination)
 
@@ -203,6 +211,9 @@ class ViewingBookingService:
         from app.common.domain import VIEWING_STATUS_TRANSITIONS, VALID_VIEWING_STATUSES
 
         ctx = require_tenant(self._tenant)
+        if ctx.role == "support_employee":
+            raise ForbiddenError(detail="Support employees cannot modify viewing schedules")
+
         viewing = await self._viewing_repo.get_by_id(viewing_id)
         if viewing is None:
             raise NotFoundError(detail="Scheduled viewing not found")

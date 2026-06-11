@@ -1,0 +1,147 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api/client";
+import { queryKeys } from "@/lib/query/query-client";
+
+interface Listing {
+  id: string;
+  agency_tenant_id: string;
+  title: string;
+  description: string | null;
+  property_type: string | null;
+  listing_purpose: string | null;
+  price: number | null;
+  currency: string | null;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  area_size: number | null;
+  area_unit: string | null;
+  furnishing: string | null;
+  location_text: string | null;
+  address: string | null;
+  city: string | null;
+  country: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ListingCreateRequest {
+  title: string;
+  description?: string;
+  property_type?: string;
+  listing_purpose?: string;
+  price?: number;
+  currency?: string;
+  bedrooms?: number;
+  bathrooms?: number;
+  area_size?: number;
+  area_unit?: string;
+  furnishing?: string;
+  location_text?: string;
+  address?: string;
+  city?: string;
+  country?: string;
+  status: string;
+}
+
+interface PaginatedListingsResponse {
+  items: Listing[];
+  page: number;
+  page_size: number;
+  total: number;
+  has_next: boolean;
+  has_previous: boolean;
+}
+
+async function fetchListings(page = 1, pageSize = 20): Promise<PaginatedListingsResponse> {
+  return apiClient<PaginatedListingsResponse>("/agency/listings", {
+    params: { page, page_size: pageSize },
+  });
+}
+
+async function fetchListing(id: string): Promise<Listing> {
+  return apiClient<Listing>(`/agency/listings/${id}`);
+}
+
+async function createListing(data: ListingCreateRequest): Promise<Listing> {
+  return apiClient<Listing>("/agency/listings", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+async function updateListing(id: string, data: Partial<ListingCreateRequest>): Promise<Listing> {
+  return apiClient<Listing>(`/agency/listings/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+async function archiveListing(id: string): Promise<void> {
+  return apiClient<void>(`/agency/listings/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export function useAgencyListings() {
+  const queryClient = useQueryClient();
+
+  const query = useQuery({
+    queryKey: queryKeys.listings.all,
+    queryFn: () => fetchListings(),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: createListing,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.listings.all });
+    },
+  });
+
+  const archiveMutation = useMutation({
+    mutationFn: archiveListing,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.listings.all });
+    },
+  });
+
+  return {
+    listings: query.data?.items ?? [],
+    total: query.data?.total ?? 0,
+    isLoading: query.isLoading,
+    error: query.error,
+    createListing: createMutation.mutateAsync,
+    isCreating: createMutation.isPending,
+    createError: createMutation.error,
+    archiveListing: archiveMutation.mutateAsync,
+    isArchiving: archiveMutation.isPending,
+  };
+}
+
+export function useListingDetail(id: string) {
+  const queryClient = useQueryClient();
+
+  const query = useQuery({
+    queryKey: queryKeys.listings.detail(id),
+    queryFn: () => fetchListing(id),
+    enabled: !!id,
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (data: Partial<ListingCreateRequest>) => updateListing(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.listings.detail(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.listings.all });
+    },
+  });
+
+  return {
+    listing: query.data,
+    isLoading: query.isLoading,
+    error: query.error,
+    updateListing: updateMutation.mutateAsync,
+    isUpdating: updateMutation.isPending,
+  };
+}
+
+export type { Listing, ListingCreateRequest };

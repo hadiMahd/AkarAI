@@ -146,17 +146,16 @@ class TestAgencyServiceEmployees:
         user, _ = agency_admin_user
         ctx = _make_tenant(test_tenant.id, user.id)
 
-        from sqlalchemy import text
-        result = await db_session.execute(text("SELECT id FROM roles WHERE slug = 'support_employee' LIMIT 1"))
-        role_id = result.fetchone()[0]
-
         svc = AgencyService(db_session, ctx)
+        employee_email = f"support_{uuid.uuid4().hex[:8]}@agency.test"
         membership = await svc.create_employee({
-            "user_id": user.id,
-            "role_id": role_id,
+            "work_email": employee_email,
+            "display_name": "Support Employee",
+            "role_slug": "support_employee",
         })
         assert membership.status == "active"
         assert membership.agency_tenant_id == test_tenant.id
+        assert membership.work_email == employee_email
 
     async def test_create_employee_support_employee_forbidden(self, db_session, test_tenant, support_user):
         user, _ = support_user
@@ -164,7 +163,11 @@ class TestAgencyServiceEmployees:
 
         svc = AgencyService(db_session, ctx)
         with pytest.raises(ForbiddenError, match="Support employees cannot manage employees"):
-            await svc.create_employee({"user_id": uuid.uuid4(), "role_id": uuid.uuid4()})
+            await svc.create_employee({
+                "work_email": f"support_{uuid.uuid4().hex[:8]}@agency.test",
+                "display_name": "Forbidden",
+                "role_slug": "support_employee",
+            })
 
     async def test_update_employee(self, db_session, test_tenant, agency_admin_user):
         user, _ = agency_admin_user

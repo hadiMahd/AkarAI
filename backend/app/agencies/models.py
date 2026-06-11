@@ -27,6 +27,8 @@ class AgencyEmployeeMembership(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     role_id = Column(UUID(as_uuid=True), ForeignKey("roles.id", ondelete="RESTRICT"), nullable=False)
     status = Column(String(16), nullable=False, default="active")
+    display_name = Column(String(255), nullable=True)
+    work_email = Column(String(255), nullable=True)
     deactivated_at = Column(DateTime(timezone=True), nullable=True)
     deactivated_by_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     deactivation_reason = Column(Text, nullable=True)

@@ -81,6 +81,9 @@ class Settings(BaseSettings):
     # Request ID
     request_id_header: str = "X-Request-Id"
 
+    # Agency employee onboarding
+    agency_employee_initial_password: str = "12345678"
+
     @field_validator("app_env")
     @classmethod
     def validate_app_env(cls, v: str) -> str:

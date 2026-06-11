@@ -1,3 +1,4 @@
+from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request
@@ -130,12 +131,18 @@ async def get_my_viewing(
 async def list_agency_viewings(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    status: Optional[str] = Query(None),
+    listing_id: Optional[UUID] = Query(None),
+    date_from: Optional[str] = Query(None),
+    date_to: Optional[str] = Query(None),
     tenant: TenantContext = Depends(get_tenant_context),
     db: AsyncSession = Depends(get_db_session),
 ):
     pp = PaginationRequest(page=page, page_size=page_size)
     svc = ViewingBookingService(db, tenant)
-    result = await svc.list_tenant_viewings(pp)
+    result = await svc.list_tenant_viewings(
+        pp, status=status, listing_id=listing_id, date_from=date_from, date_to=date_to
+    )
     return PaginatedScheduledViewingsResponse(
         items=result.items, page=result.page, page_size=result.page_size,
         total=result.total, has_next=result.has_next, has_previous=result.has_previous,

@@ -59,22 +59,18 @@ class TestAgencyEmployeeAPI:
         assert data["page_size"] == 5
 
     async def test_create_employee(self, async_client: AsyncClient):
-        from sqlalchemy import text
-        from app.common.database import async_session_factory
-        async with async_session_factory() as db:
-            result = await db.execute(text("SELECT id FROM users WHERE email = 'support@akarai.test' LIMIT 1"))
-            user_id = result.fetchone()[0]
-            result = await db.execute(text("SELECT id FROM roles WHERE slug = 'support_employee' LIMIT 1"))
-            role_id = result.fetchone()[0]
-
+        employee_email = f"support_{uuid.uuid4().hex[:8]}@agency.test"
         token = await self._login(async_client, "agency.admin@akarai.test")
         resp = await async_client.post("/agencies/me/employees", json={
-            "user_id": str(user_id),
-            "role_id": str(role_id),
+            "work_email": employee_email,
+            "display_name": "Created Employee",
+            "role_slug": "support_employee",
         }, headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code == 201
         data = resp.json()
         assert data["status"] == "active"
+        assert data["work_email"] == employee_email
+        assert data["display_name"] == "Created Employee"
 
     async def test_get_employee(self, async_client: AsyncClient):
         token = await self._login(async_client, "agency.admin@akarai.test")
@@ -105,18 +101,12 @@ class TestAgencyEmployeeAPI:
             assert resp.json()["display_name"] == "Updated Employee Name"
 
     async def test_deactivate_employee(self, async_client: AsyncClient):
-        from sqlalchemy import text
-        from app.common.database import async_session_factory
-        async with async_session_factory() as db:
-            result = await db.execute(text("SELECT id FROM users WHERE email = 'support@akarai.test' LIMIT 1"))
-            user_id = result.fetchone()[0]
-            result = await db.execute(text("SELECT id FROM roles WHERE slug = 'support_employee' LIMIT 1"))
-            role_id = result.fetchone()[0]
-
+        employee_email = f"support_{uuid.uuid4().hex[:8]}@agency.test"
         token = await self._login(async_client, "agency.admin@akarai.test")
         create_resp = await async_client.post("/agencies/me/employees", json={
-            "user_id": str(user_id),
-            "role_id": str(role_id),
+            "work_email": employee_email,
+            "display_name": "Deactivate Me",
+            "role_slug": "support_employee",
         }, headers={"Authorization": f"Bearer {token}"})
         employee_id = create_resp.json()["id"]
 
@@ -128,7 +118,8 @@ class TestAgencyEmployeeAPI:
         assert resp.status_code == 401
 
         resp = await async_client.post("/agencies/me/employees", json={
-            "user_id": str(uuid.uuid4()),
-            "role_id": str(uuid.uuid4()),
+            "work_email": f"unauthorized_{uuid.uuid4().hex[:8]}@agency.test",
+            "display_name": "Unauthorized",
+            "role_slug": "support_employee",
         })
         assert resp.status_code == 401

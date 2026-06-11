@@ -1,7 +1,7 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/006-user-app-core-ui-without-ai/plan.md
+at specs/007-agency-dashboard-core-ui-without-ai/plan.md
 <!-- SPECKIT END -->
 
 ## Architecture Rules

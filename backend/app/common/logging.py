@@ -14,6 +14,7 @@ def setup_logging() -> None:
 
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(formatter)
+    handler.addFilter(RequestIDFilter())
 
     root_logger = logging.getLogger()
     root_logger.setLevel(level)
@@ -31,7 +32,3 @@ class RequestIDFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         record.request_id = getattr(record, "request_id", "-")
         return True
-
-
-# Register the filter on the root handler after setup_logging is called.
-# The formatter includes %(request_id)s which defaults to "-".

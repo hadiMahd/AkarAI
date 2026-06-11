@@ -22,8 +22,9 @@ class TestSupportEmployeeRestrictions:
     async def test_support_cannot_create_employee(self, async_client: AsyncClient):
         token = await self._login(async_client, "support@akarai.test")
         resp = await async_client.post("/agencies/me/employees", json={
-            "user_id": str(uuid.uuid4()),
-            "role_id": str(uuid.uuid4()),
+            "work_email": f"support_{uuid.uuid4().hex[:8]}@agency.test",
+            "display_name": "Should Fail",
+            "role_slug": "support_employee",
         }, headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code == 403
 

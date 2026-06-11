@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
@@ -70,13 +71,36 @@ class ScheduledViewingRepository(BaseRepository):
         return list(result.scalars().all()), total
 
     async def list_by_tenant(
-        self, tenant_id: UUID, offset: int = 0, limit: int = 20
+        self, tenant_id: UUID, offset: int = 0, limit: int = 20,
+        status: Optional[str] = None,
+        listing_id: Optional[UUID] = None,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None,
     ) -> tuple[list[ScheduledViewing], int]:
-        count_q = select(func.count(ScheduledViewing.id)).where(ScheduledViewing.agency_tenant_id == tenant_id)
+        base_where = [ScheduledViewing.agency_tenant_id == tenant_id]
+
+        if status is not None:
+            base_where.append(ScheduledViewing.status == status)
+        if listing_id is not None:
+            base_where.append(ScheduledViewing.listing_id == listing_id)
+        if date_from is not None:
+            try:
+                dt_from = datetime.fromisoformat(date_from)
+                base_where.append(ScheduledViewing.scheduled_start_at >= dt_from)
+            except ValueError:
+                pass
+        if date_to is not None:
+            try:
+                dt_to = datetime.fromisoformat(date_to)
+                base_where.append(ScheduledViewing.scheduled_start_at <= dt_to)
+            except ValueError:
+                pass
+
+        count_q = select(func.count(ScheduledViewing.id)).where(*base_where)
         total = (await self.session.execute(count_q)).scalar() or 0
         q = (
             select(ScheduledViewing)
-            .where(ScheduledViewing.agency_tenant_id == tenant_id)
+            .where(*base_where)
             .order_by(ScheduledViewing.scheduled_start_at.desc())
             .offset(offset)
             .limit(limit)
