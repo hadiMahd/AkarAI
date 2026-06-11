@@ -59,10 +59,11 @@ class AgencyEmployeeResponse(BaseModel):
 
 
 class AgencyEmployeeCreateRequest(BaseModel):
-    user_id: UUID
-    role_id: UUID
+    user_id: Optional[UUID] = None
+    role_id: Optional[UUID] = None
     display_name: Optional[str] = None
     work_email: Optional[str] = None
+    role_slug: Optional[str] = None
 
     @field_validator("work_email")
     @classmethod

@@ -47,6 +47,15 @@ class AgencyEmployeeRepository(BaseRepository):
         )
         return result.scalar_one_or_none()
 
+    async def get_by_tenant_and_user(self, tenant_id: UUID, user_id: UUID) -> Optional[AgencyEmployeeMembership]:
+        result = await self.session.execute(
+            select(AgencyEmployeeMembership).where(
+                AgencyEmployeeMembership.agency_tenant_id == tenant_id,
+                AgencyEmployeeMembership.user_id == user_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
     async def create(self, membership: AgencyEmployeeMembership) -> AgencyEmployeeMembership:
         self.session.add(membership)
         await self.session.flush()

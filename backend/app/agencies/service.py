@@ -10,6 +10,10 @@ from app.common.exceptions import NotFoundError, ForbiddenError, ValidationError
 from app.common.pagination import PaginationRequest, PaginationResult
 from app.common.tenant import TenantContext, require_tenant, ensure_tenant_match
 from app.common.events import write_domain_event_log
+from app.common.config import settings
+from app.common.security import hash_password
+from app.users.models import User
+from app.users.repository import UsersRepository
 
 
 class AgencyService:
@@ -84,18 +88,56 @@ class AgencyService:
         if ctx.role == "support_employee":
             raise ForbiddenError(detail="Support employees cannot manage employees")
 
+        work_email = data.get("work_email")
+        role_slug = data.get("role_slug")
+        display_name = data.get("display_name")
+
+        if not work_email:
+            raise ValidationError(detail="work_email is required")
+        if not display_name:
+            raise ValidationError(detail="display_name is required")
+        if role_slug != "support_employee":
+            raise ValidationError(detail="Only support_employee can be created from this flow")
+
+        users_repo = UsersRepository(self._session)
+        existing_user = await users_repo.get_user_by_email(work_email)
+        if existing_user is not None:
+            raise ValidationError(detail="A user account with this email already exists")
+
+        from app.auth.models import Role
+        from sqlalchemy import select
+
+        result = await self._session.execute(
+            select(Role).where(Role.slug == "support_employee")
+        )
+        role = result.scalar_one_or_none()
+        if role is None:
+            raise ValidationError(detail="support_employee role is not configured")
+
+        new_user = User(
+            email=work_email,
+            name=display_name,
+            password_hash=hash_password(settings.agency_employee_initial_password),
+            role_id=role.id,
+            is_active=True,
+            status="active",
+        )
+        new_user = await users_repo.create_user(new_user)
+
         membership = AgencyEmployeeMembership(
             agency_tenant_id=ctx.tenant_id,
-            user_id=data["user_id"],
-            role_id=data["role_id"],
+            user_id=new_user.id,
+            role_id=role.id,
             status="active",
+            display_name=display_name,
+            work_email=work_email,
         )
         membership = await self._employee_repo.create(membership)
         await write_domain_event_log(
             self._session, "agency.employee_added",
             aggregate_type="employee", aggregate_id=str(membership.id),
             agency_tenant_id=ctx.tenant_id, actor_user_id=ctx.actor_id,
-            payload={"user_id": str(data["user_id"]), "role_id": str(data["role_id"])},
+            payload={"user_id": str(new_user.id), "role_id": str(role.id), "email": work_email},
         )
         return membership
 

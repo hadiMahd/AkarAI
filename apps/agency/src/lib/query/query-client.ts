@@ -1,0 +1,49 @@
+import { QueryClient } from "@tanstack/react-query";
+
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5,
+      gcTime: 1000 * 60 * 30,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
+export const queryKeys = {
+  user: {
+    me: ["agency", "user", "me"] as const,
+  },
+  tenant: {
+    context: ["agency", "tenant", "context"] as const,
+  },
+  dashboard: {
+    summary: ["agency", "dashboard", "summary"] as const,
+    transactionsForecast: (historyMonths: number) =>
+      ["agency", "dashboard", "transactions-forecast", historyMonths] as const,
+  },
+  profile: {
+    agency: ["agency", "profile"] as const,
+  },
+  employees: {
+    all: ["agency", "employees"] as const,
+    list: (filters: Record<string, unknown>) => ["agency", "employees", "list", filters] as const,
+  },
+  listings: {
+    all: ["agency", "listings"] as const,
+    list: (filters: Record<string, unknown>) => ["agency", "listings", "list", filters] as const,
+    detail: (id: string) => ["agency", "listings", "detail", id] as const,
+    slots: (listingId: string) => ["agency", "listings", listingId, "slots"] as const,
+  },
+  leads: {
+    all: ["agency", "leads"] as const,
+    active: (filters: Record<string, unknown>) => ["agency", "leads", "active", filters] as const,
+    reviewed: (filters: Record<string, unknown>) => ["agency", "leads", "reviewed", filters] as const,
+    detail: (id: string) => ["agency", "leads", "detail", id] as const,
+  },
+  viewings: {
+    all: ["agency", "viewings"] as const,
+    list: (filters: Record<string, unknown>) => ["agency", "viewings", "list", filters] as const,
+  },
+} as const;

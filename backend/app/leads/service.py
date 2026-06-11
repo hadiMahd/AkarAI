@@ -53,10 +53,11 @@ class LeadService:
         )
         return PaginationResult(items=items, total=total, pagination=pagination)
 
-    async def list_tenant_leads(self, pagination: PaginationRequest) -> PaginationResult:
+    async def list_tenant_leads(self, pagination: PaginationRequest, reviewed: Optional[bool] = None, status: Optional[str] = None) -> PaginationResult:
         ctx = require_tenant(self._tenant)
         items, total = await self._repo.list_by_tenant(
-            ctx.tenant_id, offset=pagination.offset, limit=pagination.limit
+            ctx.tenant_id, offset=pagination.offset, limit=pagination.limit,
+            reviewed=reviewed, status=status,
         )
         return PaginationResult(items=items, total=total, pagination=pagination)
 

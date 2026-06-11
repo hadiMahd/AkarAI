@@ -61,12 +61,14 @@ async def list_my_inquiries(
 async def list_agency_leads(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    reviewed: Optional[bool] = Query(None),
+    status: Optional[str] = Query(None),
     tenant: TenantContext = Depends(get_tenant_context),
     db: AsyncSession = Depends(get_db_session),
 ):
     pp = PaginationRequest(page=page, page_size=page_size)
     svc = LeadService(db, tenant)
-    result = await svc.list_tenant_leads(pp)
+    result = await svc.list_tenant_leads(pp, reviewed=reviewed, status=status)
     return PaginatedLeadsResponse(
         items=result.items, page=result.page, page_size=result.page_size,
         total=result.total, has_next=result.has_next, has_previous=result.has_previous,
