@@ -103,6 +103,20 @@ def download_object(bucket: str, object_path: str) -> bytes:
         response.release_conn()
 
 
+def iter_object(bucket: str, object_path: str, chunk_size: int = 8192):
+    client = get_minio()
+    response = client.get_object(bucket_name=bucket, object_name=object_path)
+    try:
+        while True:
+            chunk = response.read(chunk_size)
+            if not chunk:
+                break
+            yield chunk
+    finally:
+        response.close()
+        response.release_conn()
+
+
 def delete_object(bucket: str, object_path: str) -> None:
     client = get_minio()
     client.remove_object(bucket_name=bucket, object_name=object_path)
@@ -136,6 +150,10 @@ def generate_derivative_object_key(tenant_id: str, listing_id: str, photo_id: st
 
 def get_media_bucket() -> str:
     return settings.media_bucket
+
+
+def get_rag_bucket() -> str:
+    return settings.minio_bucket_rag
 
 
 def get_media_internal_prefix() -> str:

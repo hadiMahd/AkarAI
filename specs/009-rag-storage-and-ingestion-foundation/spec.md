@@ -4,7 +4,7 @@
 
 **Created**: 2026-06-12
 
-**Status**: Draft
+**Status**: Implemented
 
 **Input**: User description: "phase 8, ask before taking any decision/detail dont assume anything"
 
@@ -52,6 +52,7 @@ Agency staff can see whether a policy PDF is pending, processed, failed, or need
 
 1. **Given** a policy PDF is still being processed, **When** staff view its status, **Then** they see a pending or processing state.
 2. **Given** ingestion fails or orphaned content is removed, **When** staff review the document later, **Then** the system shows a final failure or updated state rather than silent success.
+3. **Given** many RAG documents exist for a tenant, **When** staff view the document list, **Then** results are paginated so they can browse them in bounded pages.
 
 ### Edge Cases
 
@@ -78,6 +79,7 @@ Agency staff can see whether a policy PDF is pending, processed, failed, or need
 - **FR-011**: System MUST keep source files and extracted page text in object storage using tenant-scoped paths.
 - **FR-012**: System MUST preserve tenant isolation for document uploads, extracted pages, chunks, embeddings, and ingestion logs.
 - **FR-013**: System MUST record whether a document is pending, processed, failed, or unchanged after re-ingestion.
+- **FR-014**: System MUST paginate RAG document list responses.
 
 ### Key Entities
 
@@ -91,19 +93,18 @@ Agency staff can see whether a policy PDF is pending, processed, failed, or need
 - Product Boundary: This phase covers policy document storage and ingestion only. It does not add buyer-to-agency chat, listing AI answers, search UI, or area-knowledge content.
 - Tenant/RBAC Impact: Authorized agency users can upload their own tenant's policy PDFs. Tenant isolation must cover document metadata, pages, chunks, and logs.
 - AI/RAG Scope: This phase adds the storage and ingestion foundation for later retrieval. It does not add user-facing retrieval, reranking, or voice search yet.
-- Reliability/Security/Performance: Uploads must be validated before ingestion, re-ingestion must avoid duplicate chunks, failed ingestion must be visible, and all secrets remain Vault-backed.
+- Reliability/Security/Performance: Uploads must be validated before ingestion, re-ingestion must avoid duplicate chunks, failed ingestion must be visible, document lists must be paginated, and all secrets remain Vault-backed.
 - Unknowns to Clarify: None.
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
-- SC-001: At least 95% of valid policy PDF uploads reach a final ingestion state within 60 seconds under normal local operating conditions.
-- SC-002: 100% of non-PDF or unreadable policy uploads are rejected before becoming accepted documents.
-- SC-003: 100% of accepted policy PDFs are stored with page records and chunk records.
-- SC-004: Re-ingesting an unchanged policy PDF does not create duplicate chunks.
-- SC-005: Removing text from a policy and re-ingesting it results in orphaned chunks being removed.
-- SC-006: 100% of uploaded documents remain tenant-isolated in metadata, storage paths, and ingestion logs.
+- SC-001: 100% of non-PDF or unreadable policy uploads are rejected before becoming accepted documents.
+- SC-002: 100% of accepted policy PDFs are stored with page records and chunk records.
+- SC-003: Re-ingesting an unchanged policy PDF does not create duplicate chunks.
+- SC-004: Removing text from a policy and re-ingesting it results in orphaned chunks being removed.
+- SC-005: 100% of uploaded documents remain tenant-isolated in metadata, storage paths, and ingestion logs.
 
 ## Assumptions
 

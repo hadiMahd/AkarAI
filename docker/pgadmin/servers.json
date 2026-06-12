@@ -1,0 +1,14 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "AkarAI Postgres",
+      "Group": "AkarAI",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "akarai",
+      "Username": "akarai",
+      "SSLMode": "prefer",
+      "PassFile": "/pgpass"
+    }
+  }
+}

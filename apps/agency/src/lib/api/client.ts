@@ -21,6 +21,7 @@ const API_BASE_URL = resolveApiBaseUrl();
 interface ApiClientOptions extends RequestInit {
   params?: Record<string, string | number | boolean | undefined>;
   skipAuth?: boolean;
+  responseType?: "json" | "blob" | "text";
 }
 
 class ApiError extends Error {
@@ -109,7 +110,7 @@ export async function apiClient<T = unknown>(
   endpoint: string,
   options: ApiClientOptions = {}
 ): Promise<T> {
-  const { params, skipAuth, ...fetchOptions } = options;
+  const { params, skipAuth, responseType = "json", ...fetchOptions } = options;
 
   let url = `${API_BASE_URL}${endpoint}`;
 
@@ -173,6 +174,13 @@ export async function apiClient<T = unknown>(
 
   if (response.status === 204) {
     return {} as T;
+  }
+
+  if (responseType === "blob") {
+    return response.blob() as Promise<T>;
+  }
+  if (responseType === "text") {
+    return response.text() as Promise<T>;
   }
 
   return response.json();

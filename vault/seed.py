@@ -85,6 +85,54 @@ def main() -> None:
 
     print(f"[seed] akarai/ai seeded ({', '.join(ai_source)})")
 
+    # Seed Azure OpenAI config (optional)
+    azure_openai_endpoint = dotenv.get("AZURE_OPENAI_ENDPOINT", "").strip()
+    azure_openai_api_key = dotenv.get("AZURE_OPENAI_API_KEY", "").strip()
+    azure_openai_chat_deployment = dotenv.get("AZURE_OPENAI_CHAT_DEPLOYMENT", "").strip()
+    azure_openai_embedding_deployment = dotenv.get("AZURE_OPENAI_EMBEDDING_DEPLOYMENT", "").strip()
+    azure_whisper_deployment = dotenv.get("AZURE_WHISPER_DEPLOYMENT", "").strip()
+    azure_openai_embedding_model = dotenv.get("AZURE_OPENAI_EMBEDDING_MODEL", "").strip()
+    azure_source = []
+    if azure_openai_endpoint:
+        azure_source.append("endpoint: .env")
+    else:
+        azure_source.append("endpoint: not set")
+    if azure_openai_api_key:
+        azure_source.append("api_key: .env")
+    else:
+        azure_source.append("api_key: not set")
+    if azure_openai_chat_deployment:
+        azure_source.append("chat_deployment: .env")
+    else:
+        azure_source.append("chat_deployment: not set")
+    if azure_openai_embedding_deployment:
+        azure_source.append("embedding_deployment: .env")
+    else:
+        azure_source.append("embedding_deployment: not set")
+    if azure_whisper_deployment:
+        azure_source.append("whisper_deployment: .env")
+    else:
+        azure_source.append("whisper_deployment: not set")
+    if azure_openai_embedding_model:
+        azure_source.append("embedding_model: .env")
+    else:
+        azure_source.append("embedding_model: default/empty")
+
+    client.secrets.kv.v2.create_or_update_secret(
+        path="azure",
+        secret={
+            "endpoint": azure_openai_endpoint,
+            "api_key": azure_openai_api_key,
+            "chat_deployment": azure_openai_chat_deployment,
+            "embedding_deployment": azure_openai_embedding_deployment,
+            "whisper_deployment": azure_whisper_deployment,
+            "embedding_model": azure_openai_embedding_model,
+        },
+        mount_point="akarai",
+    )
+
+    print(f"[seed] akarai/azure seeded ({', '.join(azure_source)})")
+
 
 if __name__ == "__main__":
     try:

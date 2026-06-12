@@ -12,8 +12,8 @@
 - **Rationale**: Based on user confirmation and existing `docker-compose.yml`.
 
 ### Performance Goals
-- **Decision**: No specific RAG retrieval latency constraints added beyond the spec's 60 seconds ingestion goal.
-- **Rationale**: User replied "no" when asked about specific latency limitations for retrieval at this point. Ingestion must simply complete within 60s per SC-001.
+- **Decision**: No fixed RAG retrieval or ingestion timing benchmark is required in this phase.
+- **Rationale**: User explicitly chose to remove the 60-second ingestion metric. The implementation should remain non-blocking by using background ingestion workers and paginated document lists.
 
 ### PDF Parsing Library
 - **Decision**: PyMuPDF (`pymupdf`).
@@ -24,4 +24,3 @@
 - **Decision**: `fastcdc` (Content-Defined Chunking).
 - **Rationale**: The Constitution (Principle VI) explicitly mandates the use of CDC/fastcdc child chunking along with page-level parent chunking and previous-page overlap buffers. FastCDC provides deterministic chunk boundaries resilient to minor text edits, which makes hash comparison and orphan cleanup more stable than recursive character splitters.
 - **Alternatives considered**: `langchain-text-splitters` (rejected because it conflicts with the explicit CDC requirement in the constitution), generic python splitters.
-

@@ -8,7 +8,7 @@ Base = declarative_base()
 
 engine = create_async_engine(
     settings.pgbouncer_database_url,
-    echo=settings.app_debug,
+    echo=settings.app_debug and settings.app_env == "development",
     pool_size=20,
     max_overflow=10,
     pool_pre_ping=True,

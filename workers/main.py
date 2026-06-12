@@ -100,6 +100,13 @@ try:
 except ImportError as e:
     logger.warning("Could not import listing media handlers: %s", e)
 
+# Import and register RAG handlers
+try:
+    from handlers.rag import handle_rag_document_uploaded
+    register_event_handler("rag.document_uploaded")(handle_rag_document_uploaded)
+except ImportError as e:
+    logger.warning("Could not import RAG handlers: %s", e)
+
 
 async def _poll_loop() -> None:
     from outbox import claim_and_dispatch

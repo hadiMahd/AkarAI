@@ -6,7 +6,7 @@
 
 ## Summary
 
-Build foundational RAG storage and ingestion. This allows authorized agency staff to upload policy PDFs, breaking them into page-level parent chunks with overlap and FastCDC child chunks, generating vector embeddings with Azure OpenAI, storing vectors using pgvector, and caching pages and original documents securely in MinIO, all strongly isolated by tenant.
+Build foundational RAG storage and ingestion. This allows authorized agency staff to upload policy PDFs, persist document metadata and ingestion outbox events atomically, break documents into page-level parent chunks with overlap and FastCDC child chunks, generate vector embeddings with Azure OpenAI, store vectors using pgvector, and cache pages and original documents securely in MinIO, all strongly isolated by tenant.
 
 ## Technical Context
 
@@ -22,7 +22,7 @@ Build foundational RAG storage and ingestion. This allows authorized agency staf
 
 **Project Type**: Modular monolith web platform with background workers
 
-**Performance Goals**: At least 95% of valid policy PDF uploads reach a final ingestion state within 60 seconds.
+**Performance Goals**: Keep uploads non-blocking by moving ingestion work to background workers and paginate RAG document list responses.
 
 **Constraints**: No buyer-to-agency real-time chat; tenant isolation for agency data/RAG/tool calls; provider logic behind interfaces; all secrets read from HashiCorp Vault.
 
@@ -35,7 +35,7 @@ Build foundational RAG storage and ingestion. This allows authorized agency staf
 - **Product boundaries**: Scope strictly adds PDF foundation, no querying UI or chat in this phase.
 - **Tenant/RBAC**: Enforces tenant ID and role permissions for data access and RAG chunks. MinIO paths prefixed with tenant_id.
 - **RAG/search**: Keeps PostgreSQL as RAG metadata source of truth, MinIO as blob/text storage, pgvector for embeddings.
-- **Reliability/security/performance**: Idempotent workers (Redis queue) handle PDF ingestion, avoiding blocking API load.
+- **Reliability/security/performance**: Upload creates RAG document metadata and an ingestion outbox event in one database transaction. Idempotent workers consume the outbox event for PDF ingestion, avoiding blocking API load. RAG document list endpoints use page-based pagination.
 - **Testing/quality**: Includes required unit, integration, RAG, and RBAC tests.
 
 ## Project Structure
@@ -65,7 +65,8 @@ backend/
 │       └── models.py
 └── tests/
     └── integration/
-        └── test_rag.py
+        ├── test_rag_upload.py
+        └── test_rag_download_api.py
 
 apps/
 └── agency/
@@ -74,8 +75,10 @@ apps/
             └── rag/
 
 workers/
-└── handlers/
-    └── rag.py
+├── handlers/
+│   └── rag.py
+└── tests/
+    └── test_rag_ingestion.py
 ```
 
 ## Complexity Tracking
