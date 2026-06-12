@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
@@ -18,8 +18,8 @@ interface ListingListItem {
   description: string;
   property_type: string;
   listing_purpose: "sale" | "rent";
-  price: number;
-  currency: string;
+  price: number | null;
+  currency: string | null;
   bedrooms: number | null;
   bathrooms: number | null;
   area_size: number | null;
@@ -27,6 +27,7 @@ interface ListingListItem {
   city: string;
   address: string;
   status: string;
+  thumbnail_url?: string | null;
 }
 
 interface ListingsResponse {
@@ -36,6 +37,7 @@ interface ListingsResponse {
   page_size: number;
   has_next: boolean;
   has_previous: boolean;
+  next_cursor: string | null;
 }
 
 interface SearchFilters {
@@ -47,15 +49,31 @@ interface SearchFilters {
   max_price?: number;
   min_bedrooms?: number;
   min_bathrooms?: number;
+  furnishing?: string;
+  min_area_size?: number;
+  max_area_size?: number;
   sort_by?: string;
   sort_order?: string;
-  page?: number;
   page_size?: number;
+}
+
+function sortToApi(sortBy: string, sortOrder: string): string {
+  if (sortBy === "created_at" && sortOrder === "asc") return "oldest";
+  if (sortBy === "created_at" && sortOrder === "desc") return "newest";
+  if (sortBy === "price" && sortOrder === "asc") return "price_asc";
+  if (sortBy === "price" && sortOrder === "desc") return "price_desc";
+  if (sortBy === "area_size" && sortOrder === "asc") return "area_size_asc";
+  if (sortBy === "area_size" && sortOrder === "desc") return "area_size_desc";
+  return "newest";
 }
 
 export function ListingsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFilters] = useState<SearchFilters>({});
+  const [cursor, setCursor] = useState<string | undefined>(undefined);
+  const [prevCursors, setPrevCursors] = useState<string[]>([]);
+  const filtersRef = useRef(filters);
+
   const showSaved = searchParams.get("saved") === "true";
   const { savedListings } = useSavedListings();
   const { savedListings: savedListingsFull } = useSavedListingsFull();
@@ -70,21 +88,51 @@ export function ListingsPage() {
       max_price: searchParams.get("max_price") ? Number(searchParams.get("max_price")) : undefined,
       min_bedrooms: searchParams.get("min_bedrooms") ? Number(searchParams.get("min_bedrooms")) : undefined,
       min_bathrooms: searchParams.get("min_bathrooms") ? Number(searchParams.get("min_bathrooms")) : undefined,
+      furnishing: searchParams.get("furnishing") || undefined,
+      min_area_size: searchParams.get("min_area_size") ? Number(searchParams.get("min_area_size")) : undefined,
+      max_area_size: searchParams.get("max_area_size") ? Number(searchParams.get("max_area_size")) : undefined,
       sort_by: searchParams.get("sort_by") || "created_at",
       sort_order: searchParams.get("sort_order") || "desc",
-      page: searchParams.get("page") ? Number(searchParams.get("page")) : 1,
       page_size: 12,
     };
+    filtersRef.current = newFilters;
     setFilters(newFilters);
+    setCursor(undefined);
+    setPrevCursors([]);
   }, [searchParams]);
 
+  const buildApiParams = useCallback(() => {
+    const sort = sortToApi(filters.sort_by || "created_at", filters.sort_order || "desc");
+    return {
+      location: filters.q,
+      city: filters.city,
+      listing_purpose: filters.purpose,
+      property_type: filters.property_type,
+      min_price: filters.min_price,
+      max_price: filters.max_price,
+      bedrooms: filters.min_bedrooms,
+      bathrooms: filters.min_bathrooms,
+      furnishing: filters.furnishing,
+      min_area_size: filters.min_area_size,
+      max_area_size: filters.max_area_size,
+      sort,
+      page_size: filters.page_size || 12,
+    };
+  }, [filters]);
+
   const { data, isLoading, error, refetch } = useQuery<ListingsResponse, Error>({
-    queryKey: [...queryKeys.listings.lists(filters as Record<string, unknown>), showSaved, savedListings.length],
+    queryKey: [
+      ...queryKeys.listings.lists(filters as Record<string, unknown>),
+      showSaved,
+      savedListings.length,
+      cursor,
+    ],
+    staleTime: 0,
+    refetchOnMount: "always",
     queryFn: async () => {
       if (showSaved) {
-        const page = filters.page || 1;
         const pageSize = filters.page_size || 12;
-        const start = (page - 1) * pageSize;
+        const start = (prevCursors.length) * pageSize;
         const items: ListingListItem[] = savedListingsFull
           .slice(start, start + pageSize)
           .map((item) => ({
@@ -93,8 +141,8 @@ export function ListingsPage() {
             description: item.listing.description || "",
             property_type: item.listing.property_type || "",
             listing_purpose: item.listing.listing_purpose || "sale",
-            price: item.listing.price || 0,
-            currency: item.listing.currency || "USD",
+            price: item.listing.price ?? null,
+            currency: item.listing.currency ?? null,
             bedrooms: item.listing.bedrooms,
             bathrooms: item.listing.bathrooms,
             area_size: item.listing.area_size,
@@ -102,45 +150,27 @@ export function ListingsPage() {
             city: item.listing.city || "",
             address: item.listing.location_text || "",
             status: item.listing.status,
+            thumbnail_url: item.listing.thumbnail_url,
           }));
         return {
           items,
           total: savedListingsFull.length,
-          page,
+          page: prevCursors.length + 1,
           page_size: pageSize,
           has_next: start + pageSize < savedListingsFull.length,
-          has_previous: page > 1,
+          has_previous: prevCursors.length > 0,
+          next_cursor: null,
         };
       }
-      const sort =
-        filters.sort_by === "price" && filters.sort_order === "asc"
-          ? "price_asc"
-          : filters.sort_by === "price" && filters.sort_order === "desc"
-            ? "price_desc"
-            : filters.sort_by === "area_size" && filters.sort_order === "asc"
-              ? "area_size_asc"
-              : filters.sort_by === "area_size" && filters.sort_order === "desc"
-                ? "area_size_desc"
-                : "newest";
 
-      return apiClient<ListingsResponse>("/listings", {
-        params: {
-          location: [filters.q, filters.city].filter(Boolean).join(" ") || undefined,
-          listing_purpose: filters.purpose,
-          property_type: filters.property_type,
-          min_price: filters.min_price,
-          max_price: filters.max_price,
-          bedrooms: filters.min_bedrooms,
-          bathrooms: filters.min_bathrooms,
-          sort,
-          page: filters.page || 1,
-          page_size: filters.page_size || 12,
-        },
-      });
+      const params: Record<string, string | number | boolean | undefined> = { ...buildApiParams() };
+      if (cursor) {
+        params.cursor = cursor;
+      }
+
+      return apiClient<ListingsResponse>("/listings", { params });
     },
   });
-
-  const totalPages = data ? Math.max(1, Math.ceil(data.total / data.page_size)) : 1;
 
   const handleFilterChange = (newFilters: SearchFilters) => {
     const params = new URLSearchParams();
@@ -151,6 +181,21 @@ export function ListingsPage() {
     });
     setSearchParams(params);
   };
+
+  const handleNextPage = useCallback(() => {
+    if (data?.next_cursor) {
+      setPrevCursors((prev) => [...prev, cursor ?? ""]);
+      setCursor(data.next_cursor);
+    }
+  }, [data, cursor]);
+
+  const handlePrevPage = useCallback(() => {
+    const prev = prevCursors[prevCursors.length - 1];
+    if (prev !== undefined) {
+      setPrevCursors((p) => p.slice(0, -1));
+      setCursor(prev || undefined);
+    }
+  }, [prevCursors]);
 
   return (
     <div className="space-y-6">
@@ -178,7 +223,7 @@ export function ListingsPage() {
 
       {data && data.items.length > 0 && (
         <ListingsToolbar
-          total={data.total}
+          total={showSaved ? data.total : undefined}
           sortBy={filters.sort_by || "created_at"}
           sortOrder={filters.sort_order || "desc"}
           onSortChange={(sortBy, sortOrder) =>
@@ -216,31 +261,22 @@ export function ListingsPage() {
             ))}
           </div>
 
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2">
-              <button
-                onClick={() =>
-                  handleFilterChange({ ...filters, page: (filters.page || 1) - 1 })
-                }
-                disabled={!filters.page || filters.page <= 1}
-                className="px-4 py-2 text-sm border rounded-md disabled:opacity-50"
-              >
-                Previous
-              </button>
-              <span className="text-sm text-muted-foreground">
-                Page {filters.page || 1} of {totalPages}
-              </span>
-              <button
-                onClick={() =>
-                  handleFilterChange({ ...filters, page: (filters.page || 1) + 1 })
-                }
-                disabled={(filters.page || 1) >= totalPages}
-                className="px-4 py-2 text-sm border rounded-md disabled:opacity-50"
-              >
-                Next
-              </button>
-            </div>
-          )}
+          <div className="flex items-center justify-center gap-2">
+            <button
+              onClick={handlePrevPage}
+              disabled={prevCursors.length === 0}
+              className="px-4 py-2 text-sm border rounded-md disabled:opacity-50"
+            >
+              Previous
+            </button>
+            <button
+              onClick={handleNextPage}
+              disabled={!data.has_next || !data.next_cursor}
+              className="px-4 py-2 text-sm border rounded-md disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
         </>
       )}
     </div>

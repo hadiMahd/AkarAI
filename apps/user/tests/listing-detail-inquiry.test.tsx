@@ -158,4 +158,140 @@ describe("ListingDetailPage", () => {
     expect(screen.queryByText(/match score/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/microphone/i)).not.toBeInTheDocument();
   });
+
+  describe("media rendering", () => {
+    it("renders images from media endpoint when items are returned", async () => {
+      const mockListingWithThumbnail = {
+        ...mockListing,
+        thumbnail_url: null,
+      };
+      const mockMediaItems = [
+        {
+          id: "media-1",
+          listing_id: "test-listing-id",
+          caption: "Living room",
+          alt_text: null,
+          display_order: 1,
+          width: 800,
+          height: 600,
+          media_url: "http://example.com/photo1.jpg",
+          format: "webp",
+          status: "accepted",
+        },
+        {
+          id: "media-2",
+          listing_id: "test-listing-id",
+          caption: "Kitchen",
+          alt_text: null,
+          display_order: 2,
+          width: 800,
+          height: 600,
+          media_url: "http://example.com/photo2.jpg",
+          format: "webp",
+          status: "accepted",
+        },
+      ];
+
+      mockApiClient.mockImplementation((endpoint: string) => {
+        if (endpoint.includes("/media")) {
+          return Promise.resolve(mockMediaItems);
+        }
+        if (endpoint.includes("/viewing-slots")) {
+          return Promise.resolve([]);
+        }
+        return Promise.resolve(mockListingWithThumbnail as any);
+      });
+
+      renderWithProviders(<ListingDetailPage />);
+
+      await waitFor(() => {
+        expect(screen.getAllByText("Test Property").length).toBeGreaterThan(0);
+      });
+
+      expect(screen.getByText(/photos/i)).toBeInTheDocument();
+      const images = screen.getAllByRole("img");
+      expect(images.length).toBeGreaterThanOrEqual(2);
+      expect(images[0]).toHaveAttribute("src", "http://example.com/photo1.jpg");
+    });
+
+    it("renders thumbnail when media endpoint returns empty", async () => {
+      const mockListingWithThumbnail = {
+        ...mockListing,
+        thumbnail_url: "http://example.com/thumb.jpg",
+      };
+
+      let mediaCallCount = 0;
+      mockApiClient.mockImplementation((endpoint: string) => {
+        if (endpoint.includes("/media")) {
+          mediaCallCount++;
+          return Promise.resolve([]);
+        }
+        if (endpoint.includes("/viewing-slots")) {
+          return Promise.resolve([]);
+        }
+        return Promise.resolve(mockListingWithThumbnail as any);
+      });
+
+      renderWithProviders(<ListingDetailPage />);
+
+      await waitFor(() => {
+        expect(screen.getAllByText("Test Property").length).toBeGreaterThan(0);
+      });
+
+      expect(mediaCallCount).toBeGreaterThanOrEqual(1);
+      const images = screen.getAllByRole("img");
+      expect(images.length).toBeGreaterThanOrEqual(1);
+      expect(images[0]).toHaveAttribute("src", "http://example.com/thumb.jpg");
+    });
+
+    it("renders placeholder when both media and thumbnail are absent", async () => {
+      const mockListingNoImage = {
+        ...mockListing,
+        thumbnail_url: null,
+      };
+
+      mockApiClient.mockImplementation((endpoint: string) => {
+        if (endpoint.includes("/media")) {
+          return Promise.resolve([]);
+        }
+        if (endpoint.includes("/viewing-slots")) {
+          return Promise.resolve([]);
+        }
+        return Promise.resolve(mockListingNoImage as any);
+      });
+
+      renderWithProviders(<ListingDetailPage />);
+
+      await waitFor(() => {
+        expect(screen.getAllByText("Test Property").length).toBeGreaterThan(0);
+      });
+
+      expect(screen.getByText(/no images available/i)).toBeInTheDocument();
+    });
+
+    it("shows error state when media endpoint fails", async () => {
+      const mockListingNoImage = {
+        ...mockListing,
+        thumbnail_url: null,
+      };
+
+      mockApiClient.mockImplementation((endpoint: string) => {
+        if (endpoint.includes("/media")) {
+          return Promise.reject(new Error("Media fetch failed"));
+        }
+        if (endpoint.includes("/viewing-slots")) {
+          return Promise.resolve([]);
+        }
+        return Promise.resolve(mockListingNoImage as any);
+      });
+
+      renderWithProviders(<ListingDetailPage />);
+
+      await waitFor(() => {
+        expect(screen.getAllByText("Test Property").length).toBeGreaterThan(0);
+      });
+
+      expect(screen.getByText(/failed to load images/i)).toBeInTheDocument();
+    });
+  });
 });

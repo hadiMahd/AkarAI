@@ -6,8 +6,8 @@ interface Listing {
   description: string;
   property_type: string;
   listing_purpose: "sale" | "rent";
-  price: number;
-  currency: string;
+  price: number | null;
+  currency: string | null;
   bedrooms: number | null;
   bathrooms: number | null;
   area_size: number | null;

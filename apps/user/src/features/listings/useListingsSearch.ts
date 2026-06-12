@@ -6,8 +6,8 @@ import type { SearchFilters } from "../search/useSearchFilters";
 export interface Listing {
   id: string;
   title: string;
-  price: number;
-  currency: string;
+  price: number | null;
+  currency: string | null;
   location_text: string;
   property_type: string;
   listing_purpose: string;
@@ -24,11 +24,14 @@ export interface PaginatedListingsResponse {
   total: number;
   has_next: boolean;
   has_previous: boolean;
+  next_cursor: string | null;
 }
 
 export function useListingsSearch(filters: SearchFilters) {
   return useQuery<PaginatedListingsResponse, Error>({
     queryKey: [...queryKeys.listings.lists(filters as Record<string, unknown>), filters],
+    staleTime: 0,
+    refetchOnMount: "always",
     queryFn: async () => {
       const params = new URLSearchParams();
 
@@ -40,6 +43,5 @@ export function useListingsSearch(filters: SearchFilters) {
 
       return apiClient<PaginatedListingsResponse>(`/listings?${params.toString()}`);
     },
-    staleTime: 1000 * 60 * 2,
   });
 }

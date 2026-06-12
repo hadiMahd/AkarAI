@@ -1,5 +1,6 @@
 import { useParams, Link } from "react-router-dom";
 import { useListingDetail } from "@/features/listings/useListingDetail";
+import { useListingMedia } from "@/features/listings/useListingMedia";
 import { useSavedListings } from "@/features/saved-listings/useSavedListings";
 import { useSessionComparison } from "@/features/comparison/sessionComparison";
 import { InquiryForm } from "@/features/inquiries/InquiryForm";
@@ -9,7 +10,7 @@ import { ErrorState } from "@/components/ErrorState";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Heart, LayoutGrid, Bed, Bath, Maximize, MapPin, ArrowLeft } from "lucide-react";
+import { Heart, LayoutGrid, Bed, Bath, Maximize, ImageIcon, MapPin, ArrowLeft, AlertCircle } from "lucide-react";
 
 export function ListingDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -17,6 +18,9 @@ export function ListingDetailPage() {
   const { addToComparison, isInComparison, canAddMore } = useSessionComparison();
 
   const { data: listing, isLoading, error } = useListingDetail(id);
+  const { data: mediaItems, error: mediaError } = useListingMedia(id);
+
+  const hasMedia = mediaItems && mediaItems.length > 0;
 
   if (isLoading) {
     return <LoadingSkeleton />;
@@ -34,7 +38,10 @@ export function ListingDetailPage() {
   const isSaved = savedListings.includes(listing.id);
   const inComparison = isInComparison(listing.id);
 
-  const formatPrice = (price: number, currency: string) => {
+  const formatPrice = (price: number | null, currency: string | null) => {
+    if (price === null || !currency) {
+      return "Price on request";
+    }
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: currency,
@@ -55,6 +62,61 @@ export function ListingDetailPage() {
 
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
+          {hasMedia ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ImageIcon className="h-5 w-5" />
+                  Photos
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {mediaItems
+                    .sort((a, b) => a.display_order - b.display_order)
+                    .map((item) => (
+                      <div key={item.id} className="aspect-video overflow-hidden rounded-md border">
+                        <img
+                          src={item.media_url}
+                          alt={item.alt_text || item.caption || "Listing photo"}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    ))}
+                </div>
+              </CardContent>
+            </Card>
+          ) : listing?.thumbnail_url ? (
+            <Card>
+              <CardContent className="p-0">
+                <div className="aspect-video w-full overflow-hidden rounded-t-md">
+                  <img
+                    src={listing.thumbnail_url}
+                    alt={listing.title}
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                  {mediaError ? (
+                    <>
+                      <AlertCircle className="h-8 w-8 text-destructive" />
+                      <p className="text-sm">Failed to load images</p>
+                    </>
+                  ) : (
+                    <>
+                      <ImageIcon className="h-8 w-8" />
+                      <p className="text-sm">No images available</p>
+                    </>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
           <Card>
             <CardHeader>
               <div className="flex items-start justify-between">

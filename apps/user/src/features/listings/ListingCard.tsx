@@ -10,8 +10,8 @@ interface Listing {
   description: string;
   property_type: string;
   listing_purpose: "sale" | "rent";
-  price: number;
-  currency: string;
+  price: number | null;
+  currency: string | null;
   bedrooms: number | null;
   bathrooms: number | null;
   area_size: number | null;
@@ -19,6 +19,7 @@ interface Listing {
   city: string;
   address: string;
   status: string;
+  thumbnail_url?: string | null;
 }
 
 interface ListingCardProps {
@@ -29,7 +30,10 @@ export function ListingCard({ listing }: ListingCardProps) {
   const { toggleSaved, isSaved: checkIsSaved } = useSavedListings();
   const isSaved = checkIsSaved(listing.id);
 
-  const formatPrice = (price: number, currency: string) => {
+  const formatPrice = (price: number | null, currency: string | null) => {
+    if (price === null || !currency) {
+      return "Price on request";
+    }
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: currency,
@@ -39,6 +43,19 @@ export function ListingCard({ listing }: ListingCardProps) {
 
   return (
     <Card className="overflow-hidden">
+      {listing.thumbnail_url ? (
+        <div className="aspect-video w-full overflow-hidden">
+          <img
+            src={listing.thumbnail_url}
+            alt={listing.title}
+            className="h-full w-full object-cover"
+          />
+        </div>
+      ) : (
+        <div className="flex aspect-video w-full items-center justify-center bg-muted">
+          <span className="text-xs text-muted-foreground">No image</span>
+        </div>
+      )}
       <CardHeader className="p-4">
         <div className="flex items-start justify-between">
           <div>

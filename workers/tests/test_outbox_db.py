@@ -47,6 +47,34 @@ async def test_dispatches_registered_handler(conn):
 
 
 @pytest.mark.asyncio
+async def test_dispatches_async_conn_handler(conn):
+    await conn.execute("DELETE FROM outbox_events")
+
+    await conn.execute("""
+        INSERT INTO outbox_events (id, event_name, idempotency_key, payload, status, available_at)
+        VALUES (gen_random_uuid(), 'foundation.test', 'ik-test-async-001', '{"hello":"async"}', 'pending', NOW())
+    """)
+
+    dispatched = []
+
+    async def async_handler(db_conn, payload, event_id=None):
+        dispatched.append((db_conn is conn, payload, event_id))
+
+    processed = await claim_and_dispatch(conn, {"foundation.test": async_handler})
+    assert processed is True
+    assert len(dispatched) == 1
+    assert dispatched[0][0] is True
+    assert dispatched[0][1] == {"hello": "async"}
+    assert dispatched[0][2] is not None
+
+    row = await conn.fetchrow(
+        "SELECT status, processed_at FROM outbox_events WHERE idempotency_key = 'ik-test-async-001'"
+    )
+    assert row["status"] == OUTBOX_DELIVERED
+    assert row["processed_at"] is not None
+
+
+@pytest.mark.asyncio
 async def test_no_handler_rescheduled_as_pending(conn):
     await conn.execute("DELETE FROM outbox_events")
 

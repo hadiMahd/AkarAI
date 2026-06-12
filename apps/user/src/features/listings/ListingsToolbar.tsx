@@ -1,5 +1,5 @@
 interface ListingsToolbarProps {
-  total: number;
+  total?: number;
   sortBy: string;
   sortOrder: string;
   onSortChange: (sortBy: string, sortOrder: string) => void;
@@ -8,9 +8,11 @@ interface ListingsToolbarProps {
 export function ListingsToolbar({ total, sortBy, sortOrder, onSortChange }: ListingsToolbarProps) {
   return (
     <div className="flex items-center justify-between">
-      <p className="text-sm text-muted-foreground">
-        Showing {total} {total === 1 ? "listing" : "listings"}
-      </p>
+      {total !== undefined && (
+        <p className="text-sm text-muted-foreground">
+          Showing {total} {total === 1 ? "listing" : "listings"}
+        </p>
+      )}
       <div className="flex items-center gap-2">
         <label htmlFor="sort" className="text-sm text-muted-foreground">
           Sort by:

@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.common.database import Base
@@ -46,6 +46,14 @@ class ListingPhotoMetadata(Base):
     alt_text = Column(String(512), nullable=True)
     display_order = Column(Integer, default=0, nullable=False)
     status = Column(String(16), default="pending_upload", nullable=False)
+    # Media processing fields
+    content_type = Column(String(64), nullable=True)
+    file_size_bytes = Column(Integer, nullable=True)
+    width = Column(Integer, nullable=True)
+    height = Column(Integer, nullable=True)
+    moderation_label = Column(String(32), nullable=True)
+    moderation_score = Column(Numeric(4, 3), nullable=True)
+    quality_score = Column(Numeric(10, 4), nullable=True)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
@@ -78,4 +86,19 @@ class ComparisonItem(Base):
     comparison_session_id = Column(UUID(as_uuid=True), ForeignKey("comparison_sessions.id", ondelete="CASCADE"), nullable=False)
     listing_id = Column(UUID(as_uuid=True), ForeignKey("listings.id", ondelete="CASCADE"), nullable=False)
     position = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+
+
+class ListingPhotoDerivative(Base):
+    __tablename__ = "listing_photo_derivatives"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    listing_photo_metadata_id = Column(UUID(as_uuid=True), ForeignKey("listing_photo_metadata.id", ondelete="CASCADE"), nullable=False)
+    variant_name = Column(String(64), nullable=False)
+    object_key = Column(String(512), nullable=False)
+    format = Column(String(16), nullable=False)
+    width = Column(Integer, nullable=False)
+    height = Column(Integer, nullable=False)
+    file_size_bytes = Column(Integer, nullable=False)
+    is_public_safe = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)

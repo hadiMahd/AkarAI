@@ -3,10 +3,11 @@ from uuid import UUID
 
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from app.common.repository import BaseRepository
 from app.common.tenant import TenantContext
-from app.listings.models import Listing, ListingPhotoMetadata, SavedListing, ComparisonSession, ComparisonItem
+from app.listings.models import Listing, ListingPhotoMetadata, ListingPhotoDerivative, SavedListing, ComparisonSession, ComparisonItem
 
 
 class ListingRepository(BaseRepository):
@@ -62,6 +63,91 @@ class ListingPhotoRepository(BaseRepository):
         self.session.add(photo)
         await self.session.flush()
         return photo
+
+    async def update_status(self, photo_id: UUID, status: str) -> None:
+        await self.session.execute(
+            update(ListingPhotoMetadata).where(ListingPhotoMetadata.id == photo_id).values(status=status)
+        )
+
+    async def update_processing_fields(
+        self,
+        photo_id: UUID,
+        *,
+        content_type: str | None = None,
+        file_size_bytes: int | None = None,
+        width: int | None = None,
+        height: int | None = None,
+        moderation_label: str | None = None,
+        moderation_score: float | None = None,
+        quality_score: float | None = None,
+        status: str | None = None,
+    ) -> None:
+        from decimal import Decimal
+        values = {}
+        if content_type is not None:
+            values["content_type"] = content_type
+        if file_size_bytes is not None:
+            values["file_size_bytes"] = file_size_bytes
+        if width is not None:
+            values["width"] = width
+        if height is not None:
+            values["height"] = height
+        if moderation_label is not None:
+            values["moderation_label"] = moderation_label
+        if moderation_score is not None:
+            values["moderation_score"] = Decimal(str(moderation_score))
+        if quality_score is not None:
+            values["quality_score"] = Decimal(str(quality_score))
+        if status is not None:
+            values["status"] = status
+        if values:
+            await self.session.execute(
+                update(ListingPhotoMetadata).where(ListingPhotoMetadata.id == photo_id).values(**values)
+            )
+
+    async def get_first_public_safe_for_listings(self, listing_ids: list[UUID]) -> dict[UUID, ListingPhotoMetadata]:
+        if not listing_ids:
+            return {}
+        q = (
+            select(ListingPhotoMetadata)
+            .join(
+                ListingPhotoDerivative,
+                ListingPhotoDerivative.listing_photo_metadata_id == ListingPhotoMetadata.id,
+            )
+            .where(
+                ListingPhotoMetadata.listing_id.in_(listing_ids),
+                ListingPhotoDerivative.is_public_safe.is_(True),
+            )
+            .order_by(
+                ListingPhotoMetadata.listing_id,
+                ListingPhotoMetadata.display_order,
+                ListingPhotoDerivative.created_at,
+            )
+        )
+        result = await self.session.execute(q)
+        photos = list(result.scalars().all())
+        first: dict[UUID, ListingPhotoMetadata] = {}
+        for p in photos:
+            if p.listing_id not in first:
+                first[p.listing_id] = p
+        return first
+
+    async def list_by_tenant(
+        self, tenant_id: UUID, offset: int = 0, limit: int = 20
+    ) -> tuple[list[ListingPhotoMetadata], int]:
+        count_q = select(func.count(ListingPhotoMetadata.id)).where(
+            ListingPhotoMetadata.agency_tenant_id == tenant_id
+        )
+        total = (await self.session.execute(count_q)).scalar() or 0
+        q = (
+            select(ListingPhotoMetadata)
+            .where(ListingPhotoMetadata.agency_tenant_id == tenant_id)
+            .order_by(ListingPhotoMetadata.created_at.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        result = await self.session.execute(q)
+        return list(result.scalars().all()), total
 
 
 class SavedListingRepository(BaseRepository):
@@ -198,3 +284,47 @@ class ComparisonRepository(BaseRepository):
     async def remove_item(self, item) -> None:
         await self.session.delete(item)
         await self.session.flush()
+
+
+class ListingPhotoDerivativeRepository(BaseRepository):
+    async def list_by_photo(self, photo_id: UUID) -> list[ListingPhotoDerivative]:
+        q = (
+            select(ListingPhotoDerivative)
+            .where(ListingPhotoDerivative.listing_photo_metadata_id == photo_id)
+            .order_by(ListingPhotoDerivative.created_at)
+        )
+        result = await self.session.execute(q)
+        return list(result.scalars().all())
+
+    async def get_by_id(self, derivative_id: UUID) -> Optional[ListingPhotoDerivative]:
+        result = await self.session.execute(
+            select(ListingPhotoDerivative).where(ListingPhotoDerivative.id == derivative_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_public_safe_by_photo(self, photo_id: UUID) -> Optional[ListingPhotoDerivative]:
+        result = await self.session.execute(
+            select(ListingPhotoDerivative).where(
+                ListingPhotoDerivative.listing_photo_metadata_id == photo_id,
+                ListingPhotoDerivative.is_public_safe == True,
+            )
+        )
+        return result.scalars().first()
+
+    async def list_public_safe_by_photos(self, photo_ids: list[UUID]) -> list[ListingPhotoDerivative]:
+        if not photo_ids:
+            return []
+        q = (
+            select(ListingPhotoDerivative)
+            .where(
+                ListingPhotoDerivative.listing_photo_metadata_id.in_(photo_ids),
+                ListingPhotoDerivative.is_public_safe == True,
+            )
+        )
+        result = await self.session.execute(q)
+        return list(result.scalars().all())
+
+    async def create(self, derivative: ListingPhotoDerivative) -> ListingPhotoDerivative:
+        self.session.add(derivative)
+        await self.session.flush()
+        return derivative

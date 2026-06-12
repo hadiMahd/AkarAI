@@ -89,6 +89,7 @@ class PublicListingResponse(BaseModel):
     city: Optional[str] = None
     country: Optional[str] = None
     status: str
+    thumbnail_url: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -102,6 +103,7 @@ class PaginatedPublicListingsResponse(BaseModel):
     total: int
     has_next: bool
     has_previous: bool
+    next_cursor: Optional[str] = None
 
 
 class PaginatedListingsResponse(BaseModel):
@@ -120,10 +122,28 @@ class ListingPhotoMetadataCreateRequest(BaseModel):
     display_order: int = 0
 
 
+class ListingPhotoUploadRequest(BaseModel):
+    caption: Optional[str] = None
+    alt_text: Optional[str] = None
+    display_order: Optional[int] = None
+
+
 class ListingPhotoMetadataUpdateRequest(BaseModel):
     caption: Optional[str] = None
     alt_text: Optional[str] = None
     display_order: Optional[int] = None
+
+
+class ListingPhotoPreflightResponse(BaseModel):
+    safe: bool
+    rejection_reason: Optional[str] = None
+    message: str
+    content_type: Optional[str] = None
+    file_size_bytes: Optional[int] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+    moderation_label: Optional[str] = None
+    moderation_score: Optional[float] = None
 
 
 class ListingPhotoMetadataResponse(BaseModel):
@@ -135,8 +155,46 @@ class ListingPhotoMetadataResponse(BaseModel):
     alt_text: Optional[str] = None
     display_order: int
     status: str
+    content_type: Optional[str] = None
+    file_size_bytes: Optional[int] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+    moderation_label: Optional[str] = None
+    moderation_score: Optional[float] = None
+    quality_score: Optional[float] = None
+    preview_url: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ListingPhotoDerivativeResponse(BaseModel):
+    id: UUID
+    listing_photo_metadata_id: UUID
+    variant_name: str
+    object_key: str
+    format: str
+    width: int
+    height: int
+    file_size_bytes: int
+    is_public_safe: bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class PublicListingMediaResponse(BaseModel):
+    id: UUID
+    listing_id: UUID
+    caption: Optional[str] = None
+    alt_text: Optional[str] = None
+    display_order: int
+    width: Optional[int] = None
+    height: Optional[int] = None
+    media_url: str
+    format: str
+    status: str
 
     model_config = {"from_attributes": True}
 

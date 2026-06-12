@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import json
 import logging
 from typing import Any
@@ -41,7 +42,9 @@ async def claim_and_dispatch(
         return True
 
     try:
-        handler(payload)
+        result = await _invoke_handler(handler, conn, payload, event_id)
+        if inspect.isawaitable(result):
+            await result
         await _mark_delivered(conn, event_id)
         logger.info("Dispatched event '%s' (id=%s)", event_name, event_id)
     except Exception as exc:
@@ -57,6 +60,17 @@ def _decode_payload(payload: Any) -> dict[str, Any]:
     if isinstance(payload, dict):
         return payload
     return {"_raw": str(payload)}
+
+
+async def _invoke_handler(handler: Any, conn: asyncpg.Connection, payload: dict[str, Any], event_id: str) -> Any:
+    sig = inspect.signature(handler)
+    params = list(sig.parameters.values())
+
+    if len(params) <= 1:
+        return handler(payload)
+    if len(params) == 2:
+        return handler(conn, payload)
+    return handler(conn, payload, event_id)
 
 
 async def _claim_pending_event(conn: asyncpg.Connection) -> dict[str, Any] | None:
