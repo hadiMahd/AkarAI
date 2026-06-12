@@ -126,8 +126,9 @@ export async function apiClient<T = unknown>(
     }
   }
 
+  const isFormDataBody = typeof FormData !== "undefined" && fetchOptions.body instanceof FormData;
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
+    ...(!isFormDataBody ? { "Content-Type": "application/json" } : {}),
     ...(fetchOptions.headers as Record<string, string>),
   };
 

@@ -42,18 +42,19 @@ def main() -> None:
 
     dotenv = dotenv_values(DOTENV_PATH)
 
+    # Seed JWT secrets
     access_secret = dotenv.get("JWT_ACCESS_SECRET") or secrets.token_hex(32)
     refresh_secret = dotenv.get("JWT_REFRESH_SECRET") or secrets.token_hex(32)
 
-    source = []
+    jwt_source = []
     if dotenv.get("JWT_ACCESS_SECRET"):
-        source.append("access_secret: .env")
+        jwt_source.append("access_secret: .env")
     else:
-        source.append("access_secret: generated")
+        jwt_source.append("access_secret: generated")
     if dotenv.get("JWT_REFRESH_SECRET"):
-        source.append("refresh_secret: .env")
+        jwt_source.append("refresh_secret: .env")
     else:
-        source.append("refresh_secret: generated")
+        jwt_source.append("refresh_secret: generated")
 
     client.secrets.kv.v2.create_or_update_secret(
         path="jwt",
@@ -64,7 +65,25 @@ def main() -> None:
         mount_point="akarai",
     )
 
-    print(f"[seed] akarai/jwt seeded ({', '.join(source)})")
+    print(f"[seed] akarai/jwt seeded ({', '.join(jwt_source)})")
+
+    # Seed AI secrets (Hugging Face token)
+    hf_token = dotenv.get("HF_TOKEN", "").strip()
+    ai_source = []
+    if hf_token:
+        ai_source.append("hf_token: .env")
+    else:
+        ai_source.append("hf_token: not set")
+
+    client.secrets.kv.v2.create_or_update_secret(
+        path="ai",
+        secret={
+            "hf_token": hf_token,
+        },
+        mount_point="akarai",
+    )
+
+    print(f"[seed] akarai/ai seeded ({', '.join(ai_source)})")
 
 
 if __name__ == "__main__":

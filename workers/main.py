@@ -1,7 +1,6 @@
 """AkarAI Worker — DB outbox polling, job registry, event dispatch.
 
-Phase 2: Replaces Redis polling with database outbox_events polling.
-No business handlers — foundation.test is the only registered handler.
+Phase 7: Handles media processing events including listing image upload.
 """
 
 from __future__ import annotations
@@ -10,7 +9,13 @@ import asyncio
 import logging
 import os
 import signal
+import sys
 from typing import Callable
+
+# Add backend package root to Python path so worker code can import app.common.*.
+_backend_root_path = os.path.join(os.path.dirname(__file__), "..", "backend")
+if os.path.isdir(_backend_root_path):
+    sys.path.insert(0, os.path.abspath(_backend_root_path))
 
 import asyncpg
 
@@ -71,6 +76,29 @@ def register_event_handler(event_name: str):
 @register_event_handler("foundation.test")
 def _foundation_test_handler(payload: dict) -> None:
     logger.info("foundation.test handler invoked with payload: %s", payload)
+
+
+def _load_secrets() -> None:
+    """Load secrets from Vault before handlers are imported."""
+    try:
+        from app.common.config import configure_secrets
+        configure_secrets()
+        logger.info("Secrets loaded from Vault")
+    except Exception as e:
+        logger.error("Failed to load secrets from Vault: %s", e)
+        if os.getenv("APP_ENV") != "testing":
+            raise
+
+
+# Load secrets before importing handlers that depend on them
+_load_secrets()
+
+# Import and register listing media handlers
+try:
+    from handlers.listing_media import handle_listing_image_uploaded
+    register_event_handler("listing.image_uploaded")(handle_listing_image_uploaded)
+except ImportError as e:
+    logger.warning("Could not import listing media handlers: %s", e)
 
 
 async def _poll_loop() -> None:

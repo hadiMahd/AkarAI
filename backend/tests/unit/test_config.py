@@ -1,5 +1,5 @@
 import os
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import pytest
 
@@ -18,6 +18,7 @@ class TestSettingsLoading:
             assert s.pagination_max_page_size == 100
             assert s.jwt_access_secret == ""
             assert s.jwt_refresh_secret == ""
+            assert s.hf_token == ""
 
     def test_env_override(self):
         with patch.dict(os.environ, {"APP_ENV": "staging"}, clear=True):
@@ -61,6 +62,8 @@ class TestSettingsLoading:
 
             assert s.jwt_access_secret == "test-access-secret-for-unit-tests"
             assert s.jwt_refresh_secret == "test-refresh-secret-for-unit-tests"
+            # In testing, HF token should remain empty (optional)
+            assert s.hf_token == ""
 
     def test_configure_secrets_vault_unreachable(self):
         with patch.dict(os.environ, {"APP_ENV": "development", "VAULT_ADDR": "http://no-vault:8200", "VAULT_TOKEN": "root"}, clear=True):
@@ -68,3 +71,66 @@ class TestSettingsLoading:
             from app.common.config import configure_secrets
             with pytest.raises(RuntimeError, match="Vault is unreachable"):
                 configure_secrets(target=s)
+
+    def test_configure_secrets_loads_hf_token_from_vault(self):
+        """Test that configure_secrets loads HF token from akarai/ai in Vault."""
+        with patch.dict(os.environ, {"APP_ENV": "development", "VAULT_ADDR": "http://vault:8200", "VAULT_TOKEN": "root"}, clear=True):
+            s = Settings(_env_file=None)
+
+            from app.common.config import configure_secrets
+
+            # Mock hvac client
+            with patch("app.common.config.hvac.Client") as mock_client_class:
+                mock_client = MagicMock()
+                mock_client_class.return_value = mock_client
+                mock_client.sys.is_initialized.return_value = True
+                mock_client.sys.is_sealed.return_value = False
+
+                # Mock JWT secret read
+                mock_client.secrets.kv.v2.read_secret_version.side_effect = [
+                    # First call: akarai/jwt
+                    {"data": {"data": {"access_secret": "jwt-access", "refresh_secret": "jwt-refresh"}}},
+                    # Second call: akarai/ai
+                    {"data": {"data": {"hf_token": "hf-test-token-123"}}},
+                ]
+
+                configure_secrets(target=s)
+
+                assert s.jwt_access_secret == "jwt-access"
+                assert s.jwt_refresh_secret == "jwt-refresh"
+                assert s.hf_token == "hf-test-token-123"
+
+                # Verify both secrets were read
+                assert mock_client.secrets.kv.v2.read_secret_version.call_count == 2
+                calls = mock_client.secrets.kv.v2.read_secret_version.call_args_list
+                assert calls[0].kwargs == {"path": "jwt", "mount_point": "akarai"}
+                assert calls[1].kwargs == {"path": "ai", "mount_point": "akarai"}
+
+    def test_configure_secrets_hf_token_missing_from_vault(self):
+        """Test that configure_secrets handles missing akarai/ai gracefully (fail-closed later)."""
+        with patch.dict(os.environ, {"APP_ENV": "development", "VAULT_ADDR": "http://vault:8200", "VAULT_TOKEN": "root"}, clear=True):
+            s = Settings(_env_file=None)
+
+            from app.common.config import configure_secrets
+            import hvac
+
+            # Mock hvac client
+            with patch("app.common.config.hvac.Client") as mock_client_class:
+                mock_client = MagicMock()
+                mock_client_class.return_value = mock_client
+                mock_client.sys.is_initialized.return_value = True
+                mock_client.sys.is_sealed.return_value = False
+
+                # Mock JWT secret read success, AI secret read fails with InvalidPath
+                mock_client.secrets.kv.v2.read_secret_version.side_effect = [
+                    # First call: akarai/jwt
+                    {"data": {"data": {"access_secret": "jwt-access", "refresh_secret": "jwt-refresh"}}},
+                    # Second call: akarai/ai - not found
+                    hvac.exceptions.InvalidPath("No secret found"),
+                ]
+
+                configure_secrets(target=s)
+
+                assert s.jwt_access_secret == "jwt-access"
+                assert s.jwt_refresh_secret == "jwt-refresh"
+                assert s.hf_token == ""  # Empty when not configured

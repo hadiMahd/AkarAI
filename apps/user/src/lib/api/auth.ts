@@ -103,6 +103,7 @@ export interface SavedListingWithDetails extends SavedListingItem {
     city: string | null;
     country: string | null;
     status: string;
+    thumbnail_url?: string | null;
     created_at: string;
     updated_at: string;
   };

@@ -64,17 +64,16 @@ from app.common.events import DomainEventLog, OutboxEvent, InboxEvent
 
 @pytest.fixture(autouse=True)
 async def clear_rate_limits():
-    from app.common.redis import redis_scan_delete
+    from app.common.database import engine
+    from app.common.redis import close_redis, redis_scan_delete
+
+    await engine.dispose()
+    await close_redis()
     await redis_scan_delete("ratelimit:*")
     yield
     await redis_scan_delete("ratelimit:*")
-
-
-@pytest.fixture(scope="session")
-def event_loop():
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
+    await close_redis()
+    await engine.dispose()
 
 
 @pytest.fixture(scope="session")
@@ -150,10 +149,11 @@ async def test_user(db_session):
 
 
 @pytest.fixture
-async def agency_admin_user(db_session):
+async def agency_admin_user(db_session, test_tenant):
     from sqlalchemy import text
     from app.common.security import hash_password
     from app.users.models import User
+    from app.agencies.models import AgencyEmployeeMembership
 
     uid = uuid.uuid4()
     email = f"agency-admin-{uid.hex[:8]}@example.com"
@@ -178,17 +178,33 @@ async def agency_admin_user(db_session):
     db_session.add(user)
     await db_session.commit()
 
+    membership = AgencyEmployeeMembership(
+        id=uuid.uuid4(),
+        agency_tenant_id=test_tenant.id,
+        user_id=user.id,
+        role_id=role_id,
+        status="active",
+        display_name="Agency Admin Test",
+        work_email=email,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+    )
+    db_session.add(membership)
+    await db_session.commit()
+
     yield user, password
 
+    await db_session.delete(membership)
     await db_session.delete(user)
     await db_session.commit()
 
 
 @pytest.fixture
-async def support_user(db_session):
+async def support_user(db_session, test_tenant):
     from sqlalchemy import text
     from app.common.security import hash_password
     from app.users.models import User
+    from app.agencies.models import AgencyEmployeeMembership
 
     uid = uuid.uuid4()
     email = f"support-{uid.hex[:8]}@example.com"
@@ -213,8 +229,23 @@ async def support_user(db_session):
     db_session.add(user)
     await db_session.commit()
 
+    membership = AgencyEmployeeMembership(
+        id=uuid.uuid4(),
+        agency_tenant_id=test_tenant.id,
+        user_id=user.id,
+        role_id=role_id,
+        status="active",
+        display_name="Support Employee Test",
+        work_email=email,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+    )
+    db_session.add(membership)
+    await db_session.commit()
+
     yield user, password
 
+    await db_session.delete(membership)
     await db_session.delete(user)
     await db_session.commit()
 
@@ -281,4 +312,3 @@ async def test_listing(db_session, test_tenant, agency_admin_user):
     from sqlalchemy import text
     await db_session.execute(text(f"DELETE FROM listings WHERE id = '{lid}'"))
     await db_session.commit()
-

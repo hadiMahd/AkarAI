@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     minio_access_key: str = "minioadmin"
     minio_secret_key: str = "minioadmin"
     minio_secure: bool = False
+    minio_public_url: str = "localhost:9000"
     minio_bucket_rag: str = "rag-vault"
     minio_bucket_media: str = "property-media"
 
@@ -45,6 +46,9 @@ class Settings(BaseSettings):
     jwt_access_ttl_minutes: int = 15
     jwt_refresh_ttl_days: int = 7
     jwt_algorithm: str = "HS256"
+
+    # Hugging Face (secret loaded from Vault at startup via configure_secrets())
+    hf_token: str = ""
 
     # Auth Cookie Settings
     auth_refresh_cookie_name: str = "akarai_refresh"
@@ -83,6 +87,17 @@ class Settings(BaseSettings):
 
     # Agency employee onboarding
     agency_employee_initial_password: str = "12345678"
+
+    # Media processing settings
+    media_max_file_size_mb: int = 10
+    media_allowed_content_types: str = "image/jpeg,image/png,image/webp"
+    media_internal_prefix: str = "listing-photos/originals"
+    media_derivative_prefix: str = "listing-photos/derivatives"
+    media_nsfw_threshold: float = 0.75
+    media_blur_threshold: float = 208.12155306730278
+    media_derivative_max_width: int = 1920
+    media_derivative_quality: int = 85
+    media_bucket: str = "property-media"
 
     @field_validator("app_env")
     @classmethod
@@ -175,6 +190,7 @@ def configure_secrets(target=None) -> None:
     if s.app_env == "testing":
         s.jwt_access_secret = "test-access-secret-for-unit-tests"
         s.jwt_refresh_secret = "test-refresh-secret-for-unit-tests"
+        # In testing, HF token is optional — tests can inject if needed
         return
 
     client = hvac.Client(url=s.vault_addr, token=s.vault_token)
@@ -189,6 +205,7 @@ def configure_secrets(target=None) -> None:
     if sealed:
         raise RuntimeError("Vault is sealed — cannot load secrets")
 
+    # Load JWT secrets
     try:
         secret = client.secrets.kv.v2.read_secret_version(
             path="jwt", mount_point="akarai"
@@ -200,3 +217,16 @@ def configure_secrets(target=None) -> None:
         raise RuntimeError("Vault secret akarai/jwt not found — has vault-init run?") from None
     except Exception as e:
         raise RuntimeError(f"Failed to read secret akarai/jwt from Vault: {e}") from e
+
+    # Load Hugging Face token (optional — moderation will fail-closed if missing)
+    try:
+        secret = client.secrets.kv.v2.read_secret_version(
+            path="ai", mount_point="akarai"
+        )
+        data = secret["data"]["data"]
+        s.hf_token = data.get("hf_token", "")
+    except hvac.exceptions.InvalidPath:
+        # akarai/ai is optional — moderation will fail-closed if token not configured
+        s.hf_token = ""
+    except Exception as e:
+        raise RuntimeError(f"Failed to read secret akarai/ai from Vault: {e}") from e

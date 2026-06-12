@@ -19,6 +19,11 @@ class TestListingQueryService:
         query_str = str(q).lower()
         assert "location_text" in query_str or "city" in query_str or "address" in query_str
 
+    async def test_build_public_search_query_city_filter(self, db_session):
+        q = ListingQueryService.build_public_search_query(city="Beirut")
+        query_str = str(q).lower()
+        assert "city" in query_str
+
     async def test_build_public_search_query_price_filters(self, db_session):
         q = ListingQueryService.build_public_search_query(min_price=100000, max_price=500000)
         query_str = str(q).lower()
@@ -59,6 +64,7 @@ class TestListingQueryService:
         query_str = str(q).lower()
         assert "created_at" in query_str
         assert "desc" in query_str
+        assert "id" in query_str
 
     async def test_build_public_search_query_sort_price_asc(self, db_session):
         q = ListingQueryService.build_public_search_query(sort="price_asc")
@@ -84,11 +90,19 @@ class TestListingQueryService:
         assert "area_size" in query_str
         assert "desc" in query_str
 
+    async def test_build_public_search_query_sort_oldest(self, db_session):
+        q = ListingQueryService.build_public_search_query(sort="oldest")
+        query_str = str(q).lower()
+        assert "created_at" in query_str
+        assert "asc" in query_str
+        assert "id" in query_str
+
     async def test_build_public_search_query_default_sort(self, db_session):
         q = ListingQueryService.build_public_search_query(sort="invalid_sort")
         query_str = str(q).lower()
         assert "created_at" in query_str
         assert "desc" in query_str
+        assert "id" in query_str
 
     async def test_build_public_search_query_multiple_filters(self, db_session):
         q = ListingQueryService.build_public_search_query(

@@ -44,6 +44,39 @@ interface ListingCreateRequest {
   status: string;
 }
 
+interface ListingPhotoMetadata {
+  id: string;
+  listing_id: string;
+  agency_tenant_id: string;
+  object_key: string;
+  caption: string | null;
+  alt_text: string | null;
+  display_order: number;
+  status: string;
+  content_type: string | null;
+  file_size_bytes: number | null;
+  width: number | null;
+  height: number | null;
+  moderation_label: string | null;
+  moderation_score: number | null;
+  quality_score: number | null;
+  preview_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ListingPhotoPreflightResponse {
+  safe: boolean;
+  rejection_reason: string | null;
+  message: string;
+  content_type: string | null;
+  file_size_bytes: number | null;
+  width: number | null;
+  height: number | null;
+  moderation_label: string | null;
+  moderation_score: number | null;
+}
+
 interface PaginatedListingsResponse {
   items: Listing[];
   page: number;
@@ -77,6 +110,32 @@ async function updateListing(id: string, data: Partial<ListingCreateRequest>): P
   });
 }
 
+async function fetchListingPhotos(listingId: string): Promise<ListingPhotoMetadata[]> {
+  return apiClient<ListingPhotoMetadata[]>(`/agency/listings/${listingId}/photos`);
+}
+
+export async function uploadListingPhoto(
+  listingId: string,
+  formData: FormData
+): Promise<ListingPhotoMetadata> {
+  return apiClient<ListingPhotoMetadata>(`/agency/listings/${listingId}/photos/upload`, {
+    method: "POST",
+    body: formData,
+  });
+}
+
+export async function validateListingPhotoBeforeUpload(
+  file: File
+): Promise<ListingPhotoPreflightResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  return apiClient<ListingPhotoPreflightResponse>("/agency/listings/photos/validate", {
+    method: "POST",
+    body: formData,
+  });
+}
+
 async function archiveListing(id: string): Promise<void> {
   return apiClient<void>(`/agency/listings/${id}`, {
     method: "DELETE",
@@ -105,6 +164,14 @@ export function useAgencyListings() {
     },
   });
 
+  const publishMutation = useMutation({
+    mutationFn: (id: string) => updateListing(id, { status: "active" }),
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.listings.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.listings.detail(id) });
+    },
+  });
+
   return {
     listings: query.data?.items ?? [],
     total: query.data?.total ?? 0,
@@ -115,6 +182,8 @@ export function useAgencyListings() {
     createError: createMutation.error,
     archiveListing: archiveMutation.mutateAsync,
     isArchiving: archiveMutation.isPending,
+    publishListing: publishMutation.mutateAsync,
+    isPublishing: publishMutation.isPending,
   };
 }
 
@@ -141,7 +210,40 @@ export function useListingDetail(id: string) {
     error: query.error,
     updateListing: updateMutation.mutateAsync,
     isUpdating: updateMutation.isPending,
+    updateError: updateMutation.error,
   };
 }
 
-export type { Listing, ListingCreateRequest };
+export function useListingPhotos(listingId: string) {
+  const queryClient = useQueryClient();
+
+  const query = useQuery({
+    queryKey: queryKeys.listings.photos(listingId),
+    queryFn: () => fetchListingPhotos(listingId),
+    enabled: !!listingId,
+  });
+
+  const uploadMutation = useMutation({
+    mutationFn: (formData: FormData) => uploadListingPhoto(listingId, formData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.listings.photos(listingId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.listings.detail(listingId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.listings.all });
+    },
+  });
+
+  return {
+    photos: query.data ?? [],
+    isLoading: query.isLoading,
+    error: query.error,
+    uploadPhoto: uploadMutation.mutateAsync,
+    isUploading: uploadMutation.isPending,
+  };
+}
+
+export type {
+  Listing,
+  ListingCreateRequest,
+  ListingPhotoMetadata,
+  ListingPhotoPreflightResponse,
+};

@@ -22,7 +22,10 @@ export function ComparisonPage() {
     );
   }
 
-  const formatPrice = (price: number, currency: string) => {
+  const formatPrice = (price: number | null, currency: string | null) => {
+    if (price === null || !currency) {
+      return "Price on request";
+    }
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: currency,

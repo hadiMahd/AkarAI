@@ -8,8 +8,8 @@ export interface ListingDetail {
   description: string;
   property_type: string;
   listing_purpose: "sale" | "rent";
-  price: number;
-  currency: string;
+  price: number | null;
+  currency: string | null;
   bedrooms: number | null;
   bathrooms: number | null;
   area_size: number | null;
@@ -19,6 +19,7 @@ export interface ListingDetail {
   address: string;
   location_text: string;
   status: string;
+  thumbnail_url?: string | null;
   created_at: string;
 }
 

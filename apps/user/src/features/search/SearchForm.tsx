@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,9 @@ interface SearchFilters {
   max_price?: number;
   min_bedrooms?: number;
   min_bathrooms?: number;
+  furnishing?: string;
+  min_area_size?: number;
+  max_area_size?: number;
   sort_by?: string;
   sort_order?: string;
   page?: number;
@@ -26,6 +29,10 @@ interface SearchFormProps {
 
 export function SearchForm({ filters, onFilterChange }: SearchFormProps) {
   const [localFilters, setLocalFilters] = useState<SearchFilters>(filters);
+
+  useEffect(() => {
+    setLocalFilters(filters);
+  }, [filters]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -150,6 +157,53 @@ export function SearchForm({ filters, onFilterChange }: SearchFormProps) {
               setLocalFilters({
                 ...localFilters,
                 min_bathrooms: e.target.value ? Number(e.target.value) : undefined,
+              })
+            }
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="furnishing">Furnishing</Label>
+          <select
+            id="furnishing"
+            value={localFilters.furnishing || ""}
+            onChange={(e) => setLocalFilters({ ...localFilters, furnishing: e.target.value || undefined })}
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          >
+            <option value="">Any</option>
+            <option value="furnished">Furnished</option>
+            <option value="semi_furnished">Semi Furnished</option>
+            <option value="unfurnished">Unfurnished</option>
+          </select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="min_area_size">Min Area</Label>
+          <Input
+            id="min_area_size"
+            type="number"
+            placeholder="Min area"
+            value={localFilters.min_area_size || ""}
+            onChange={(e) =>
+              setLocalFilters({
+                ...localFilters,
+                min_area_size: e.target.value ? Number(e.target.value) : undefined,
+              })
+            }
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="max_area_size">Max Area</Label>
+          <Input
+            id="max_area_size"
+            type="number"
+            placeholder="Max area"
+            value={localFilters.max_area_size || ""}
+            onChange={(e) =>
+              setLocalFilters({
+                ...localFilters,
+                max_area_size: e.target.value ? Number(e.target.value) : undefined,
               })
             }
           />
