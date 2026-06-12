@@ -1,7 +1,7 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/008-media-pipeline-and-listing-image-processing/plan.md
+at specs/009-rag-storage-and-ingestion-foundation/plan.md
 <!-- SPECKIT END -->
 
 ## Session Summary

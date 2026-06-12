@@ -69,6 +69,13 @@ class Settings(BaseSettings):
     # AI Providers
     ai_primary_provider: str = "azure_openai"
     ai_fallback_providers: str = "openrouter"
+    azure_openai_endpoint: str = ""
+    azure_openai_chat_deployment: str = ""
+    azure_openai_embedding_deployment: str = ""
+    azure_whisper_deployment: str = ""
+    azure_openai_api_version: str = "2024-02-01"
+    azure_openai_embedding_model: str = "text-embedding-3-small"
+    azure_openai_api_key: str = ""
     cohere_api_key: str = "TBD_ASK_USER"
 
     # Email Provider
@@ -98,6 +105,15 @@ class Settings(BaseSettings):
     media_derivative_max_width: int = 1920
     media_derivative_quality: int = 85
     media_bucket: str = "property-media"
+
+    # RAG ingestion settings
+    rag_fastcdc_min_size: int = 256
+    rag_fastcdc_avg_size: int = 768
+    rag_fastcdc_max_size: int = 1536
+    rag_fastcdc_fat: bool = True
+    rag_retry_base_seconds: int = 5
+    rag_retry_max_seconds: int = 300
+    rag_max_file_size_mb: int = 50
 
     @field_validator("app_env")
     @classmethod
@@ -230,3 +246,33 @@ def configure_secrets(target=None) -> None:
         s.hf_token = ""
     except Exception as e:
         raise RuntimeError(f"Failed to read secret akarai/ai from Vault: {e}") from e
+
+    # Load Azure OpenAI config (optional — provider will fail-closed if required fields are missing)
+    try:
+        secret = client.secrets.kv.v2.read_secret_version(
+            path="azure", mount_point="akarai"
+        )
+        data = secret["data"]["data"]
+        s.azure_openai_endpoint = data.get("endpoint", s.azure_openai_endpoint)
+        s.azure_openai_chat_deployment = data.get(
+            "chat_deployment", s.azure_openai_chat_deployment
+        )
+        s.azure_openai_embedding_deployment = data.get(
+            "embedding_deployment", s.azure_openai_embedding_deployment
+        )
+        s.azure_whisper_deployment = data.get(
+            "whisper_deployment", s.azure_whisper_deployment
+        )
+        s.azure_openai_embedding_model = data.get(
+            "embedding_model", s.azure_openai_embedding_model
+        )
+        s.azure_openai_api_key = data.get("api_key", "")
+    except hvac.exceptions.InvalidPath:
+        s.azure_openai_endpoint = s.azure_openai_endpoint
+        s.azure_openai_chat_deployment = s.azure_openai_chat_deployment
+        s.azure_openai_embedding_deployment = s.azure_openai_embedding_deployment
+        s.azure_whisper_deployment = s.azure_whisper_deployment
+        s.azure_openai_embedding_model = s.azure_openai_embedding_model
+        s.azure_openai_api_key = ""
+    except Exception as e:
+        raise RuntimeError(f"Failed to read secret akarai/azure from Vault: {e}") from e

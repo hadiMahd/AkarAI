@@ -48,6 +48,7 @@ Thumbs.db
 
 # Docker (generated files)
 .dockerignore
+docker/pgadmin/pgpass
 
 # Test / Coverage
 htmlcov/

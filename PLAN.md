@@ -77,7 +77,7 @@ Vector search: pgvector
 Cache/queue/rate limiting/token blacklist: Redis
 Blob storage: MinIO
 Connection pooling: PgBouncer
-RAG reranking: Cohere rerankers where useful
+RAG reranking: OpenRouter reranking model where useful
 Architecture: modular monolith + background workers
 ```
 
@@ -976,7 +976,7 @@ pgvector search with tenant/document_type metadata filtering
 ↓
 Return matching child chunks
 ↓
-Cohere reranker reranks where useful
+OpenRouter reranker reranks where useful
 ↓
 Backend uses page_id/document_id to get page_source from Postgres
 ↓
@@ -1056,9 +1056,9 @@ First implementation may use one primary provider.
 
 Do not hardcode provider logic inside feature services.
 
-### 6.2 Cohere Reranking
+### 6.2 OpenRouter Reranking
 
-Use Cohere rerankers where useful for:
+Use the OpenRouter reranking model where useful for:
 
 ```text
 agency policy RAG
@@ -1719,7 +1719,7 @@ metadata is stored in Postgres, not MinIO metadata files
 
 ---
 
-## Phase 9 — RAG Retrieval, Cohere Reranking, and Area Search RAG
+## Phase 9 — RAG Retrieval, OpenRouter Reranking, and Area Search RAG
 
 Purpose: Enable retrieval for policies and area search.
 
@@ -1729,7 +1729,7 @@ Implement:
 query embedding
 pgvector retrieval with tenant_id filtering
 parent page fetch from MinIO
-Cohere reranker provider interface/integration
+OpenRouter reranker provider interface/integration
 agency policy RAG retrieval
 support assistant RAG retrieval
 area/neighborhood RAG retrieval
@@ -1750,7 +1750,7 @@ agency RAG retrieves only selected agency docs
 support assistant RAG retrieves only employee agency docs
 area RAG expands vague locations like around Beirut
 retrieval fetches parent page from MinIO after child match
-Cohere reranking works where configured
+OpenRouter reranking works where configured
 RAGAS evaluation runs and records baseline quality
 retrieval changes can be regression-tested
 ```
@@ -2079,7 +2079,7 @@ Phase 5: User App Core UI Without AI
 Phase 6: Agency Dashboard Core UI Without AI
 Phase 7: Media Pipeline and Listing Image Processing
 Phase 8: RAG Storage and Ingestion Foundation
-Phase 9: RAG Retrieval, Cohere Reranking, and Area Search RAG
+Phase 9: RAG Retrieval, OpenRouter Reranking, and Area Search RAG
 Phase 10: Search, AI Text Search, and Voice Search
 Phase 11: Listing AI Widget and User AI Flows
 Phase 12: Agency AI Workflows

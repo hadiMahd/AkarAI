@@ -22,6 +22,11 @@ def register_provider(name: str, provider: object) -> None:
 def get_provider(name: str) -> object:
     if name in _registry:
         return _registry[name]
+    if name == "azure_openai":
+        from app.ai.azure_openai import get_azure_openai_embedding_provider
+
+        register_provider(name, get_azure_openai_embedding_provider())
+        return _registry[name]
     raise KeyError(f"Provider '{name}' not registered. Available: {list(_registry.keys())}")
 
 

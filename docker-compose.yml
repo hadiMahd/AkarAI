@@ -67,6 +67,31 @@ services:
       retries: 5
       start_period: 5s
 
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: akarai-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    volumes:
+      - ./docker/pgadmin/servers.json:/pgadmin4/servers.json:ro
+      - ./docker/pgadmin/pgpass:/pgpass:ro
+      - pgadmindata:/var/lib/pgadmin
+    ports:
+      - "5050:80"
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/misc/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
   minio:
     image: minio/minio:latest
     container_name: akarai-minio
@@ -252,8 +277,11 @@ services:
     container_name: akarai-worker
     environment:
       APP_ENV: development
-      APP_DEBUG: "true"
+      APP_DEBUG: "false"
       DATABASE_URL: postgresql+asyncpg://akarai:akarai@pgbouncer:6432/akarai
+      RAG_FASTCDC_MIN_SIZE: "256"
+      RAG_FASTCDC_AVG_SIZE: "768"
+      RAG_FASTCDC_MAX_SIZE: "1536"
       VAULT_ADDR: http://vault:8200
       VAULT_TOKEN: root
     restart: unless-stopped
@@ -271,5 +299,6 @@ services:
 
 volumes:
   pgdata:
+  pgadmindata:
   redisdata:
   miniodata:

@@ -69,6 +69,7 @@ from app.leads.router import router as leads_router, agency_router as agency_lea
 from app.notifications.router import router as notifications_router
 from app.search.router import router as search_router
 from app.analytics.router import router as analytics_router
+from app.rag.router import router as rag_router
 
 app.include_router(agencies_router)
 app.include_router(listings_router)
@@ -83,3 +84,4 @@ app.include_router(agency_leads_router)
 app.include_router(notifications_router)
 app.include_router(search_router)
 app.include_router(analytics_router)
+app.include_router(rag_router)

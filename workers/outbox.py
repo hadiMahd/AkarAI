@@ -5,6 +5,7 @@ from __future__ import annotations
 import inspect
 import json
 import logging
+import random
 from typing import Any
 
 import asyncpg
@@ -108,10 +109,29 @@ async def _mark_retry(
     new_retry = retry_count + 1
     if new_retry >= max_retries:
         status = OUTBOX_DEAD_LETTER
+        available_at_seconds = None
     else:
         status = OUTBOX_PENDING
-    await conn.execute("""
-        UPDATE outbox_events
-        SET status = $1, retry_count = $2, last_error = $3, updated_at = NOW()
-        WHERE id = $4::uuid
-    """, status, new_retry, last_error, event_id)
+        base_seconds = 5 * (2 ** max(0, retry_count))
+        delay_seconds = min(300, base_seconds)
+        jittered_seconds = random.uniform(delay_seconds * 0.75, delay_seconds * 1.25)
+        available_at_seconds = jittered_seconds
+    if available_at_seconds is None:
+        await conn.execute("""
+            UPDATE outbox_events
+            SET status = $1, retry_count = $2, last_error = $3, available_at = NOW(), updated_at = NOW()
+            WHERE id = $4::uuid
+        """, status, new_retry, last_error, event_id)
+    else:
+        await conn.execute("""
+            UPDATE outbox_events
+            SET status = $1, retry_count = $2, last_error = $3, available_at = NOW() + ($4 * INTERVAL '1 second'), updated_at = NOW()
+            WHERE id = $5::uuid
+        """, status, new_retry, last_error, available_at_seconds, event_id)
+        logger.info(
+            "Rescheduled event %s after %.1fs (retry %s/%s)",
+            event_id,
+            available_at_seconds,
+            new_retry,
+            max_retries,
+        )

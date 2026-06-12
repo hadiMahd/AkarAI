@@ -47,4 +47,9 @@ export const queryKeys = {
     all: ["agency", "viewings"] as const,
     list: (filters: Record<string, unknown>) => ["agency", "viewings", "list", filters] as const,
   },
+  rag: {
+    all: ["agency", "rag"] as const,
+    list: (filters: Record<string, unknown>) => ["agency", "rag", "list", filters] as const,
+    detail: (id: string) => ["agency", "rag", "detail", id] as const,
+  },
 } as const;
