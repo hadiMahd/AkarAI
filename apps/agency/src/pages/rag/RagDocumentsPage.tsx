@@ -165,6 +165,14 @@ export function RagDocumentsPage() {
   );
 }
 
+export const PENDING_PHRASES = [
+  "Thinking",
+  "Analyzing policy",
+  "Reviewing documents",
+  "Checking evidence",
+  "Preparing answer",
+] as const;
+
 export function RagAssistantPage() {
   const { data } = useRagDocuments(1, 20);
   const hasProcessedDocuments = data?.items?.some((doc) => doc.status === "processed") ?? false;
@@ -193,6 +201,18 @@ function PolicyAssistantTab({ hasProcessedDocuments }: { hasProcessedDocuments: 
   const sendMessageMutation = useSendRagChatMessage();
   const isPending = createThreadMutation.isPending || sendMessageMutation.isPending;
   const messages = threadDetail?.messages ?? [];
+  const [pendingPhraseIndex, setPendingPhraseIndex] = useState(0);
+
+  useEffect(() => {
+    if (!sendMessageMutation.isPending) {
+      setPendingPhraseIndex(0);
+      return;
+    }
+    const id = setInterval(() => {
+      setPendingPhraseIndex((i) => (i + 1) % PENDING_PHRASES.length);
+    }, 1500);
+    return () => clearInterval(id);
+  }, [sendMessageMutation.isPending]);
 
   useEffect(() => {
     const container = transcriptContainerRef.current;
@@ -345,7 +365,7 @@ function PolicyAssistantTab({ hasProcessedDocuments }: { hasProcessedDocuments: 
                           />
                         ))}
                         {sendMessageMutation.isPending && (
-                          <div className="flex justify-start">
+                          <div className="flex justify-start" data-testid="pending-assistant-bubble">
                             <div className="w-full max-w-[96%] rounded-2xl rounded-bl-md border border-border/70 bg-background px-3 py-3 shadow-sm">
                               <div className="mb-2 flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
                                 <Bot className="h-3.5 w-3.5" />
@@ -353,7 +373,7 @@ function PolicyAssistantTab({ hasProcessedDocuments }: { hasProcessedDocuments: 
                               </div>
                               <div className="flex items-center gap-2">
                                 <span className="h-2 w-2 animate-pulse rounded-full bg-sky-500" />
-                                <span className="text-sm text-muted-foreground">Thinking through the policy evidence...</span>
+                                <span className="text-sm text-muted-foreground">{PENDING_PHRASES[pendingPhraseIndex]}</span>
                               </div>
                             </div>
                           </div>

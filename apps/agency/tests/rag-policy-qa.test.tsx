@@ -2,8 +2,9 @@ import { vi } from "vitest";
 import { screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "./test-utils";
-import { RagAssistantPage, RagDocumentsPage } from "@/pages/rag/RagDocumentsPage";
+import { RagAssistantPage, RagDocumentsPage, PENDING_PHRASES } from "@/pages/rag/RagDocumentsPage";
 import { getTenantSession, getSession } from "@/lib/session/auth-session";
+import { apiClient } from "@/lib/api/client";
 
 vi.mock("@/lib/api/client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api/client")>();
@@ -385,6 +386,102 @@ describe("Empty state", () => {
     renderWithProviders(<RagDocumentsPage />);
     await waitFor(() => {
       expect(screen.getByText("Policy Documents")).toBeInTheDocument();
+    });
+  });
+});
+
+describe("Pending assistant bubble", () => {
+  let resolveSend: (v: unknown) => void;
+  let rejectSend: (e: Error) => void;
+
+  beforeEach(() => {
+    vi.mocked(apiClient).mockImplementation(async (endpoint, opts) => {
+      if (typeof endpoint === "string" && /\/messages$/.test(endpoint)) {
+        return new Promise((res, rej) => { resolveSend = res; rejectSend = rej; });
+      }
+      if (endpoint === "/api/v1/agencies/rag/documents" && (!opts?.method || opts.method === "GET")) {
+        return { items: [{ id: "doc-1", tenant_id: "tenant-1", filename: "policy.pdf", status: "processed", blob_path: "rag-vault/tenant-1/doc-1/original/policy.pdf", created_at: "2025-01-15T00:00:00Z", updated_at: "2025-01-15T00:00:00Z" }], total: 1, page: 1, size: 20 };
+      }
+      if (endpoint === "/api/v1/agencies/rag/chat/threads" && (!opts?.method || opts.method === "GET")) {
+        return { items: [{ id: "thread-1", tenant_id: "tenant-1", owner_user_id: "user-1", title: "Parking policy followup", message_count: 2, created_at: "2025-01-15T00:00:00Z", updated_at: "2025-01-15T00:00:00Z", last_message_at: "2025-01-15T00:00:00Z" }], total: 1, page: 1, size: 20 };
+      }
+      if (endpoint === "/api/v1/agencies/rag/chat/threads/thread-1") {
+        return {
+          thread: { id: "thread-1", tenant_id: "tenant-1", owner_user_id: "user-1", title: "Parking policy followup", message_count: 2, created_at: "2025-01-15T00:00:00Z", updated_at: "2025-01-15T00:00:00Z", last_message_at: "2025-01-15T00:00:00Z" },
+          messages: [
+            { id: "msg-user-1", thread_id: "thread-1", tenant_id: "tenant-1", owner_user_id: "user-1", role: "user", content: "parking policy?", sequence_number: 1, created_at: "2025-01-15T00:00:00Z" },
+            { id: "msg-assistant-1", thread_id: "thread-1", tenant_id: "tenant-1", owner_user_id: "user-1", role: "assistant", content: "Visitor parking is limited to 2 hours.", sequence_number: 2, created_at: "2025-01-15T00:00:01Z", answer: { status: "answered", answer: "Visitor parking is limited to 2 hours.", citations: [{ document_id: "doc-1", document_filename: "policy.pdf", page_number: 1, source_label: "policy.pdf p.1" }], evidence: [], debug: { reranker_used: false, reranker_provider: null, fallback_reason: null, confidence_status: "sufficient", retrieval_log_id: "log-1", vector_candidate_count: 8, rerank_candidate_count: 0 } } },
+          ],
+        };
+      }
+      return { items: [], total: 0, page: 1, size: 20 };
+    });
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  async function setupAndSubmit() {
+    renderWithProviders(<RagAssistantPage />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: /parking policy followup/i }));
+    await waitFor(() => expect(screen.getByText("parking policy?")).toBeInTheDocument());
+    await user.type(screen.getByPlaceholderText(/message the policy assistant/i), "what about overtime?");
+    fireEvent.click(screen.getByRole("button", { name: /send/i }));
+    await waitFor(() => expect(screen.getByTestId("pending-assistant-bubble")).toBeInTheDocument());
+  }
+
+  it("shows pending assistant bubble immediately after submit", async () => {
+    await setupAndSubmit();
+    expect(screen.getByTestId("pending-assistant-bubble")).toBeInTheDocument();
+  });
+
+  it("displays one of the known status phrases in the pending bubble", async () => {
+    await setupAndSubmit();
+    const bubble = screen.getByTestId("pending-assistant-bubble");
+    expect(PENDING_PHRASES.some((p) => bubble.textContent?.includes(p))).toBe(true);
+  });
+
+  it("removes the pending bubble when the response arrives", async () => {
+    await setupAndSubmit();
+    resolveSend({
+      thread: {
+        id: "thread-1", tenant_id: "tenant-1", owner_user_id: "user-1",
+        title: "Parking policy followup", message_count: 4,
+        created_at: "2025-01-15T00:00:00Z", updated_at: "2025-01-15T00:00:02Z",
+        last_message_at: "2025-01-15T00:00:02Z",
+      },
+      user_message: {
+        id: "msg-user-2", thread_id: "thread-1", tenant_id: "tenant-1",
+        owner_user_id: "user-1", role: "user", content: "what about overtime?",
+        sequence_number: 3, created_at: "2025-01-15T00:00:02Z",
+      },
+      assistant_message: {
+        id: "msg-assistant-2", thread_id: "thread-1", tenant_id: "tenant-1",
+        owner_user_id: "user-1", role: "assistant", content: "Overtime answer",
+        sequence_number: 4, created_at: "2025-01-15T00:00:03Z",
+        answer: {
+          status: "answered", answer: "Overtime requires manager approval.",
+          citations: [], evidence: [],
+          debug: {
+            reranker_used: false, reranker_provider: null, fallback_reason: null,
+            confidence_status: "sufficient", retrieval_log_id: "log-2",
+            vector_candidate_count: 8, rerank_candidate_count: 0,
+          },
+        },
+      },
+    });
+    await waitFor(() => {
+      expect(screen.queryByTestId("pending-assistant-bubble")).not.toBeInTheDocument();
+    });
+  });
+
+  it("removes the pending bubble when send fails", async () => {
+    await setupAndSubmit();
+    rejectSend(new Error("Network error"));
+    await waitFor(() => {
+      expect(screen.queryByTestId("pending-assistant-bubble")).not.toBeInTheDocument();
     });
   });
 });
