@@ -59,6 +59,7 @@ class TestAgencyProfileTenantIsolation:
         from app.common.exceptions import NotFoundError
         with pytest.raises((NotFoundError, IntegrityError)):
             await svc.update_profile({"display_name": "Should Fail"})
+        await db_session.rollback()
 
     async def test_list_employees_only_own_tenant(self, db_session, test_tenant, agency_admin_user):
         user, _ = agency_admin_user
@@ -199,15 +200,24 @@ class TestAgencyCoreAPITenantIsolation:
 
     async def test_agency_profile_requires_tenant_membership(self, async_client: AsyncClient):
         token = await self._login(async_client, "user@akarai.test")
-        with pytest.raises(PermissionError):
-            await async_client.get("/agencies/me/profile", headers={"Authorization": f"Bearer {token}"})
+        response = await async_client.get(
+            "/agencies/me/profile",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 403
 
     async def test_agency_employees_requires_tenant_membership(self, async_client: AsyncClient):
         token = await self._login(async_client, "user@akarai.test")
-        with pytest.raises(PermissionError):
-            await async_client.get("/agencies/me/employees", headers={"Authorization": f"Bearer {token}"})
+        response = await async_client.get(
+            "/agencies/me/employees",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 403
 
     async def test_agency_listings_requires_tenant_membership(self, async_client: AsyncClient):
         token = await self._login(async_client, "user@akarai.test")
-        with pytest.raises(PermissionError):
-            await async_client.get("/agency/listings", headers={"Authorization": f"Bearer {token}"})
+        response = await async_client.get(
+            "/agency/listings",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 403

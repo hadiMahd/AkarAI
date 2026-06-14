@@ -37,3 +37,5 @@ pymupdf>=1.23.0
 fastcdc>=0.2.0
 openai>=1.54.0
 pgvector>=0.3.6
+openrouter>=0.1.0
+nemoguardrails>=0.10.0

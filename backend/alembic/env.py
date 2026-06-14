@@ -1,3 +1,4 @@
+import os
 from logging.config import fileConfig
 
 from alembic import context
@@ -8,7 +9,12 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Import Phase 2+3+4 models so Alembic can detect them for autogenerate
+# Allow override via env var (used in Docker / CI)
+_sync_url = os.environ.get("DATABASE_SYNC_URL")
+if _sync_url:
+    config.set_main_option("sqlalchemy.url", _sync_url)
+
+# Import all models so Alembic can detect them for autogenerate
 from app.common.database import Base  # noqa: F401
 from app.auth.models import Role, Permission, RolePermission, RefreshSession, AccessRevocation  # noqa: F401
 from app.users.models import User  # noqa: F401
@@ -20,6 +26,7 @@ from app.listings.models import Listing, ListingPhotoMetadata, SavedListing, Com
 from app.leads.models import Lead, LeadSpamResult, LeadLevelResult, LeadSuggestedReply, ReviewedLeadRecord  # noqa: F401
 from app.viewings.models import ListingViewingSlot, ScheduledViewing, ScheduledViewingStatusHistory  # noqa: F401
 from app.search.models import SearchLog  # noqa: F401
+from app.rag.models import RagDocument, RagPage, RagChunk, RagRetrievalLog  # noqa: F401
 
 target_metadata = Base.metadata
 

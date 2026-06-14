@@ -1,7 +1,7 @@
 <!--
 Sync Impact Report
-Version change: 1.0.0 -> 2.0.0
-Modified principles: IX. Security and Privacy (secret source redefined from environment variables to HashiCorp Vault)
+Version change: 2.0.0 -> 3.0.0
+Modified principles: I. Fixed Technology Stack; VI. RAG Ingestion and Retrieval; XII. AI Provider Interfaces
 Added sections: None
 Removed sections: None
 Templates requiring updates:
@@ -10,7 +10,7 @@ Templates requiring updates:
 - updated: .specify/templates/tasks-template.md
 - not present: .specify/templates/commands/*.md
 - updated: AGENTS.md
-Follow-up TODOs: None
+Follow-up TODOs: Align RAG planning artifacts with provider-agnostic reranking language
 -->
 # AkarAI Constitution
 
@@ -21,8 +21,9 @@ The implementation MUST use React and TypeScript for the user app and agency
 dashboard, Streamlit and Python for the platform admin, FastAPI and Python for
 the backend, PostgreSQL with pgvector for persistence and vector search, Redis
 for cache, queue, rate limiting, and token blacklist duties, and MinIO for
-blob/object storage. RAG reranking MUST use Cohere rerankers where useful. The
-backend MUST start as a modular monolith with background workers. If any
+blob/object storage. RAG reranking MUST go through provider interfaces and MAY
+use any user-approved provider where useful. The backend MUST start as a
+modular monolith with background workers. If any
 required library, package, model, or service provider is unspecified, the agent
 MUST ask the user before choosing. Rationale: fixed choices prevent accidental
 stack drift and keep the final project buildable.
@@ -73,9 +74,10 @@ objects remain replaceable blobs.
 RAG ingestion MUST include document upload to MinIO, page-level parent chunking,
 previous-page overlap buffer when needed, CDC/fastcdc child chunking, chunk
 hashing, old-hash versus new-hash comparison, orphan chunk deletion, tenant
-metadata filtering, parent page fetch from MinIO during retrieval, and Cohere
-reranking where useful. Rationale: retrieval quality and tenant safety depend
-on deterministic ingestion, metadata filters, and auditable chunk updates.
+metadata filtering, parent page fetch from MinIO during retrieval, and
+provider-based reranking where useful. Rationale: retrieval quality and tenant
+safety depend on deterministic ingestion, metadata filters, and auditable chunk
+updates.
 
 ### VII. Search Flow Separation
 Manual search MUST use direct database filters. AI text/voice search MUST use
@@ -184,4 +186,4 @@ Compliance review MUST happen during `/speckit-plan`, `/speckit-tasks`,
 not resolved in a spec or plan MUST be escalated to the user, not silently
 filled by the agent.
 
-**Version**: 2.0.0 | **Ratified**: 2026-06-08 | **Last Amended**: 2026-06-08
+**Version**: 3.0.0 | **Ratified**: 2026-06-08 | **Last Amended**: 2026-06-12

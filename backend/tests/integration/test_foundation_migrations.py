@@ -19,8 +19,6 @@ BUSINESS_TABLES = [
     "listings",
     "leads",
     "viewings",
-    "rag_documents",
-    "rag_chunks",
     "agency_profiles",
     "media",
     "listing_images",

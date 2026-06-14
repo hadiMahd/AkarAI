@@ -20,7 +20,7 @@ if os.path.isdir(_backend_root):
 
 os.environ.setdefault("APP_ENV", "testing")
 
-from app.common.database import async_session_factory
+from app.common.database import async_session_factory, engine
 from app.common.rls import apply_rls_context_to_session
 from app.agencies.models import AgencyTenant
 from app.rag.models import RagChunk, RagDocument, RagPage
@@ -28,6 +28,7 @@ from app.rag.models import RagChunk, RagDocument, RagPage
 
 @pytest.fixture
 async def db_session():
+    await engine.dispose()
     async with async_session_factory() as session:
         _orig_commit = session.commit
 
@@ -43,8 +44,11 @@ async def db_session():
         await apply_rls_context_to_session(
             session, role="platform_admin", is_platform_admin=True,
         )
-        yield session
-        await session.rollback()
+        try:
+            yield session
+        finally:
+            await session.rollback()
+    await engine.dispose()
 
 
 @pytest.fixture
@@ -69,9 +73,14 @@ async def pending_document(db_session):
     )
     db_session.add(doc)
     await db_session.commit()
+    document_id = doc.id
+    tenant_id = tenant.id
     yield doc
-    await db_session.delete(doc)
-    await db_session.delete(tenant)
+    from sqlalchemy import delete
+
+    await db_session.rollback()
+    await db_session.execute(delete(RagDocument).where(RagDocument.id == document_id))
+    await db_session.execute(delete(AgencyTenant).where(AgencyTenant.id == tenant_id))
     await db_session.commit()
 
 

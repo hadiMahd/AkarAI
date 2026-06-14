@@ -23,9 +23,9 @@ def get_provider(name: str) -> object:
     if name in _registry:
         return _registry[name]
     if name == "azure_openai":
-        from app.ai.azure_openai import get_azure_openai_embedding_provider
+        from app.ai.azure_openai import get_azure_openai_provider
 
-        register_provider(name, get_azure_openai_embedding_provider())
+        register_provider(name, get_azure_openai_provider())
         return _registry[name]
     raise KeyError(f"Provider '{name}' not registered. Available: {list(_registry.keys())}")
 
@@ -39,4 +39,15 @@ def get_chat_provider() -> ChatProvider:
 def get_embedding_provider() -> EmbeddingProvider:
     provider = get_provider(settings.ai_primary_provider)
     assert isinstance(provider, EmbeddingProvider)
+    return provider
+
+
+def get_reranking_provider() -> RerankingProvider:
+    provider_name = "openrouter"
+    if provider_name not in _registry:
+        from app.ai.openrouter import get_openrouter_reranking_provider
+
+        register_provider(provider_name, get_openrouter_reranking_provider())
+    provider = get_provider(provider_name)
+    assert isinstance(provider, RerankingProvider)
     return provider

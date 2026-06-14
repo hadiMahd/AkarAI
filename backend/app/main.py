@@ -51,6 +51,19 @@ async def validation_exception_handler(request: Request, exc: ValidationError) -
     )
 
 
+@app.exception_handler(PermissionError)
+async def permission_error_handler(request: Request, exc: PermissionError) -> JSONResponse:
+    return JSONResponse(
+        status_code=403,
+        content={
+            "status": "error",
+            "detail": str(exc),
+            "error_code": "forbidden",
+            "request_id": get_request_id(request),
+        },
+    )
+
+
 from app.auth.router import router as auth_router, tenant_router
 
 app.include_router(health_router)
@@ -69,7 +82,9 @@ from app.leads.router import router as leads_router, agency_router as agency_lea
 from app.notifications.router import router as notifications_router
 from app.search.router import router as search_router
 from app.analytics.router import router as analytics_router
-from app.rag.router import router as rag_router
+from app.rag.router import doc_router as rag_doc_router
+from app.rag.router import chat_router as rag_chat_router
+from app.rag.router import retrieval_router as rag_retrieval_router
 
 app.include_router(agencies_router)
 app.include_router(listings_router)
@@ -84,4 +99,6 @@ app.include_router(agency_leads_router)
 app.include_router(notifications_router)
 app.include_router(search_router)
 app.include_router(analytics_router)
-app.include_router(rag_router)
+app.include_router(rag_doc_router)
+app.include_router(rag_chat_router)
+app.include_router(rag_retrieval_router)

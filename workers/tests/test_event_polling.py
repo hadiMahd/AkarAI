@@ -10,9 +10,11 @@ def test_worker_job_registry():
 
 def test_worker_handler_registry():
     import main as wm
-    # Phase 2: only foundation.test handler registered
-    assert len(wm.EVENT_HANDLERS) == 1
-    assert "foundation.test" in wm.EVENT_HANDLERS
+    assert set(wm.EVENT_HANDLERS) == {
+        "foundation.test",
+        "listing.image_uploaded",
+        "rag.document_uploaded",
+    }
 
 
 def test_foundation_test_handler_exists():

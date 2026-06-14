@@ -626,7 +626,7 @@ async def add_comparison_item(
     session_id: UUID,
     body: ComparisonItemCreateRequest,
     actor: dict = Depends(get_current_actor),
-    db: AsyncSession = Depends(get_db_session),
+    db: AsyncSession = Depends(get_rls_db_session),
 ):
     from app.listings.models import ComparisonItem
     from app.listings.repository import ComparisonRepository
@@ -659,7 +659,7 @@ async def remove_comparison_item(
     session_id: UUID,
     listing_id: UUID,
     actor: dict = Depends(get_current_actor),
-    db: AsyncSession = Depends(get_db_session),
+    db: AsyncSession = Depends(get_rls_db_session),
 ):
     from app.listings.repository import ComparisonRepository
 

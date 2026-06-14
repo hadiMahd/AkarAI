@@ -5,7 +5,6 @@ from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_actor, get_rls_db_session, get_tenant_context
-from app.common.dependencies import get_db_session
 from app.common.exceptions import RateLimitExceededError
 from app.common.pagination import PaginationRequest
 from app.common.rate_limit import check_phase4_rate_limit
@@ -77,7 +76,7 @@ agency_viewings_router = APIRouter(prefix="/agency/viewings", tags=["Viewings"])
 async def list_public_viewing_slots(
     listing_id: UUID,
     actor: dict = Depends(get_current_actor),
-    db: AsyncSession = Depends(get_db_session),
+    db: AsyncSession = Depends(get_rls_db_session),
 ):
     from app.viewings.repository import ViewingSlotRepository
 
@@ -91,7 +90,7 @@ async def book_viewing(
     body: ViewingBookingRequest,
     request: Request,
     actor: dict = Depends(get_current_actor),
-    db: AsyncSession = Depends(get_db_session),
+    db: AsyncSession = Depends(get_rls_db_session),
 ):
     identifier = request.client.host if request.client else "unknown"
     if not await check_phase4_rate_limit("viewing_booking", identifier):
@@ -106,7 +105,7 @@ async def list_my_viewings(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     actor: dict = Depends(get_current_actor),
-    db: AsyncSession = Depends(get_db_session),
+    db: AsyncSession = Depends(get_rls_db_session),
 ):
     pp = PaginationRequest(page=page, page_size=page_size)
     svc = ViewingBookingService(db)
@@ -121,7 +120,7 @@ async def list_my_viewings(
 async def get_my_viewing(
     viewing_id: UUID,
     actor: dict = Depends(get_current_actor),
-    db: AsyncSession = Depends(get_db_session),
+    db: AsyncSession = Depends(get_rls_db_session),
 ):
     svc = ViewingBookingService(db)
     return await svc.get_user_viewing(viewing_id, UUID(actor["user_id"]))
@@ -136,7 +135,7 @@ async def list_agency_viewings(
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
     tenant: TenantContext = Depends(get_tenant_context),
-    db: AsyncSession = Depends(get_db_session),
+    db: AsyncSession = Depends(get_rls_db_session),
 ):
     pp = PaginationRequest(page=page, page_size=page_size)
     svc = ViewingBookingService(db, tenant)
@@ -153,7 +152,7 @@ async def list_agency_viewings(
 async def get_agency_viewing(
     viewing_id: UUID,
     tenant: TenantContext = Depends(get_tenant_context),
-    db: AsyncSession = Depends(get_db_session),
+    db: AsyncSession = Depends(get_rls_db_session),
 ):
     svc = ViewingBookingService(db, tenant)
     return await svc.get_tenant_viewing(viewing_id)
@@ -164,7 +163,7 @@ async def update_viewing_status(
     viewing_id: UUID,
     body: ViewingStatusUpdateRequest,
     tenant: TenantContext = Depends(get_tenant_context),
-    db: AsyncSession = Depends(get_db_session),
+    db: AsyncSession = Depends(get_rls_db_session),
 ):
     svc = ViewingBookingService(db, tenant)
     return await svc.update_viewing_status(viewing_id, body.status, body.reason)

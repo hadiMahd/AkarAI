@@ -8,6 +8,7 @@ import {
   Settings,
   Users,
   Building2,
+  Bot,
   MessageSquare,
   CheckCircle2,
   Calendar,
@@ -39,6 +40,7 @@ const routeIcons: Record<string, React.ComponentType<{ className?: string }>> = 
   viewings: Calendar,
   spamLeads: AlertTriangle,
   policyDocuments: FileText,
+  policyAssistant: Bot,
 };
 
 export function ProtectedLayout({ children }: { children?: ReactNode }) {

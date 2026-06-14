@@ -43,11 +43,11 @@ class TestAgencyEmployeeAccountCreationAPI:
         resp = await async_client.post(
             "/agencies/me/employees",
             json={
-                "work_email": "user@akarai.test",
+                "work_email": "agency.admin@akarai.test",
                 "display_name": "Should Fail",
                 "role_slug": "support_employee",
             },
             headers={"Authorization": f"Bearer {token}"},
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 422
         assert "already exists" in resp.json()["detail"]

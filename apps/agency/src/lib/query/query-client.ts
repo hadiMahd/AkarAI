@@ -51,5 +51,9 @@ export const queryKeys = {
     all: ["agency", "rag"] as const,
     list: (filters: Record<string, unknown>) => ["agency", "rag", "list", filters] as const,
     detail: (id: string) => ["agency", "rag", "detail", id] as const,
+    retrievalLogs: (filters: Record<string, unknown>) => ["agency", "rag", "retrieval-logs", filters] as const,
+    policyQuery: (filters: Record<string, unknown>) => ["agency", "rag", "policy-query", filters] as const,
+    chatThreads: (filters: Record<string, unknown>) => ["agency", "rag", "chat-threads", filters] as const,
+    chatThread: (id: string) => ["agency", "rag", "chat-thread", id] as const,
   },
 } as const;

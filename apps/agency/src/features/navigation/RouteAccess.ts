@@ -13,6 +13,7 @@ export const AGENCY_ROUTES = {
   viewings: "/viewings",
   spamLeads: "/spam-leads",
   policyDocuments: "/policy-documents",
+  policyAssistant: "/policy-assistant",
 } as const;
 
 export type AgencyRouteKey = keyof typeof AGENCY_ROUTES;
@@ -23,6 +24,7 @@ export const ADMIN_ONLY_ROUTES = [
   "listings",
   "listingNew",
   "policyDocuments",
+  "policyAssistant",
 ] as const;
 
 export const SHARED_ROUTES = [

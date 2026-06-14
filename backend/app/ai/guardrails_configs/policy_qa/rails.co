@@ -1,0 +1,8 @@
+define user ask policy question
+  "What is the policy?"
+  "How do I do this?"
+  "Can I do this?"
+  "What are the rules?"
+
+define bot refuse unrelated request
+  "I can only answer agency policy questions grounded in the uploaded policy documents."

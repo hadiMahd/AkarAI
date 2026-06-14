@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.exceptions import NotFoundError, ForbiddenError, ValidationError, ConflictError
 from app.common.pagination import PaginationRequest, PaginationResult
+from app.common.rls import apply_rls_context_to_session
 from app.common.tenant import TenantContext, require_tenant, ensure_tenant_match
 from app.common.events import write_domain_event_log
 from app.viewings.models import ListingViewingSlot, ScheduledViewing, ScheduledViewingStatusHistory
@@ -135,6 +136,16 @@ class ViewingBookingService:
 
         if slot.reserved_count >= slot.capacity:
             raise ConflictError(detail="Viewing slot is fully booked")
+
+        # Public users can read active listings/slots, but booking mutates tenant-owned rows.
+        # Switch this transaction into the listing tenant context before reserve/create writes.
+        await apply_rls_context_to_session(
+            self._session,
+            tenant_id=listing.agency_tenant_id,
+            user_id=user_id,
+            role="user",
+            is_platform_admin=False,
+        )
 
         slot = await self._slot_repo.increment_reserved_count(slot_id)
         if slot is None or slot.reserved_count > slot.capacity:

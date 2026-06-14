@@ -224,6 +224,78 @@ class TestRagUpload:
             )
             assert resp.status_code == 403
 
+    async def test_replace_document_reuses_same_document_id(self, async_client: AsyncClient, db_session):
+        """Replacing an uploaded document keeps the same document row and requeues ingestion."""
+        from sqlalchemy import select
+        from app.common.events import OutboxEvent
+
+        token = await _login(async_client, "agency.admin@akarai.test", "Test1234!")
+
+        with patch("app.rag.service._extract_text_from_pdf", return_value="original text"):
+            upload_resp = await async_client.post(
+                "/api/v1/agencies/rag/documents",
+                headers={"Authorization": f"Bearer {token}"},
+                files={"file": ("policy.pdf", FAKE_PDF_BYTES, "application/pdf")},
+            )
+        assert upload_resp.status_code == 202
+        original_doc = upload_resp.json()
+
+        with patch("app.rag.service._extract_text_from_pdf", return_value="updated text"):
+            replace_resp = await async_client.post(
+                f"/api/v1/agencies/rag/documents/{original_doc['id']}/replace",
+                headers={"Authorization": f"Bearer {token}"},
+                files={"file": ("policy-v2.pdf", FAKE_PDF_BYTES, "application/pdf")},
+            )
+
+        assert replace_resp.status_code == 202
+        replaced_doc = replace_resp.json()
+        assert replaced_doc["id"] == original_doc["id"]
+        assert replaced_doc["filename"] == "policy-v2.pdf"
+        assert replaced_doc["status"] == "pending"
+        assert replaced_doc["blob_path"] != original_doc["blob_path"]
+
+        result = await db_session.execute(
+            select(OutboxEvent).where(
+                OutboxEvent.event_name == "rag.document_uploaded",
+                OutboxEvent.aggregate_id == original_doc["id"],
+            )
+        )
+        events = list(result.scalars().all())
+        assert len(events) >= 2
+
+    async def test_replace_document_cross_tenant_forbidden(self, async_client: AsyncClient, db_session):
+        """Another tenant cannot replace an existing tenant's RAG document."""
+        tenant_a, user_a, membership_a, password_a = await _create_tenant_admin(db_session, "replace-a")
+        tenant_b, user_b, membership_b, password_b = await _create_tenant_admin(db_session, "replace-b")
+
+        token_a = await _login(async_client, user_a.email, password_a)
+        token_b = await _login(async_client, user_b.email, password_b)
+
+        with patch("app.rag.service._extract_text_from_pdf", return_value="tenant A policy"):
+            upload_resp = await async_client.post(
+                "/api/v1/agencies/rag/documents",
+                headers={"Authorization": f"Bearer {token_a}"},
+                files={"file": ("policy.pdf", FAKE_PDF_BYTES, "application/pdf")},
+            )
+        assert upload_resp.status_code == 202
+        document_id = upload_resp.json()["id"]
+
+        with patch("app.rag.service._extract_text_from_pdf", return_value="tenant B replacement"):
+            replace_resp = await async_client.post(
+                f"/api/v1/agencies/rag/documents/{document_id}/replace",
+                headers={"Authorization": f"Bearer {token_b}"},
+                files={"file": ("policy-b.pdf", FAKE_PDF_BYTES, "application/pdf")},
+            )
+        assert replace_resp.status_code == 404
+
+        await db_session.delete(membership_a)
+        await db_session.delete(user_a)
+        await db_session.delete(membership_b)
+        await db_session.delete(user_b)
+        await db_session.delete(tenant_a)
+        await db_session.delete(tenant_b)
+        await db_session.commit()
+
 
 @pytest.mark.anyio
 class TestRagListAndDetail:

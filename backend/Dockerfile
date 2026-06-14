@@ -4,6 +4,7 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    g++ \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 

@@ -12,6 +12,7 @@
 .env
 .env.local
 *.log
+.env*
 *.tmp
 .codex
 graphify-out/
@@ -49,6 +50,7 @@ Thumbs.db
 # Docker (generated files)
 .dockerignore
 docker/pgadmin/pgpass
+Dockerfile*
 
 # Test / Coverage
 htmlcov/
