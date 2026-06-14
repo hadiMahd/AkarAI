@@ -811,7 +811,7 @@ class RagChatService:
         )
         sanitized_detail = sanitize_answer_payload(detail.model_dump(mode="json"))
         await redis_set(cache_key, json.dumps(sanitized_detail), ttl=settings.rag_chat_redis_ttl_seconds)
-        return detail
+        return RagChatThreadDetailResponse.model_validate(sanitized_detail)
 
     async def send_message(
         self,

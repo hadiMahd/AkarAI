@@ -916,6 +916,27 @@ class TestPiiRedaction:
             result = redact_pii_text("Contact admin@example.com for help.")
         assert "admin@example.com" in result
 
+    def test_presidio_unavailable_uses_regex_fallback_not_raw_text(self):
+        """When Presidio engines cannot be initialised, regex fallback must still redact
+        email and phone — the layer must never fail open and return raw PII."""
+        import app.ai.pii_redaction as mod
+        from app.ai.pii_redaction import redact_pii_text
+
+        # Force the sentinel state that represents a failed Presidio init.
+        original = (mod._analyzer, mod._anonymizer, mod._operators)
+        mod._analyzer = False
+        mod._anonymizer = None
+        mod._operators = None
+        try:
+            result = redact_pii_text("Email landlord@flats.com or dial 212-555-0199.")
+        finally:
+            mod._analyzer, mod._anonymizer, mod._operators = original
+
+        assert "landlord@flats.com" not in result
+        assert "212-555-0199" not in result
+        assert "[REDACTED_EMAIL]" in result
+        assert "[REDACTED_PHONE]" in result
+
     def test_redact_pii_payload_nested(self):
         from app.ai.pii_redaction import redact_pii_payload
 

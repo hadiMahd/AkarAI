@@ -285,9 +285,9 @@ class TestChatServiceSanitization:
         assert len(redis_written) == 1
         assert raw_secret not in redis_written[0]
         assert "[REDACTED" in redis_written[0]
-        # The returned Python object is NOT sanitized (it's the live DB row).
-        # Only the cache write must be clean.
+        # The returned object is now also sanitized — historical rows no longer leak PII to callers.
         assert result.thread.id == thread_id
+        assert raw_secret not in result.messages[0].content
 
 
 class TestChatServicePiiSanitization:

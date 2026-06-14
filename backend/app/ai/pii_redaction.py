@@ -23,6 +23,22 @@ _UUID_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Regex fallback — applied when Presidio is unavailable so the layer never
+# fails open and returns raw PII.  Covers the two most common leak patterns.
+_FALLBACK_EMAIL_RE = re.compile(
+    r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}"
+)
+_FALLBACK_PHONE_RE = re.compile(
+    r"(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]\d{3}[-.\s]\d{4}"
+)
+
+
+def _regex_fallback_redact(text: str) -> str:
+    """Minimal regex redaction used when Presidio engines are unavailable."""
+    text = _FALLBACK_EMAIL_RE.sub("[REDACTED_EMAIL]", text)
+    text = _FALLBACK_PHONE_RE.sub("[REDACTED_PHONE]", text)
+    return text
+
 # Placeholder replacements for each Presidio entity type.
 # Deliberately conservative:
 # - URL and DATE_TIME excluded: appear legitimately in policy text, too noisy.
@@ -74,7 +90,9 @@ def _get_engines():
         }
         logger.info("Presidio PII redaction engines initialised")
     except Exception as exc:  # noqa: BLE001
-        logger.warning("Presidio unavailable — PII redaction disabled: %s", exc)
+        logger.error(
+            "Presidio init failed — regex fallback will be used for PII redaction: %s", exc
+        )
         _analyzer = False  # sentinel: init attempted, unavailable
         _anonymizer = None
         _operators = None
@@ -103,7 +121,8 @@ def redact_pii_text(text: str) -> str:
 
     analyzer, anonymizer, operators = _get_engines()
     if not analyzer:
-        return text
+        # Presidio unavailable — apply regex fallback so the layer never fails open.
+        return _regex_fallback_redact(text)
 
     try:
         results = analyzer.analyze(text=text, language="en", entities=_ENTITY_TYPES)
@@ -114,8 +133,8 @@ def redact_pii_text(text: str) -> str:
         )
         return anonymized.text
     except Exception as exc:  # noqa: BLE001
-        logger.warning("PII redaction failed, returning original text: %s", exc)
-        return text
+        logger.warning("PII redaction call failed, applying regex fallback: %s", exc)
+        return _regex_fallback_redact(text)
 
 
 def redact_pii_payload(obj: Any, *, _depth: int = 0) -> Any:
