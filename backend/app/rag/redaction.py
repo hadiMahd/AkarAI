@@ -3,6 +3,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from app.ai.pii_redaction import redact_pii_text, redact_pii_payload
+
 # Patterns that look like real secret values, not just the word "token" in prose.
 _REDACT_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     # Authorization: Bearer <token> or just Bearer <token>
@@ -41,14 +43,17 @@ _MAX_PARENT_PAGE_TEXT_CHARS = 1000
 
 
 def redact_text(text: str) -> str:
-    """Apply secret-pattern redaction to a single string."""
+    """Layer 1 (secret patterns) + Layer 2 (PII) redaction for a single string."""
+    # Layer 1: regex secret patterns
     for pattern, replacement in _REDACT_PATTERNS:
         text = pattern.sub(replacement, text)
+    # Layer 2: PII (Presidio) — runs after secrets so no secret leaks into PII output
+    text = redact_pii_text(text)
     return text
 
 
 def sanitize_payload(obj: Any, *, _depth: int = 0) -> Any:
-    """Recursively redact secret patterns from all string values in a payload.
+    """Recursively apply secret-pattern + PII redaction to all strings in a payload.
 
     Stops recursion at depth 10 to guard against pathological inputs.
     """

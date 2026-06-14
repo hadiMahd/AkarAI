@@ -867,3 +867,98 @@ class TestRetrievalLogPaginationOrdering:
 
         repo = RagRepository(MagicMock())
         assert repo._MAX_RETRIEVAL_CANDIDATES == 20
+
+
+class TestPiiRedaction:
+    """Unit tests for the Presidio-backed PII redaction layer (T043 extension)."""
+
+    def test_redact_email(self):
+        from app.ai.pii_redaction import redact_pii_text
+
+        result = redact_pii_text("Send invoice to billing@tenant.com for review.")
+        assert "billing@tenant.com" not in result
+        assert "[REDACTED_EMAIL]" in result
+
+    def test_redact_phone(self):
+        from app.ai.pii_redaction import redact_pii_text
+
+        result = redact_pii_text("Call the landlord at +1-800-555-1234 to confirm.")
+        assert "555-1234" not in result
+        assert "[REDACTED_PHONE]" in result
+
+    def test_redact_person_name(self):
+        from app.ai.pii_redaction import redact_pii_text
+
+        result = redact_pii_text("The agreement was signed by Alice Johnson on behalf of the agency.")
+        assert "Alice Johnson" not in result
+        assert "[REDACTED_NAME]" in result
+
+    def test_redact_credit_card(self):
+        from app.ai.pii_redaction import redact_pii_text
+
+        result = redact_pii_text("Payment reference 4111111111111111 was declined.")
+        assert "4111111111111111" not in result
+        assert "[REDACTED_CARD]" in result
+
+    def test_safe_policy_text_not_mangled(self):
+        from app.ai.pii_redaction import redact_pii_text
+
+        text = "Tenants must submit applications at least 14 days before the move-in date."
+        result = redact_pii_text(text)
+        # Core policy prose should survive untouched.
+        assert "14 days" in result
+        assert "move-in date" in result
+
+    def test_pii_redaction_disabled_leaves_text_unchanged(self):
+        from app.ai.pii_redaction import redact_pii_text
+
+        with patch("app.ai.pii_redaction._is_enabled", return_value=False):
+            result = redact_pii_text("Contact admin@example.com for help.")
+        assert "admin@example.com" in result
+
+    def test_redact_pii_payload_nested(self):
+        from app.ai.pii_redaction import redact_pii_payload
+
+        payload = {
+            "answer": "The contact is ceo@company.org.",
+            "evidence": [{"text_preview": "Signed by Bob Smith on 2024-01-01."}],
+            "debug": {"note": "Query from agent007@secret.com"},
+        }
+        result = redact_pii_payload(payload)
+        assert "ceo@company.org" not in str(result)
+        assert "agent007@secret.com" not in str(result)
+        assert "[REDACTED_EMAIL]" in str(result)
+
+    def test_full_redact_text_applies_both_layers(self):
+        """redact_text in redaction.py must apply secrets then PII."""
+        from app.rag.redaction import redact_text
+
+        text = "api_key=supersecretkeyvalue123456 contact admin@example.com"
+        result = redact_text(text)
+        # Secret-pattern layer
+        assert "supersecretkeyvalue123456" not in result
+        # PII layer
+        assert "admin@example.com" not in result
+
+    def test_sanitize_answer_payload_redacts_pii_in_evidence(self):
+        from app.rag.redaction import sanitize_answer_payload
+
+        payload = {
+            "status": "answered",
+            "answer": "For queries email support@agency.com.",
+            "citations": [],
+            "evidence": [
+                {
+                    "text_preview": "Contact John Doe at 212-555-0100.",
+                    "parent_page_text": "Agency run by Mary Lee, call 415-555-9876.",
+                }
+            ],
+            "debug": None,
+        }
+        result = sanitize_answer_payload(payload)
+        out = str(result)
+        assert "support@agency.com" not in out
+        assert "John Doe" not in out
+        assert "212-555-0100" not in out
+        assert "Mary Lee" not in out
+        assert "415-555-9876" not in out

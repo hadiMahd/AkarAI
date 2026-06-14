@@ -71,6 +71,7 @@ class Settings(BaseSettings):
     ai_primary_provider: str = "azure_openai"
     ai_fallback_providers: str = "openrouter"
     ai_guardrails_enabled: bool = True
+    ai_pii_redaction_enabled: bool = True
     ai_guardrails_use_nemo_runtime: bool = False
     ai_guardrails_config_path: str = ""
     ai_guardrails_max_history_turns: int = 4
