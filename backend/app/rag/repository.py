@@ -144,7 +144,7 @@ class RagRepository:
         count_result = await self._session.execute(select(func.count()).select_from(base.subquery()))
         total = int(count_result.scalar_one())
         result = await self._session.execute(
-            base.order_by(RagRetrievalLog.created_at.desc())
+            base.order_by(RagRetrievalLog.created_at.desc(), RagRetrievalLog.id.desc())
             .offset(pagination.offset)
             .limit(pagination.limit)
         )
@@ -175,12 +175,15 @@ class RagRepository:
         )
         return list(result.scalars().all()), total
 
+    _MAX_RETRIEVAL_CANDIDATES = 20
+
     async def search_chunks_by_embedding(
         self,
         tenant_id: UUID,
         query_embedding: list[float],
         top_k: int = 8,
     ) -> list[tuple[RagChunk, RagDocument, float]]:
+        effective_top_k = min(max(1, top_k), self._MAX_RETRIEVAL_CANDIDATES)
         distance = RagChunk.embedding.cosine_distance(query_embedding)
         result = await self._session.execute(
             select(RagChunk, RagDocument, distance.label("distance"))
@@ -193,7 +196,7 @@ class RagRepository:
                 RagChunk.embedding.isnot(None),
             )
             .order_by(distance)
-            .limit(top_k)
+            .limit(effective_top_k)
         )
         rows = result.all()
         return [(r[0], r[1], float(r[2])) for r in rows]

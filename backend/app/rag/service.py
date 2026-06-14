@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timezone
 from hashlib import sha256
 from uuid import UUID, uuid4
@@ -19,6 +20,7 @@ from app.rag.models import (
     RagRetrievalLog,
 )
 from app.rag.repository import RagRepository
+from app.rag.redaction import redact_text, sanitize_answer_payload
 from app.rag.retrieval import RetrievalCandidate, assemble_result, to_policy_answer, truncate_text
 from app.rag.schemas import (
     PaginatedRagChatThreadsResponse,
@@ -635,7 +637,7 @@ class RagRetrievalService:
                     confidence_status=confidence_status,
                     conversation_messages=conversation_messages,
                 )
-                answer_text = generation_result["answer_text"]
+                answer_text = redact_text(generation_result["answer_text"] or "")
                 guardrail_status = generation_result["guardrail_status"]
                 guardrail_blocked_reason = generation_result["guardrail_blocked_reason"]
                 generation_provider = generation_result["generation_provider"]
@@ -694,7 +696,7 @@ class RagRetrievalService:
             answer.debug.rerank_candidate_count = rerank_candidate_count
 
         await self._session.commit()
-        return answer
+        return _sanitize_policy_answer(answer)
 
     async def _generate_grounded_answer(
         self,
@@ -807,7 +809,8 @@ class RagChatService:
             thread=_chat_thread_response(thread, len(messages)),
             messages=[_chat_message_response(message) for message in messages],
         )
-        await redis_set(cache_key, detail.model_dump_json(), ttl=settings.rag_chat_redis_ttl_seconds)
+        sanitized_detail = sanitize_answer_payload(detail.model_dump(mode="json"))
+        await redis_set(cache_key, json.dumps(sanitized_detail), ttl=settings.rag_chat_redis_ttl_seconds)
         return detail
 
     async def send_message(
@@ -854,15 +857,16 @@ class RagChatService:
         retrieval_log_id = answer.debug.retrieval_log_id if answer.debug else None
 
         assistant_sequence = await self._repo.get_next_chat_sequence_number(thread_id)
+        sanitized_answer_payload = sanitize_answer_payload(answer.model_dump(mode="json"))
         assistant_message = RagChatMessage(
             thread_id=thread.id,
             tenant_id=ctx.tenant_id,
             owner_user_id=ctx.actor_id,
             role="assistant",
-            content=answer.answer,
+            content=redact_text(answer.answer),
             sequence_number=assistant_sequence,
             retrieval_log_id=retrieval_log_id,
-            answer_payload=answer.model_dump(mode="json"),
+            answer_payload=sanitized_answer_payload,
             created_at=datetime.now(timezone.utc),
         )
         assistant_message = await self._repo.create_chat_message(assistant_message)
@@ -876,9 +880,10 @@ class RagChatService:
             thread=_chat_thread_response(thread, len(refreshed_messages)),
             messages=[_chat_message_response(message) for message in refreshed_messages],
         )
+        sanitized_cache = sanitize_answer_payload(detail.model_dump(mode="json"))
         await redis_set(
             _rag_chat_cache_key(ctx.tenant_id, ctx.actor_id, thread.id),
-            detail.model_dump_json(),
+            json.dumps(sanitized_cache),
             ttl=settings.rag_chat_redis_ttl_seconds,
         )
         return RagChatSendMessageResponse(
@@ -1042,6 +1047,17 @@ def _document_response(document: RagDocument) -> RagDocumentRead:
     response.document_url = download_path
     response.download_url = download_path
     return response
+
+
+def _sanitize_policy_answer(answer: RagPolicyAnswer) -> RagPolicyAnswer:
+    """Return a new RagPolicyAnswer with all string content sanitized.
+
+    Rebuilds the object from its sanitized dict representation so the caller
+    always receives a clean payload with no secret-like strings in the answer
+    text, evidence previews, or debug fields.
+    """
+    sanitized = sanitize_answer_payload(answer.model_dump(mode="json"))
+    return RagPolicyAnswer.model_validate(sanitized)
 
 
 def hash_text(text: str) -> str:

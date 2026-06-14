@@ -129,3 +129,162 @@ class TestRagChatService:
 
         conversation = mock_answer.call_args.args[0].conversation_messages
         assert len(conversation) == 8
+
+
+class TestChatServiceSanitization:
+    """Verify chat persistence and Redis cache payloads are sanitized before storage (T043)."""
+
+    async def test_send_message_sanitizes_answer_payload_before_db_storage(
+        self, service, tenant_context
+    ):
+        thread_id = uuid4()
+        now = datetime.now(timezone.utc)
+        thread = RagChatThread(
+            id=thread_id,
+            tenant_id=tenant_context.tenant_id,
+            owner_user_id=tenant_context.actor_id,
+            title="New conversation",
+            created_at=now,
+            updated_at=now,
+            last_message_at=now,
+        )
+        service._repo.get_chat_thread = AsyncMock(return_value=thread)
+        service._repo.list_chat_messages = AsyncMock(return_value=[])
+        service._repo.get_next_chat_sequence_number = AsyncMock(side_effect=[1, 2])
+
+        async def _persist_message(message):
+            if message.id is None:
+                message.id = uuid4()
+            return message
+
+        service._repo.create_chat_message = AsyncMock(side_effect=_persist_message)
+        service._repo.update_chat_thread = AsyncMock(side_effect=lambda t: t)
+
+        secret_answer = "The api_key=supersecretkeyvalue123456 is embedded here."
+        with patch("app.rag.service.RagRetrievalService.answer_policy_query", new=AsyncMock()) as mock_answer:
+            mock_answer.return_value = MagicMock(
+                answer=secret_answer,
+                debug=MagicMock(retrieval_log_id=uuid4()),
+                model_dump=MagicMock(
+                    return_value={
+                        "status": "answered",
+                        "answer": secret_answer,
+                        "citations": [],
+                        "evidence": [],
+                        "debug": {"retrieval_log_id": str(uuid4()), "confidence_status": "sufficient", "reranker_used": False, "guardrail_blocked_reason": None},
+                    }
+                ),
+            )
+            with patch("app.rag.service.redis_set", new=AsyncMock()):
+                await service.send_message(
+                    thread_id,
+                    RagChatMessageCreateRequest(content="What is the key?"),
+                )
+
+        create_calls = service._repo.create_chat_message.call_args_list
+        assistant_call = create_calls[-1][0][0]
+        assert assistant_call.answer_payload is not None
+        assert "supersecretkeyvalue123456" not in str(assistant_call.answer_payload)
+        # The stored content column must also be redacted.
+        assert "supersecretkeyvalue123456" not in assistant_call.content
+
+    async def test_send_message_sanitizes_redis_cache_payload(self, service, tenant_context):
+        thread_id = uuid4()
+        now = datetime.now(timezone.utc)
+        thread = RagChatThread(
+            id=thread_id,
+            tenant_id=tenant_context.tenant_id,
+            owner_user_id=tenant_context.actor_id,
+            title="New conversation",
+            created_at=now,
+            updated_at=now,
+            last_message_at=now,
+        )
+        service._repo.get_chat_thread = AsyncMock(return_value=thread)
+        service._repo.list_chat_messages = AsyncMock(return_value=[])
+        service._repo.get_next_chat_sequence_number = AsyncMock(side_effect=[1, 2])
+
+        async def _persist_message(message):
+            if message.id is None:
+                message.id = uuid4()
+            return message
+
+        service._repo.create_chat_message = AsyncMock(side_effect=_persist_message)
+        service._repo.update_chat_thread = AsyncMock(side_effect=lambda t: t)
+
+        secret_answer = "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyMSJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+        redis_received: list[str] = []
+
+        async def capture_redis(key, value, ttl=None):
+            redis_received.append(value)
+
+        with patch("app.rag.service.RagRetrievalService.answer_policy_query", new=AsyncMock()) as mock_answer:
+            mock_answer.return_value = MagicMock(
+                answer=secret_answer,
+                debug=MagicMock(retrieval_log_id=uuid4()),
+                model_dump=MagicMock(
+                    return_value={
+                        "status": "answered",
+                        "answer": secret_answer,
+                        "citations": [],
+                        "evidence": [],
+                        "debug": None,
+                    }
+                ),
+            )
+            with patch("app.rag.service.redis_set", new=AsyncMock(side_effect=capture_redis)):
+                await service.send_message(
+                    thread_id,
+                    RagChatMessageCreateRequest(content="Give me the token."),
+                )
+
+        assert len(redis_received) == 1
+        assert "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyMSJ9" not in redis_received[0]
+        assert "[REDACTED" in redis_received[0]
+
+    async def test_get_thread_sanitizes_db_payload_before_redis_write(
+        self, service, tenant_context
+    ):
+        """get_thread() must not push unsanitized DB rows into the Redis cache."""
+        thread_id = uuid4()
+        now = datetime.now(timezone.utc)
+        thread = RagChatThread(
+            id=thread_id,
+            tenant_id=tenant_context.tenant_id,
+            owner_user_id=tenant_context.actor_id,
+            title="Old thread",
+            created_at=now,
+            updated_at=now,
+            last_message_at=now,
+        )
+        raw_secret = "sk-abcdefghijklmnopqrstuvwxyz12345"
+        old_assistant_msg = RagChatMessage(
+            id=uuid4(),
+            thread_id=thread_id,
+            tenant_id=tenant_context.tenant_id,
+            owner_user_id=tenant_context.actor_id,
+            role="assistant",
+            content=raw_secret,
+            sequence_number=1,
+            answer_payload={"status": "answered", "answer": raw_secret, "citations": [], "evidence": [], "debug": None},
+            created_at=now,
+        )
+
+        service._repo.get_chat_thread = AsyncMock(return_value=thread)
+        service._repo.list_chat_messages = AsyncMock(return_value=[old_assistant_msg])
+
+        redis_written: list[str] = []
+
+        async def capture_redis(key, value, ttl=None):
+            redis_written.append(value)
+
+        with patch("app.rag.service.redis_get", new=AsyncMock(return_value=None)):
+            with patch("app.rag.service.redis_set", new=AsyncMock(side_effect=capture_redis)):
+                result = await service.get_thread(thread_id)
+
+        assert len(redis_written) == 1
+        assert raw_secret not in redis_written[0]
+        assert "[REDACTED" in redis_written[0]
+        # The returned Python object is NOT sanitized (it's the live DB row).
+        # Only the cache write must be clean.
+        assert result.thread.id == thread_id
