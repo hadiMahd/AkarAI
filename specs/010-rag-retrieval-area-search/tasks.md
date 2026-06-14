@@ -61,11 +61,11 @@
 
 ### Tests for User Story 1
 
-- [ ] T014 [P] [US1] Write service unit tests for retrieval ranking, parent-page fetch, and insufficient-evidence fallback in `backend/tests/unit/test_rag_retrieval.py`
-- [ ] T015 [P] [US1] Write provider unit tests for OpenRouter reranking success and fallback behavior in `backend/tests/unit/test_openrouter_reranker.py`
-- [ ] T016 [P] [US1] Write API integration tests for `POST /api/v1/agencies/rag/query` answered and insufficient-evidence flows in `backend/tests/integration/test_rag_retrieval_api.py`
-- [ ] T017 [P] [US1] Write agency UI tests for question submit, answer rendering, citations, and evidence/debug panel in `apps/agency/tests/rag-policy-qa.test.tsx`
-- [ ] T018 [P] [US1] Write replace-while-retrieving consistency coverage in `backend/tests/integration/test_rag_retrieval_api.py`
+- [X] T014 [P] [US1] Write service unit tests for retrieval ranking, parent-page fetch, and insufficient-evidence fallback in `backend/tests/unit/test_rag_retrieval.py`
+- [X] T015 [P] [US1] Write provider unit tests for OpenRouter reranking success and fallback behavior in `backend/tests/unit/test_openrouter_reranker.py`
+- [X] T016 [P] [US1] Write API integration tests for `POST /api/v1/agencies/rag/query` answered and insufficient-evidence flows in `backend/tests/integration/test_rag_retrieval_api.py`
+- [X] T017 [P] [US1] Write agency UI tests for question submit, answer rendering, citations, and evidence/debug panel in `apps/agency/tests/rag-policy-qa.test.tsx`
+- [X] T018 [P] [US1] Write replace-while-retrieving consistency coverage in `backend/tests/integration/test_rag_retrieval_api.py`
 
 ### Implementation for User Story 1
 
@@ -89,9 +89,9 @@
 
 ### Tests for User Story 2
 
-- [ ] T026 [P] [US2] Write RBAC tenant-isolation tests for support employee retrieval and cross-tenant denial in `backend/tests/rbac/test_rag_retrieval_tenant_isolation.py`
-- [ ] T027 [P] [US2] Write API integration tests for `GET /api/v1/agencies/rag/retrieval-logs` authorization and pagination in `backend/tests/integration/test_rag_retrieval_api.py`
-- [ ] T028 [P] [US2] Extend agency UI tests for support-role restrictions and admin log visibility in `apps/agency/tests/rag-policy-qa.test.tsx`
+- [X] T026 [P] [US2] Write RBAC tenant-isolation tests for support employee retrieval and cross-tenant denial in `backend/tests/rbac/test_rag_retrieval_tenant_isolation.py`
+- [X] T027 [P] [US2] Write API integration tests for `GET /api/v1/agencies/rag/retrieval-logs` authorization and pagination in `backend/tests/integration/test_rag_retrieval_api.py`
+- [X] T028 [P] [US2] Extend agency UI tests for support-role restrictions and admin log visibility in `apps/agency/tests/rag-policy-qa.test.tsx`
 
 ### Implementation for User Story 2
 
@@ -113,10 +113,10 @@
 
 ### Tests for User Story 3
 
-- [ ] T034 [P] [US3] Write unit tests for evaluation result aggregation and failed-example reporting in `backend/tests/unit/test_rag_retrieval.py`
-- [ ] T035 [P] [US3] Write integration tests for evaluation run persistence and summary output in `backend/tests/integration/test_rag_retrieval_api.py`
-- [ ] T036 [P] [US3] Add smoke coverage for the evaluation command in `scripts/ci/run_rag_eval.py`
-- [ ] T037 [P] [US3] Add latency-threshold validation coverage for the evaluation command in `scripts/ci/run_rag_eval.py`
+- [X] T034 [P] [US3] Write unit tests for evaluation result aggregation and failed-example reporting in `backend/tests/unit/test_rag_retrieval.py`
+- [X] T035 [P] [US3] Write integration tests for evaluation run persistence and summary output in `backend/tests/integration/test_rag_retrieval_api.py`
+- [X] T036 [P] [US3] Add smoke coverage for the evaluation command in `scripts/ci/run_rag_eval.py`
+- [X] T037 [P] [US3] Add latency-threshold validation coverage for the evaluation command in `scripts/ci/run_rag_eval.py`
 
 ### Implementation for User Story 3
 
@@ -134,10 +134,10 @@
 
 **Purpose**: Final cleanup, hardening, and end-to-end validation.
 
-- [ ] T043 [P] Add production-safe error handling and no-secret debug sanitization in `backend/app/rag/service.py` and `backend/app/ai/openrouter.py`
-- [ ] T044 [P] Optimize retrieval query limits, ordering, and log pagination in `backend/app/rag/repository.py`
-- [ ] T045 [P] Update feature docs and API contract details in `specs/010-rag-retrieval-area-search/contracts/rag-retrieval.md` and `specs/010-rag-retrieval-area-search/quickstart.md`
-- [ ] T046 Run backend retrieval tests, agency tests, evaluation command checks, and quickstart validation scenarios referenced in `specs/010-rag-retrieval-area-search/quickstart.md`
+- [X] T043 [P] Add production-safe error handling and no-secret debug sanitization in `backend/app/rag/service.py` and `backend/app/ai/openrouter.py`
+- [X] T044 [P] Optimize retrieval query limits, ordering, and log pagination in `backend/app/rag/repository.py`
+- [X] T045 [P] Update feature docs and API contract details in `specs/010-rag-retrieval-area-search/contracts/rag-retrieval.md` and `specs/010-rag-retrieval-area-search/quickstart.md`
+- [X] T046 Run backend retrieval tests, agency tests, evaluation command checks, and quickstart validation scenarios referenced in `specs/010-rag-retrieval-area-search/quickstart.md`
 
 ---
 

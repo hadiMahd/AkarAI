@@ -1,4 +1,4 @@
-"""Integration tests for RAG retrieval API: query, logs, and replace-while-retrieving."""
+"""Integration tests for RAG retrieval API: query, logs, replace-while-retrieving, and evaluation."""
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
@@ -8,6 +8,8 @@ from httpx import AsyncClient
 from sqlalchemy import text
 
 from app.ai.guardrails import GuardrailedGenerationResult
+from app.rag.schemas import RagEvaluationExampleCreate
+from app.rag.service import RagRetrievalService
 
 FAKE_PDF_BYTES = b"%PDF-1.4\n1 0 obj\n<</Type/Catalog>>\nendobj\n%%EOF"
 
@@ -342,3 +344,136 @@ class TestReplaceWhileRetrieving:
                         json={"query": "parking policy", "include_debug": True},
                     )
         assert resp_after.status_code == 200
+
+
+@pytest.mark.anyio
+class TestRagEvaluationPersistence:
+    async def test_record_and_list_evaluation_runs(
+        self, async_client: AsyncClient, db_session, test_tenant, agency_admin_user
+    ):
+        user, password = agency_admin_user
+        ex_id_1 = f"int-ex-1-{uuid4().hex[:8]}"
+        ex_id_2 = f"int-ex-2-{uuid4().hex[:8]}"
+
+        examples = [
+            RagEvaluationExampleCreate(
+                id=ex_id_1,
+                query="test query",
+                tenant_fixture="agency-test",
+                expected_behavior="answer",
+                expected_source_labels=["policy-page-1"],
+                passed=True,
+                summary={"status": "answered", "behavior_ok": True, "sources_ok": True},
+            ),
+            RagEvaluationExampleCreate(
+                id=ex_id_2,
+                query="refuse query",
+                tenant_fixture="agency-test",
+                expected_behavior="refuse",
+                expected_source_labels=[],
+                passed=True,
+                summary={"status": "insufficient_evidence", "behavior_ok": True, "sources_ok": True},
+            ),
+        ]
+
+        run_label = f"int-test-eval-{uuid4().hex[:8]}"
+        from app.common.tenant import TenantContext
+        from app.common.rls import apply_rls_context_to_session
+
+        ctx = TenantContext(
+            actor_id=uuid4(),
+            role="agency_admin",
+            tenant_id=test_tenant.id,
+        )
+        await apply_rls_context_to_session(
+            db_session,
+            tenant_id=ctx.tenant_id,
+            user_id=ctx.actor_id,
+            role=ctx.role,
+        )
+        service = RagRetrievalService(db_session, ctx)
+        run = await service.record_evaluation_run_with_examples(
+            run_label=run_label,
+            examples=examples,
+            summary={"total_examples": 2, "passed": 2, "failed": 0, "pass_rate": 1.0},
+        )
+        await db_session.commit()
+
+        assert run.run_label == run_label
+        assert run.total_examples == 2
+        assert run.passed_examples == 2
+        assert run.failed_examples == 0
+
+        from app.rag.repository import RagRepository
+        from app.common.pagination import PaginationRequest
+
+        repo = RagRepository(db_session)
+        runs, total = await repo.list_evaluation_runs(
+            tenant_id=None,
+            pagination=PaginationRequest(page=1, page_size=20),
+        )
+        assert total >= 1
+        assert any(r.run_label == run_label for r in runs)
+
+    async def test_evaluation_run_with_failed_examples(
+        self, async_client: AsyncClient, db_session, test_tenant, agency_admin_user
+    ):
+        ex_id_1 = f"fail-ex-1-{uuid4().hex[:8]}"
+        ex_id_2 = f"fail-ex-2-{uuid4().hex[:8]}"
+
+        examples = [
+            RagEvaluationExampleCreate(
+                id=ex_id_1,
+                query="expected answer got refuse",
+                tenant_fixture="agency-test",
+                expected_behavior="answer",
+                expected_source_labels=["missing-source"],
+                passed=False,
+                summary={"status": "insufficient_evidence", "behavior_ok": False, "sources_ok": False},
+            ),
+            RagEvaluationExampleCreate(
+                id=ex_id_2,
+                query="partial match",
+                tenant_fixture="agency-test",
+                expected_behavior="answer",
+                expected_source_labels=["present-source"],
+                passed=True,
+                summary={"status": "answered", "behavior_ok": True, "sources_ok": True},
+            ),
+        ]
+
+        run_label = f"int-fail-eval-{uuid4().hex[:8]}"
+        from app.common.tenant import TenantContext
+        from app.common.rls import apply_rls_context_to_session
+
+        ctx = TenantContext(
+            actor_id=uuid4(),
+            role="agency_admin",
+            tenant_id=test_tenant.id,
+        )
+        await apply_rls_context_to_session(
+            db_session,
+            tenant_id=ctx.tenant_id,
+            user_id=ctx.actor_id,
+            role=ctx.role,
+        )
+        service = RagRetrievalService(db_session, ctx)
+        run = await service.record_evaluation_run_with_examples(
+            run_label=run_label,
+            examples=examples,
+            summary={
+                "total_examples": 2,
+                "passed": 1,
+                "failed": 1,
+                "pass_rate": 0.5,
+                "latency_ms": {"min": 100, "max": 300, "avg": 200, "p50": 200, "p95": 300},
+                "latency_violations": 0,
+            },
+        )
+        await db_session.commit()
+
+        assert run.total_examples == 2
+        assert run.passed_examples == 1
+        assert run.failed_examples == 1
+        assert run.summary["pass_rate"] == 0.5
+        assert "latency_ms" in run.summary
