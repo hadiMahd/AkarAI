@@ -1,8 +1,9 @@
 import json
+from pathlib import Path
 from typing import Optional, List
 
 import hvac
-from pydantic import Field, field_validator, computed_field
+from pydantic import AliasChoices, Field, field_validator, computed_field
 from pydantic_settings import BaseSettings
 
 
@@ -69,6 +70,12 @@ class Settings(BaseSettings):
     # AI Providers
     ai_primary_provider: str = "azure_openai"
     ai_fallback_providers: str = "openrouter"
+    ai_guardrails_enabled: bool = True
+    ai_pii_redaction_enabled: bool = True
+    ai_guardrails_use_nemo_runtime: bool = False
+    ai_guardrails_config_path: str = ""
+    ai_guardrails_max_history_turns: int = 4
+    ai_guardrails_max_message_chars: int = 4000
     azure_openai_endpoint: str = ""
     azure_openai_chat_deployment: str = ""
     azure_openai_embedding_deployment: str = ""
@@ -76,6 +83,13 @@ class Settings(BaseSettings):
     azure_openai_api_version: str = "2024-02-01"
     azure_openai_embedding_model: str = "text-embedding-3-small"
     azure_openai_api_key: str = ""
+    openrouter_api_key: str = ""
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    openrouter_rerank_model: str = Field(
+        default="",
+        validation_alias=AliasChoices("OPENROUTER_RERANK_MODEL", "OPENROUTER_RERANKER_MODEL"),
+    )
+    openrouter_content_safety_model: str = ""
     cohere_api_key: str = "TBD_ASK_USER"
 
     # Email Provider
@@ -114,6 +128,15 @@ class Settings(BaseSettings):
     rag_retry_base_seconds: int = 5
     rag_retry_max_seconds: int = 300
     rag_max_file_size_mb: int = 50
+    rag_chat_redis_ttl_seconds: int = 86400
+
+    @computed_field
+    @property
+    def effective_guardrails_config_path(self) -> str:
+        if self.ai_guardrails_config_path:
+            return self.ai_guardrails_config_path
+        default_path = Path(__file__).resolve().parents[1] / "ai" / "guardrails_configs" / "policy_qa"
+        return str(default_path)
 
     @field_validator("app_env")
     @classmethod
@@ -224,7 +247,7 @@ def configure_secrets(target=None) -> None:
     # Load JWT secrets
     try:
         secret = client.secrets.kv.v2.read_secret_version(
-            path="jwt", mount_point="akarai"
+            path="jwt", mount_point="akarai", raise_on_deleted_version=True
         )
         data = secret["data"]["data"]
         s.jwt_access_secret = data["access_secret"]
@@ -237,7 +260,7 @@ def configure_secrets(target=None) -> None:
     # Load Hugging Face token (optional — moderation will fail-closed if missing)
     try:
         secret = client.secrets.kv.v2.read_secret_version(
-            path="ai", mount_point="akarai"
+            path="ai", mount_point="akarai", raise_on_deleted_version=True
         )
         data = secret["data"]["data"]
         s.hf_token = data.get("hf_token", "")
@@ -250,7 +273,7 @@ def configure_secrets(target=None) -> None:
     # Load Azure OpenAI config (optional — provider will fail-closed if required fields are missing)
     try:
         secret = client.secrets.kv.v2.read_secret_version(
-            path="azure", mount_point="akarai"
+            path="azure", mount_point="akarai", raise_on_deleted_version=True
         )
         data = secret["data"]["data"]
         s.azure_openai_endpoint = data.get("endpoint", s.azure_openai_endpoint)
@@ -276,3 +299,29 @@ def configure_secrets(target=None) -> None:
         s.azure_openai_api_key = ""
     except Exception as e:
         raise RuntimeError(f"Failed to read secret akarai/azure from Vault: {e}") from e
+
+    # Load OpenRouter config (optional — reranker will fail-closed if not configured)
+    try:
+        secret = client.secrets.kv.v2.read_secret_version(
+            path="openrouter", mount_point="akarai", raise_on_deleted_version=True
+        )
+        data = secret["data"]["data"]
+        api_key = data.get("api_key", "").strip()
+        base_url = data.get("base_url", "").strip()
+        rerank_model = data.get("rerank_model", "").strip()
+        content_safety_model = data.get("content_safety_model", "").strip()
+        if api_key:
+            s.openrouter_api_key = api_key
+        if base_url:
+            s.openrouter_base_url = base_url
+        if rerank_model:
+            s.openrouter_rerank_model = rerank_model
+        if content_safety_model:
+            s.openrouter_content_safety_model = content_safety_model
+    except hvac.exceptions.InvalidPath:
+        s.openrouter_api_key = s.openrouter_api_key
+        s.openrouter_base_url = s.openrouter_base_url
+        s.openrouter_rerank_model = s.openrouter_rerank_model
+        s.openrouter_content_safety_model = s.openrouter_content_safety_model
+    except Exception as e:
+        raise RuntimeError(f"Failed to read secret akarai/openrouter from Vault: {e}") from e

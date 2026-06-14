@@ -60,6 +60,7 @@ from app.viewings.models import ListingViewingSlot, ScheduledViewing, ScheduledV
 from app.notifications.models import Notification
 from app.search.models import SearchLog
 from app.common.events import DomainEventLog, OutboxEvent, InboxEvent
+from app.rag.models import RagDocument, RagPage, RagChunk, RagRetrievalLog
 
 
 @pytest.fixture(autouse=True)

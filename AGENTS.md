@@ -1,26 +1,61 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/009-rag-storage-and-ingestion-foundation/plan.md
+at specs/010-rag-retrieval-area-search/plan.md
 <!-- SPECKIT END -->
 
 ## Session Summary
 
-### What's been implemented (feature branch `008-media-pipeline-and-listing-image-processing`)
+### What's been implemented (feature branch `009-rag-storage-and-ingestion-foundation` → `010-rag-retrieval-area-search`)
 
-**HF token vault flow** — Worker reads `hf_token` from Vault path `akarai/ai` via `configure_secrets()`. Vault seed script writes token from `.env`. Worker `_load_secrets()` runs at startup before handler imports. Fail-closed: missing/misconfigured token rejects with 401.
+**Phase 8 — RAG Storage & Ingestion**: Completed in prior session. See the full summary at specs/009-rag-storage-and-ingestion-foundation/plan.md.
 
-**Agency listing 2-step create flow** — No draft/publish/edit language in UI. Submit creates listing (inactive) + uploads staged photos → explicit publish confirmation → "Confirm Publish" sets active. Edit mode simplified to Save Changes + optional Publish button. Media manager supports staged multi-file selection with per-file preflight checking.
+**Phase 9 Setup & Foundational (T001–T013)**: Completed in prior session.
+- Models: `RagRetrievalLog`, `RagEvaluationRun`, `RagEvaluationExample`
+- Migration 0012 adding retrieval-log fields, evaluation tables, enums
+- Schemas: `RagRetrievalQueryRequest`, `RagPolicyAnswer`, `RagRetrievalCitation`, `RagRetrievalEvidence`, `RagRetrievalDebug`, `RagRetrievalLogRead`, `RagEvaluationRunRead`
+- Repository: `search_chunks_by_embedding()`, `list_parent_pages()`, `list_processed_documents()`, `list_active_chunks()`, `create_retrieval_log()`, `list_retrieval_logs()`, `create_evaluation_run()`, `get_chunks_by_ids()`, `get_documents_by_ids()`
+- OpenRouter reranking provider (registered in registry)
+- Shared retrieval orchestration (`retrieval.py`): `RetrievalCandidate`, `RetrievalResult`, `assemble_result()`, `to_policy_answer()`, `build_citations()`, `build_evidence()`, `truncate_text()`
+- Service: `RagRetrievalService` with `list_retrieval_logs()`, `create_retrieval_log()`, `record_evaluation_run()`, `build_policy_answer()`
+- Agency frontend: query keys, `submitRagPolicyQuery()`, `fetchRagRetrievalLogs()`, type definitions
 
-**Media UX fix** — 
-- Backend: `preview_url` on agency photo listing (derivative preferred, original fallback). `thumbnail_url` on `PublicListingResponse`. Batch-efficient `build_thumbnail_map()` (2 queries for N listings).
-- Agency frontend: edit mode multi-file staged upload (multi-select, preflight, batch "Upload All"). Current Photos renders actual image previews from `preview_url`, processing placeholder when null.
-- User frontend: `ListingCard` has fixed image area with `thumbnail_url` or muted placeholder. `ListingDetailPage` shows full media gallery from `/listings/{id}/media` endpoint, falls back to single thumbnail.
+**Phase 3 — User Story 1: Retrieve Agency Policy Answers (T019–T025)**: THIS SESSION
+- **Chunk text column**: Added `text` column to `RagChunk` model (migration 0013). Handler now stores chunk text during ingestion so retrieval can return `text_preview` in evidence.
+- **Retrieval service (`answer_policy_query`)**: Full flow in `RagRetrievalService`:
+  1. Snapshot processed documents (tenant-isolated)
+  2. Generate query embedding via `get_embedding_provider()`
+  3. Vector search via `search_chunks_by_embedding()` (cosine distance on pgvector)
+  4. Parent page fetch for page numbers and context text
+  5. Replace-while-retrieving hardening: re-verify document status after vector search, filter stale chunks
+  6. OpenRouter reranking with graceful fallback (reranker_unavailable → vector ordering preserved)
+  7. Confidence determination (sufficient/insufficient/fallback)
+  8. Retrieval log creation with selected doc/chunk/page IDs
+  9. Answer assembly with citations, evidence, and debug payload
+- **Router**: `POST /api/v1/agencies/rag/query` and `GET /api/v1/agencies/rag/retrieval-logs` endpoints (separate router from docs, each independently included in app)
+- **Frontend hooks**: `useRagPolicyQuery()` (mutation), `useRagRetrievalLogs()` (query)
+- **Frontend UI**: Policy Q&A card with question input, answer display, citations as badges, collapsible evidence + debug panel, empty-state for no processed docs, error states, loading states
 
-### Verification
-- Backend: 276 pass (4 pre-existing unrelated failures)
-- Agency frontend: 23/23 tests, `tsc --noEmit` clean, build succeeds
-- User frontend: 57/57 tests, `tsc --noEmit` clean, build succeeds
+**Phase 4 — User Story 2: Support Assistant Retrieval (T029–T033)**:
+- **Backend role enforcement**: `list_retrieval_logs` service method checks `role in ("agency_admin", "platform_admin")` and raises `ForbiddenError` for support employees. Router adds `Depends(require_role("agency_admin"))` on `GET /retrieval-logs`.
+- **Filter schemas**: `RagRetrievalLogFilter` with optional `actor_role`, `confidence_status`, `date_from`, `date_to`. Threaded through router → service → repository.
+- **Repository filtering**: `list_retrieval_logs` now applies optional where-clause filters before pagination.
+- **Frontend admin guard**: `useRagRetrievalLogs` hook checks `getTenantSession().role === "agency_admin"` and disables the query for non-admins.
+- **Retrieval log UI**: New `RetrievalLogSection` and `RetrievalLogRow` components showing query table with expandable details (log ID, scope, fallback reason, doc/chunk counts). Pagination matches documents table pattern. Only rendered for admin users.
+
+**Phase 5 — User Story 3: Evaluation Baseline (T038–T042)**:
+- **Repository helpers**: `create_evaluation_examples` (batch), `list_evaluation_runs` (paginated) in `repository.py`. `RagEvaluationExampleCreate` schema.
+- **Service**: `record_evaluation_run_with_examples` creates run + batch-persists examples + generates summary (pass rate, latency metrics).
+- **Script**: `scripts/ci/run_rag_eval.py` — dataset loader (JSONL), orchestrator (run each query through retrieval pipeline), scorer (compare behavior + sources against expected), latency recorder (per-query + aggregate min/max/avg/p50/p95), threshold enforcement (exit code 0/1).
+- **Documentation**: `quickstart.md` updated with eval scenario, dataset format table, scoring logic, and latency validation.
+
+### Pending (tests need Docker)
+- T014–T018: All US1 tests (unit, integration, RBAC, UI)
+- T026–T028: All US2 tests (RBAC, integration, UI)
+- T034–T037: All US3 tests (unit, integration, eval smoke, latency)
+- Phase 6: Polish (error handling, query optimization, docs update, validation)
+
+## Architecture Rules
 
 ## Architecture Rules
 

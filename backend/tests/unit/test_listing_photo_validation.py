@@ -1,5 +1,7 @@
 """Unit tests for listing photo validation and rejection behavior."""
 
+import io
+
 import pytest
 
 from app.common.media import (
@@ -8,6 +10,14 @@ from app.common.media import (
     validate_file_size,
     validate_media_upload,
 )
+
+
+def _make_png_bytes() -> bytes:
+    from PIL import Image
+    img = Image.new("RGB", (1, 1), color="red")
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
 
 
 class TestFileValidation:
@@ -41,21 +51,21 @@ class TestFileValidation:
             validate_file_size(b"")
 
     def test_oversized_file_rejected(self):
-        large_data = b"\x00" * (11 * 1024 * 1024)  # 11MB
+        large_data = b"\x00" * (11 * 1024 * 1024)
         with pytest.raises(MediaValidationError, match="exceeds maximum"):
             validate_file_size(large_data)
 
     def test_file_within_limit_accepted(self):
         valid_data = b"\x00" * (5 * 1024 * 1024)  # 5MB
-        validate_file_size(valid_data)  # Should not raise
+        validate_file_size(valid_data)
 
 
 class TestUploadValidation:
     def test_valid_upload_returns_metadata(self):
-        png_header = b"\x89PNG\r\n\x1a\n" + b"\x00" * 30
-        result = validate_media_upload(png_header, content_type="image/png")
+        png_bytes = _make_png_bytes()
+        result = validate_media_upload(png_bytes, content_type="image/png")
         assert result["content_type"] == "image/png"
-        assert result["file_size_bytes"] == len(png_header)
+        assert result["file_size_bytes"] == len(png_bytes)
 
     def test_upload_with_content_type_mismatch_rejected(self):
         jpeg_header = b"\xff\xd8\xff\xe0" + b"\x00" * 16
@@ -63,6 +73,6 @@ class TestUploadValidation:
             validate_media_upload(jpeg_header, content_type="image/png")
 
     def test_upload_with_no_content_type_accepted(self):
-        png_header = b"\x89PNG\r\n\x1a\n" + b"\x00" * 30
-        result = validate_media_upload(png_header)
+        png_bytes = _make_png_bytes()
+        result = validate_media_upload(png_bytes)
         assert result["content_type"] == "image/png"

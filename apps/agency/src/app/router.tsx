@@ -12,7 +12,7 @@ import { LeadDetailPage } from "@/pages/leads/LeadDetailPage";
 import { ReviewedLeadsPage } from "@/pages/leads/ReviewedLeadsPage";
 import { ViewingsPage } from "@/pages/viewings/ViewingsPage";
 import { SpamLeadsPage } from "@/pages/placeholders/SpamLeadsPage";
-import { RagDocumentsPage } from "@/pages/rag/RagDocumentsPage";
+import { RagAssistantPage, RagDocumentsPage } from "@/pages/rag/RagDocumentsPage";
 import { ProtectedLayout } from "@/components/ProtectedLayout";
 import { RouteErrorFallback } from "@/components/ErrorBoundary";
 
@@ -45,6 +45,7 @@ export const router = createBrowserRouter([
           { path: "/listings/:listingId", element: <AdminOnlyRoute><ListingEditorPage /></AdminOnlyRoute>, errorElement: <RouteErrorFallback /> },
           { path: "/listings/:listingId/slots", element: <AdminOnlyRoute><ViewingSlotsPage /></AdminOnlyRoute>, errorElement: <RouteErrorFallback /> },
           { path: "/policy-documents", element: <AdminOnlyRoute><RagDocumentsPage /></AdminOnlyRoute>, errorElement: <RouteErrorFallback /> },
+          { path: "/policy-assistant", element: <AdminOnlyRoute><RagAssistantPage /></AdminOnlyRoute>, errorElement: <RouteErrorFallback /> },
         ],
       },
     ],

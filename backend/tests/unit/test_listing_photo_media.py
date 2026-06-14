@@ -1,5 +1,7 @@
 """Unit tests for media validation helpers."""
 
+import io
+
 import pytest
 
 from app.common.media import (
@@ -12,13 +14,18 @@ from app.common.media import (
 )
 
 
+def _make_png_bytes() -> bytes:
+    """Generate a valid 1x1 red PNG for testing."""
+    from PIL import Image
+    img = Image.new("RGB", (1, 1), color="red")
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
 # Minimal valid image bytes for testing
 JPEG_HEADER = b"\xff\xd8\xff\xe0" + b"\x00" * 16  # Minimal JPEG
-PNG_HEADER = (
-    b"\x89PNG\r\n\x1a\n"
-    + b"\x00" * 8  # IHDR length/type placeholder
-    + b"\x00" * 25  # More padding
-)
+PNG_HEADER = _make_png_bytes()
 WEBP_HEADER = b"RIFF\x00\x00\x00\x00WEBP" + b"\x00" * 20
 
 
@@ -57,7 +64,6 @@ class TestValidateFileSize:
         validate_file_size(b"\x00" * 1024)  # Should not raise
 
     def test_oversized_file_raises(self):
-        # Create a large file (simulate 11MB)
         large_data = b"\x00" * (11 * 1024 * 1024)
         with pytest.raises(MediaValidationError, match="exceeds maximum"):
             validate_file_size(large_data)
@@ -71,19 +77,16 @@ class TestValidateImageDimensions:
 
 class TestCalculateBlurScore:
     def test_returns_float(self):
-        # Will fallback to neutral score since PIL not available
         score = calculate_blur_score(JPEG_HEADER)
         assert isinstance(score, float)
 
     def test_returns_neutral_when_opencv_unavailable(self):
-        # When OpenCV is not available, should return neutral score
         score = calculate_blur_score(JPEG_HEADER)
         assert score == 1000.0
 
 
 class TestValidateMediaUpload:
     def test_valid_upload_returns_metadata(self):
-        # PNG_HEADER should work since PNG parsing doesn't require Pillow
         result = validate_media_upload(PNG_HEADER, content_type="image/png")
         assert result["content_type"] == "image/png"
         assert result["file_size_bytes"] == len(PNG_HEADER)

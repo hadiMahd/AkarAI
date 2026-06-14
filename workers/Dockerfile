@@ -4,6 +4,7 @@ WORKDIR /app
 
 # Install system dependencies for OpenCV headless and lightgbm
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    g++ \
     libgl1 \
     libglib2.0-0 \
     libgomp1 \
@@ -23,4 +24,6 @@ COPY backend/app /app/backend/app
 # Copy worker code
 COPY workers/ /app/workers/
 
-CMD ["python", "workers/main.py"]
+WORKDIR /app/workers
+
+CMD ["python", "main.py"]

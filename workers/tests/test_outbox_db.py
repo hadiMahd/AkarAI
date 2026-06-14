@@ -146,14 +146,22 @@ async def test_retry_schedule_back_to_pending(conn):
     assert row["status"] == OUTBOX_PENDING
     assert row["retry_count"] == 1
 
-    # Second attempt — claim picks up the pending retry
+    await conn.execute(
+        "UPDATE outbox_events SET available_at = NOW() WHERE idempotency_key = 'ik-test-004'"
+    )
+
+    # Second attempt after the scheduled retry becomes available.
     processed = await claim_and_dispatch(conn, {"foundation.test": flaky})
     assert processed is True
     row = await conn.fetchrow("SELECT status, retry_count FROM outbox_events WHERE idempotency_key = 'ik-test-004'")
     assert row["status"] == OUTBOX_PENDING
     assert row["retry_count"] == 2
 
-    # Third attempt (hits max_retries=3) -> dead_letter
+    await conn.execute(
+        "UPDATE outbox_events SET available_at = NOW() WHERE idempotency_key = 'ik-test-004'"
+    )
+
+    # Third attempt (hits max_retries=3) -> dead_letter.
     processed = await claim_and_dispatch(conn, {"foundation.test": flaky})
     assert processed is True
     row = await conn.fetchrow("SELECT status, retry_count FROM outbox_events WHERE idempotency_key = 'ik-test-004'")

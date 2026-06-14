@@ -25,6 +25,7 @@ export function useAgencyNavigation(session: AgencyTenantSession | null) {
     { name: "Viewings", href: AGENCY_ROUTES.viewings, routeKey: "viewings", adminOnly: false },
     { name: "Spam Leads", href: AGENCY_ROUTES.spamLeads, routeKey: "spamLeads", adminOnly: false },
     { name: "Policy Documents", href: AGENCY_ROUTES.policyDocuments, routeKey: "policyDocuments", adminOnly: true },
+    { name: "Policy Assistant", href: AGENCY_ROUTES.policyAssistant, routeKey: "policyAssistant", adminOnly: true },
   ], []);
 
   const visibleNavItems = useMemo(() => {

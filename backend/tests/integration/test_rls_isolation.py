@@ -59,6 +59,21 @@ from app.leads.models import Lead
 from app.search.models import SearchLog
 
 
+@pytest.fixture(autouse=True)
+async def _dispose_rls_engines():
+    """Dispose custom engines between tests to avoid event-loop conflicts."""
+    try:
+        yield
+    finally:
+        global _pg_engine, _app_engine
+        if _pg_engine is not None:
+            await _pg_engine.dispose()
+            _pg_engine = None
+        if _app_engine is not None:
+            await _app_engine.dispose()
+            _app_engine = None
+
+
 def _superuser_session():
     return _superuser_factory()()
 

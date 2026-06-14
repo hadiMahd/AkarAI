@@ -183,6 +183,7 @@ async def handle_rag_document_uploaded(payload: dict) -> None:
                         tenant_id=tenant_uuid,
                         page_ids=chunk_data["page_ids"],
                         content_hash=h,
+                        text=chunk_data["text"],
                         embedding=embeddings[i],
                         status="active",
                     )

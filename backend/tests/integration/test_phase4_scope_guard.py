@@ -5,7 +5,6 @@ import re
 
 SCOPE_EXCLUSIONS = [
     "AI search",
-    "RAG",
     "OCR",
     "email send",
     "chatbot",
@@ -53,7 +52,8 @@ class TestPhase4ScopeGuard:
                 try:
                     with open(path) as fh:
                         for lineno, line in enumerate(fh, 1):
-                            if re.search(re.escape(term), line, re.IGNORECASE):
+                            pattern = r"\b" + re.escape(term) + r"\b"
+                            if re.search(pattern, line, re.IGNORECASE):
                                 stripped = line.strip()
                                 if stripped.startswith("#") or stripped.startswith('"""') or stripped.startswith("'''"):
                                     continue

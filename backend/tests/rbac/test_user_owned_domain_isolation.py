@@ -81,7 +81,7 @@ class TestUserOwnedDomainIsolation:
             f"/me/comparison-sessions/{session_id}",
             headers={"Authorization": f"Bearer {user2_token}"},
         )
-        assert resp.status_code == 403
+        assert resp.status_code == 404
 
     async def test_comparison_session_items_user_isolation(self, async_client: AsyncClient):
         admin_token = await self._login(async_client, "agency.admin@akarai.test")
@@ -107,7 +107,7 @@ class TestUserOwnedDomainIsolation:
             json={"listing_id": listing_id},
             headers={"Authorization": f"Bearer {user2_token}"},
         )
-        assert resp.status_code == 403
+        assert resp.status_code == 404
 
     async def test_viewing_detail_user_isolation(self, async_client: AsyncClient):
         admin_token = await self._login(async_client, "agency.admin@akarai.test")
@@ -169,7 +169,7 @@ class TestUserOwnedDomainIsolation:
             json={"name": "Updated Name"},
             headers={"Authorization": f"Bearer {user2_token}"},
         )
-        assert resp.status_code == 403
+        assert resp.status_code == 404
 
     async def test_delete_comparison_session_user_isolation(self, async_client: AsyncClient):
         user1_token = await self._login(async_client, "user@akarai.test")
@@ -185,7 +185,7 @@ class TestUserOwnedDomainIsolation:
             f"/me/comparison-sessions/{session_id}",
             headers={"Authorization": f"Bearer {user2_token}"},
         )
-        assert resp.status_code == 403
+        assert resp.status_code == 404
 
     async def test_remove_comparison_item_user_isolation(self, async_client: AsyncClient):
         admin_token = await self._login(async_client, "agency.admin@akarai.test")
@@ -210,4 +210,4 @@ class TestUserOwnedDomainIsolation:
             f"/me/comparison-sessions/{session_id}/items/{listing_id}",
             headers={"Authorization": f"Bearer {user2_token}"},
         )
-        assert resp.status_code == 403
+        assert resp.status_code == 404

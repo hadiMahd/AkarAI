@@ -133,6 +133,41 @@ def main() -> None:
 
     print(f"[seed] akarai/azure seeded ({', '.join(azure_source)})")
 
+    # Seed OpenRouter reranking config (optional)
+    openrouter_api_key = dotenv.get("OPENROUTER_API_KEY", "").strip()
+    openrouter_base_url = dotenv.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1").strip()
+    openrouter_rerank_model = (
+        dotenv.get("OPENROUTER_RERANK_MODEL", "")
+        or dotenv.get("OPENROUTER_RERANKER_MODEL", "")
+    ).strip()
+    openrouter_content_safety_model = dotenv.get("OPENROUTER_CONTENT_SAFETY_MODEL", "").strip()
+    openrouter_source = []
+    if openrouter_api_key:
+        openrouter_source.append("api_key: .env")
+    else:
+        openrouter_source.append("api_key: not set")
+    if openrouter_rerank_model:
+        openrouter_source.append("rerank_model: .env")
+    else:
+        openrouter_source.append("rerank_model: not set")
+    if openrouter_content_safety_model:
+        openrouter_source.append("content_safety_model: .env")
+    else:
+        openrouter_source.append("content_safety_model: not set")
+
+    client.secrets.kv.v2.create_or_update_secret(
+        path="openrouter",
+        secret={
+            "api_key": openrouter_api_key,
+            "base_url": openrouter_base_url,
+            "rerank_model": openrouter_rerank_model,
+            "content_safety_model": openrouter_content_safety_model,
+        },
+        mount_point="akarai",
+    )
+
+    print(f"[seed] akarai/openrouter seeded ({', '.join(openrouter_source)})")
+
 
 if __name__ == "__main__":
     try:
