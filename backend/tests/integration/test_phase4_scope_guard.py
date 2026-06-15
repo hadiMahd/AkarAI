@@ -3,6 +3,12 @@ import os
 import re
 
 
+@pytest.fixture(autouse=True)
+def clear_rate_limits():
+    """Sync no-op: shadows the async conftest fixture for the sync tests in this module."""
+    yield
+
+
 SCOPE_EXCLUSIONS = [
     "AI search",
     "OCR",
@@ -24,6 +30,7 @@ PHASE4_COMMON_FILES = frozenset([
 ])
 
 
+@pytest.mark.anyio
 class TestPhase4ScopeGuard:
     @pytest.mark.parametrize("term", SCOPE_EXCLUSIONS)
     def test_no_scope_violation_in_phase4_code(self, term):

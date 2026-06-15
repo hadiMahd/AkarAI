@@ -8,6 +8,9 @@ from app.ai.openrouter import ContentSafetyDecision
 from app.common.tenant import TenantContext
 
 
+pytestmark = pytest.mark.anyio
+
+
 @pytest.fixture
 def tenant_context():
     return TenantContext(actor_id=uuid4(), tenant_id=uuid4(), role="agency_admin")

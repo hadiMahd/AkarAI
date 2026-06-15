@@ -1,4 +1,9 @@
+import pytest
+
 from app.notifications.email_provider import EmailProvider, PlaceholderEmailProvider
+
+
+pytestmark = pytest.mark.anyio
 
 
 class TestEmailProvider:

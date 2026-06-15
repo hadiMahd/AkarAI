@@ -73,7 +73,7 @@ async def _create_tenant_admin(db_session, slug_prefix: str):
     return tenant, user, membership, "TestPass123!"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_upload_photo_unauthenticated_rejected(async_client, db_session):
     """Test that unauthenticated users cannot upload photos."""
     resp = await async_client.post(
@@ -83,7 +83,7 @@ async def test_upload_photo_unauthenticated_rejected(async_client, db_session):
     assert resp.status_code in [401, 403]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_upload_photo_cross_tenant_rejected(async_client, db_session):
     """Test that cross-tenant photo uploads are rejected."""
     from app.listings.models import Listing
@@ -112,7 +112,7 @@ async def test_upload_photo_cross_tenant_rejected(async_client, db_session):
     assert resp.status_code in [403, 404], f"Expected 403/404, got {resp.status_code}: {resp.text[:300]}"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_upload_photo_support_employee_rejected(async_client, db_session):
     """Test that support employees cannot upload photos."""
     from app.auth.dependencies import get_tenant_context
@@ -156,7 +156,7 @@ async def test_upload_photo_support_employee_rejected(async_client, db_session):
         app.dependency_overrides.clear()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_upload_photo_regular_user_rejected(async_client, db_session):
     """Test that regular users cannot upload photos."""
     from app.listings.models import Listing

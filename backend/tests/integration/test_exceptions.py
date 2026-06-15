@@ -3,6 +3,12 @@ from collections.abc import AsyncGenerator
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+
+@pytest.fixture(autouse=True)
+def clear_rate_limits():
+    """Sync no-op: shadows the async conftest fixture for sync tests in this module."""
+    yield
+
 from app.common.exceptions import (
     AppException,
     ConflictError,
@@ -23,6 +29,7 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
         yield c
 
 
+@pytest.mark.anyio
 class TestExceptionFormat:
     async def test_not_found_response_format(self, client: AsyncClient):
         response = await client.get("/nonexistent-path")
@@ -36,6 +43,7 @@ class TestExceptionFormat:
         assert "X-Request-Id" in response.headers or "request_id" in data or True
 
 
+@pytest.mark.anyio
 class TestExceptionClasses:
     def test_app_exception_defaults(self):
         exc = AppException()

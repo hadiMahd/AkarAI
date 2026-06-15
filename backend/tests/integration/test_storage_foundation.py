@@ -10,6 +10,13 @@ from app.common.storage import (
 from app.common.config import settings
 
 
+@pytest.fixture(autouse=True)
+def clear_rate_limits():
+    """Sync no-op: shadows the async conftest fixture for sync tests in this module."""
+    yield
+
+
+@pytest.mark.anyio
 class TestStorageFoundation:
     @pytest.mark.integration
     def test_minio_connectivity(self):

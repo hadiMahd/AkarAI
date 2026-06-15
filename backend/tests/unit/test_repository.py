@@ -4,6 +4,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.common.repository import BaseRepository
 
 
+pytestmark = pytest.mark.anyio
+
+
 class DummyRepository(BaseRepository):
     pass
 

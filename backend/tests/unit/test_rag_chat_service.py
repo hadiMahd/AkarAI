@@ -10,6 +10,9 @@ from app.rag.schemas import RagChatMessageCreateRequest
 from app.rag.service import RagChatService
 
 
+pytestmark = pytest.mark.anyio
+
+
 @pytest.fixture
 def tenant_context():
     return TenantContext(

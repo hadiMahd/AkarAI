@@ -2,6 +2,7 @@ import pytest
 from sqlalchemy import text
 
 
+@pytest.mark.anyio
 class TestPhase4Permissions:
     async def test_agency_profile_permissions_seeded(self, db_session):
         result = await db_session.execute(

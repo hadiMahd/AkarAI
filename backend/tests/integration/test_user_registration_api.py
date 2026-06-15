@@ -1,18 +1,30 @@
 import pytest
 import uuid
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text, select
 
 from app.users.models import User
-from app.auth.schemas import RegisterRequest
-from app.auth.service import AuthService
-from app.common.security import hash_password
+from app.common.database import async_session_factory
 
 
-@pytest.mark.asyncio
+async def _get_user_by_email(email: str) -> User | None:
+    async with async_session_factory() as session:
+        result = await session.execute(select(User).where(User.email == email))
+        return result.scalar_one_or_none()
+
+
+async def _delete_user_by_email(email: str) -> None:
+    async with async_session_factory() as session:
+        await session.execute(
+            text("DELETE FROM users WHERE email = :email"),
+            {"email": email},
+        )
+        await session.commit()
+
+
+@pytest.mark.anyio
 class TestUserRegistrationAPI:
-    async def test_register_new_user_success(self, async_client: AsyncClient, db_session: AsyncSession):
+    async def test_register_new_user_success(self, async_client: AsyncClient):
         unique_id = str(uuid.uuid4())[:8]
         email = f"newuser_{unique_id}@akarai.test"
         payload = {
@@ -34,18 +46,14 @@ class TestUserRegistrationAPI:
             cookies = response.cookies
             assert "akarai_refresh" in cookies
 
-            result = await db_session.execute(
-                select(User).where(User.email == email)
-            )
-            user = result.scalar_one_or_none()
+            user = await _get_user_by_email(email)
             assert user is not None
             assert user.name == "New User"
             assert user.is_active is True
         finally:
-            await db_session.execute(text(f"DELETE FROM users WHERE email = '{email}'"))
-            await db_session.commit()
+            await _delete_user_by_email(email)
 
-    async def test_register_duplicate_email_fails(self, async_client: AsyncClient, db_session: AsyncSession):
+    async def test_register_duplicate_email_fails(self, async_client: AsyncClient):
         unique_id = str(uuid.uuid4())[:8]
         email = f"duplicate_{unique_id}@akarai.test"
         payload = {
@@ -63,8 +71,7 @@ class TestUserRegistrationAPI:
             assert response2.status_code == 409
             assert "already exists" in response2.json()["detail"].lower()
         finally:
-            await db_session.execute(text(f"DELETE FROM users WHERE email = '{email}'"))
-            await db_session.commit()
+            await _delete_user_by_email(email)
 
     async def test_register_invalid_email_fails(self, async_client: AsyncClient):
         payload = {
@@ -95,7 +102,7 @@ class TestUserRegistrationAPI:
         response = await async_client.post("/auth/register", json=payload)
         assert response.status_code == 422
 
-    async def test_register_sets_refresh_cookie(self, async_client: AsyncClient, db_session: AsyncSession):
+    async def test_register_sets_refresh_cookie(self, async_client: AsyncClient):
         unique_id = str(uuid.uuid4())[:8]
         email = f"tokens_{unique_id}@akarai.test"
         payload = {
@@ -115,10 +122,9 @@ class TestUserRegistrationAPI:
             cookies = response.cookies
             assert "akarai_refresh" in cookies
         finally:
-            await db_session.execute(text(f"DELETE FROM users WHERE email = '{email}'"))
-            await db_session.commit()
+            await _delete_user_by_email(email)
 
-    async def test_register_user_can_login_after_registration(self, async_client: AsyncClient, db_session: AsyncSession):
+    async def test_register_user_can_login_after_registration(self, async_client: AsyncClient):
         unique_id = str(uuid.uuid4())[:8]
         email = f"login_{unique_id}@akarai.test"
         register_payload = {
@@ -140,5 +146,4 @@ class TestUserRegistrationAPI:
             assert login_response.status_code == 200
             assert "access_token" in login_response.json()
         finally:
-            await db_session.execute(text(f"DELETE FROM users WHERE email = '{email}'"))
-            await db_session.commit()
+            await _delete_user_by_email(email)

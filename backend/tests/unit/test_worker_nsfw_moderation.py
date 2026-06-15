@@ -9,7 +9,7 @@ import pytest
 class TestNSFWModerationHandler:
     """Test NSFW moderation fail-closed behavior."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_moderation_uses_explicit_token(self):
         """Test that moderation passes HF token explicitly to InferenceClient."""
         with patch.dict(os.environ, {"APP_ENV": "testing"}, clear=True):
@@ -36,7 +36,7 @@ class TestNSFWModerationHandler:
                 assert isinstance(image_arg, str)
                 assert image_arg.endswith(".png")
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_moderation_missing_token_fail_closed(self):
         """Test that missing HF token causes fail-closed moderation."""
         with patch.dict(os.environ, {"APP_ENV": "testing"}, clear=True):
@@ -57,7 +57,7 @@ class TestNSFWModerationHandler:
                 assert result["score"] == 1.0
                 assert result["label"] == "moderation_failed"
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_moderation_service_error_fail_closed(self):
         """Test that service errors cause fail-closed moderation."""
         with patch.dict(os.environ, {"APP_ENV": "testing"}, clear=True):
@@ -80,7 +80,7 @@ class TestNSFWModerationHandler:
                 assert result["score"] == 1.0
                 assert result["label"] == "moderation_failed"
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_moderation_auth_error_fail_closed(self):
         """Test that auth errors (401) cause fail-closed moderation."""
         with patch.dict(os.environ, {"APP_ENV": "testing"}, clear=True):
@@ -103,7 +103,7 @@ class TestNSFWModerationHandler:
                 assert result["score"] == 1.0
                 assert result["label"] == "moderation_failed"
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_moderation_safe_image_passes(self):
         """Test that safe images pass moderation when token is valid."""
         with patch.dict(os.environ, {"APP_ENV": "testing"}, clear=True):
@@ -130,7 +130,7 @@ class TestNSFWModerationHandler:
                 assert result["score"] == 0.05
                 assert result["label"] == "safe"
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_moderation_nsfw_image_rejected(self):
         """Test that NSFW images are rejected."""
         with patch.dict(os.environ, {"APP_ENV": "testing"}, clear=True):

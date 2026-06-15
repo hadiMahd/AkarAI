@@ -9,6 +9,9 @@ from app.rag.schemas import RagRetrievalQueryRequest
 from app.rag.service import RagRetrievalService
 
 
+pytestmark = pytest.mark.anyio
+
+
 @pytest.fixture
 def tenant_context():
     return TenantContext(

@@ -8,7 +8,7 @@ from app.agencies.models import AgencyEmployeeMembership
 from app.common.tenant import TenantContext
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_create_employee_creates_new_user_account():
     from app.agencies.service import AgencyService
 
@@ -67,10 +67,10 @@ async def test_create_employee_creates_new_user_account():
         mock_employee_repo.create.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_create_employee_rejects_existing_user_email():
     from app.agencies.service import AgencyService
-    from app.common.exceptions import ValidationError
+    from app.common.exceptions import ConflictError
 
     mock_session = AsyncMock()
     mock_tenant = TenantContext(
@@ -91,7 +91,7 @@ async def test_create_employee_rejects_existing_user_email():
 
         service = AgencyService(mock_session, mock_tenant)
 
-        with pytest.raises(ValidationError) as exc_info:
+        with pytest.raises(ConflictError) as exc_info:
             await service.create_employee({
                 "work_email": "existing@agency.test",
                 "display_name": "Existing User",
@@ -99,3 +99,5 @@ async def test_create_employee_rejects_existing_user_email():
             })
 
         assert "already exists" in str(exc_info.value.detail)
+        assert exc_info.value.error_code == "EMPLOYEE_EMAIL_EXISTS"
+        assert exc_info.value.status_code == 409
