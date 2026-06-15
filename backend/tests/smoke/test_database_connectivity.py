@@ -5,7 +5,7 @@ from app.common.database import check_database_connectivity
 
 
 @pytest.mark.smoke
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_database_connectivity_through_pgbouncer(async_client: AsyncClient):
     response = await async_client.get("/ready")
     data = response.json()

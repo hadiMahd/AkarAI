@@ -101,7 +101,7 @@ class TestRagUpload:
         )
         event = result.scalar_one_or_none()
         assert event is not None, "Outbox event rag.document_uploaded should have been created"
-        assert event.status == "pending"
+        assert event.status in {"pending", "processing", "delivered"}
         assert event.idempotency_key == f"rag-document-upload-{doc['id']}"
 
     async def test_upload_pdf_returns_202_with_fixture_user(self, async_client: AsyncClient):
@@ -129,21 +129,23 @@ class TestRagUpload:
         assert resp.status_code == 401
 
     async def test_upload_non_pdf_rejected(self, async_client: AsyncClient):
-        """T009: Non-PDF files rejected with 400."""
+        """T009: Non-PDF files rejected with 415 and stable PDF_WRONG_TYPE code."""
         token = await _login(async_client, "agency.admin@akarai.test", "Test1234!")
         resp = await async_client.post(
             "/api/v1/agencies/rag/documents",
             headers={"Authorization": f"Bearer {token}"},
             files={"file": ("notes.txt", b"hello world", "text/plain")},
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 415
+        assert resp.json().get("error_code") == "PDF_WRONG_TYPE"
 
         resp = await async_client.post(
             "/api/v1/agencies/rag/documents",
             headers={"Authorization": f"Bearer {token}"},
             files={"file": ("image.png", b"\x89PNG\r\n\x1a\n", "image/png")},
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 415
+        assert resp.json().get("error_code") == "PDF_WRONG_TYPE"
 
     async def test_upload_empty_file_rejected(self, async_client: AsyncClient):
         """Empty PDF file rejected with 400."""

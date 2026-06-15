@@ -13,6 +13,13 @@ TEST_PATH = "__test__/smoke.txt"
 TEST_DATA = b"hello storage"
 
 
+@pytest.fixture(autouse=True)
+def clear_rate_limits():
+    """Sync no-op: shadows the async conftest fixture for sync tests in this module."""
+    yield
+
+
+@pytest.mark.anyio
 class TestStorageHelpers:
     @pytest.mark.integration
     def test_upload_download_delete(self):

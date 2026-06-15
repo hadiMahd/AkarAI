@@ -7,6 +7,9 @@ from app.ai.providers import RerankingProvider
 from app.ai.registry import get_reranking_provider
 
 
+pytestmark = pytest.mark.anyio
+
+
 class TestOpenRouterRerankingProvider:
     async def test_provider_implements_interface(self):
         provider = OpenRouterRerankingProvider()

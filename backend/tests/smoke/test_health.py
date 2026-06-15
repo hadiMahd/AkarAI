@@ -3,7 +3,7 @@ from httpx import AsyncClient
 
 
 @pytest.mark.smoke
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_health_endpoint(async_client: AsyncClient):
     response = await async_client.get("/health")
     assert response.status_code == 200
@@ -14,7 +14,7 @@ async def test_health_endpoint(async_client: AsyncClient):
 
 
 @pytest.mark.smoke
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_ready_endpoint_structure(async_client: AsyncClient):
     response = await async_client.get("/ready")
     data = response.json()

@@ -3,7 +3,7 @@ from httpx import AsyncClient
 
 
 @pytest.mark.smoke
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_redis_check_present(async_client: AsyncClient):
     response = await async_client.get("/ready")
     data = response.json()
