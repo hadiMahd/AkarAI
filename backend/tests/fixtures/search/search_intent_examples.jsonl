@@ -1,0 +1,5 @@
+{"query": "2 bedroom apartment in Beirut under 300000", "expected_filters": {"city": "Beirut", "bedrooms": 2, "max_price": 300000, "property_type": "apartment"}, "confidence": "high"}
+{"query": "furnished studio for rent", "expected_filters": {"furnishing": "furnished", "bedrooms": 0, "listing_purpose": "rent"}, "confidence": "high"}
+{"query": "villa with parking and garden", "expected_filters": {"property_type": "villa", "parking": 1}, "confidence": "medium"}
+{"query": "something near the sea", "expected_filters": {}, "unclear_location": {"phrase": "near the sea", "reason": "vague_area"}, "confidence": "low"}
+{"query": "help me find something nice", "expected_filters": {}, "confidence": "fallback"}

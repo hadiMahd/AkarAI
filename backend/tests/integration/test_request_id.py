@@ -14,6 +14,7 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
         yield c
 
 
+@pytest.mark.anyio
 class TestRequestID:
     async def test_response_has_request_id_header(self, client: AsyncClient):
         response = await client.get("/health")

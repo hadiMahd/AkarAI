@@ -9,6 +9,7 @@ from app.common.redis import (
 )
 
 
+@pytest.mark.anyio
 class TestRedisFoundation:
     @pytest.mark.integration
     async def test_redis_connectivity(self):

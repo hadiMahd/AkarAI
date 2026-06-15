@@ -38,6 +38,14 @@ function renderPage(initialEntry: string) {
   );
 }
 
+function getListingsRequestOptions() {
+  const listingCall = [...apiClientMock.mock.calls].reverse().find(([endpoint]) => endpoint === "/listings");
+  if (!listingCall) {
+    throw new Error("Expected /listings request");
+  }
+  return listingCall[1];
+}
+
 const response = {
   items: [
     {
@@ -68,7 +76,12 @@ const response = {
 describe("ListingsPage filters and sorting", () => {
   beforeEach(() => {
     apiClientMock.mockReset();
-    apiClientMock.mockResolvedValue(response);
+    apiClientMock.mockImplementation((endpoint: string) => {
+      if (endpoint === "/listings/cities") {
+        return Promise.resolve(["Beirut", "Jounieh"]);
+      }
+      return Promise.resolve(response);
+    });
   });
 
   it("passes q and city separately with furnishing and area filters", async () => {
@@ -76,9 +89,9 @@ describe("ListingsPage filters and sorting", () => {
 
     await waitFor(() => expect(apiClientMock).toHaveBeenCalled());
 
-    const [, options] = apiClientMock.mock.calls.at(-1)!;
+    const options = getListingsRequestOptions();
     expect(options.params.location).toBe("target");
-    expect(options.params.city).toBe("Beirut");
+    expect(options.params.city).toEqual(["Beirut"]);
     expect(options.params.furnishing).toBe("furnished");
     expect(options.params.min_area_size).toBe(80);
     expect(options.params.max_area_size).toBe(120);
@@ -89,7 +102,7 @@ describe("ListingsPage filters and sorting", () => {
 
     await waitFor(() => expect(apiClientMock).toHaveBeenCalled());
 
-    const [, options] = apiClientMock.mock.calls.at(-1)!;
+    const options = getListingsRequestOptions();
     expect(options.params.sort).toBe("oldest");
   });
 

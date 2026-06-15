@@ -53,6 +53,32 @@ async def check_auth_rate_limit(
     )
 
 
+SEARCH_RATE_LIMITS = {
+    "manual": {
+        "max_requests": settings.search_manual_rate_limit_max_requests,
+        "window_seconds": settings.search_manual_rate_limit_window_seconds,
+    },
+    "ai_text": {
+        "max_requests": settings.search_ai_text_rate_limit_max_requests,
+        "window_seconds": settings.search_ai_text_rate_limit_window_seconds,
+    },
+    "voice": {
+        "max_requests": settings.search_voice_rate_limit_max_requests,
+        "window_seconds": settings.search_voice_rate_limit_window_seconds,
+    },
+}
+
+
+async def check_search_rate_limit(search_mode: str, identifier: str) -> bool:
+    limits = SEARCH_RATE_LIMITS.get(search_mode, {"max_requests": 30, "window_seconds": 60})
+    return await check_rate_limit(
+        key_type=f"search:{search_mode}",
+        identifier=identifier,
+        max_requests=limits["max_requests"],
+        window_seconds=limits["window_seconds"],
+    )
+
+
 PHASE4_RATE_LIMITS = {
     "search": {"max_requests": 30, "window_seconds": 60},
     "inquiry": {"max_requests": 5, "window_seconds": 600},

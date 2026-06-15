@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { getApiErrorMessage } from "@/lib/api/errors";
 import {
   useListingPhotos,
   uploadListingPhoto,
@@ -253,8 +254,12 @@ export function ListingMediaManager({
       try {
         await uploadListingPhoto(listingId, fd);
         uploaded++;
-      } catch {
-        setFormError(`Failed to upload "${photo.file.name}".`);
+      } catch (uploadError) {
+        setFormError(
+          getApiErrorMessage(uploadError, "listing.media.upload", {
+            fallback: `We couldn't upload "${photo.file.name}". Try again.`,
+          }),
+        );
       }
     }
 
@@ -350,9 +355,9 @@ export function ListingMediaManager({
       </CardHeader>
       <CardContent className="space-y-6">
         {!isCreateMode && error ? (
-          <div className="flex items-center gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+          <div role="alert" className="flex items-center gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
             <AlertCircle className="h-4 w-4" />
-            <span>Unable to load listing photos.</span>
+            <span>{getApiErrorMessage(error, "listing.media.load")}</span>
           </div>
         ) : null}
 

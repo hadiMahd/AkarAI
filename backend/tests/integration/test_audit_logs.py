@@ -9,6 +9,7 @@ from app.audit.service import AuditService
 from app.common.database import async_session_factory
 
 
+@pytest.mark.anyio
 class TestAuditLogs:
     @pytest.mark.integration
     async def test_create_audit_log(self):

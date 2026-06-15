@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
+import { getApiErrorMessage } from "@/lib/api/errors";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar, Clock } from "lucide-react";
@@ -45,7 +46,7 @@ export function ViewingSlotPicker({
     return (
       <Card>
         <CardContent className="pt-6">
-          <p className="text-center text-destructive">Failed to load viewing slots.</p>
+          <p className="text-center text-destructive">{getApiErrorMessage(error, "viewing.slots")}</p>
         </CardContent>
       </Card>
     );

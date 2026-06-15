@@ -15,6 +15,7 @@ from app.common.events import (
 )
 
 
+@pytest.mark.anyio
 class TestOutboxEvents:
     @pytest.mark.integration
     async def test_publish_outbox_event(self):

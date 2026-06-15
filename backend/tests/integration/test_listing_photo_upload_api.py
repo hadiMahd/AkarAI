@@ -19,7 +19,7 @@ async def _login(async_client, email: str, password: str) -> str:
     return response.json()["access_token"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_upload_photo_requires_auth(async_client):
     """Test that photo upload requires authentication."""
     response = await async_client.post(
@@ -29,7 +29,7 @@ async def test_upload_photo_requires_auth(async_client):
     assert response.status_code in [401, 403]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_upload_photo_valid_tenant_listing(async_client, db_session, agency_admin_user, test_listing):
     """Test successful photo upload to a tenant-owned listing."""
     listing = test_listing
@@ -64,7 +64,7 @@ async def test_upload_photo_valid_tenant_listing(async_client, db_session, agenc
         assert response.status_code in [201, 503]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_upload_photo_support_employee_forbidden(async_client, db_session, support_user, test_listing):
     """Test that support employees cannot upload photos."""
     listing = test_listing
@@ -90,7 +90,7 @@ async def test_upload_photo_support_employee_forbidden(async_client, db_session,
         assert response.status_code == 403
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_upload_photo_invalid_file_type(async_client, db_session, agency_admin_user, test_listing):
     """Test that invalid file types are rejected."""
     listing = test_listing
@@ -117,7 +117,7 @@ async def test_upload_photo_invalid_file_type(async_client, db_session, agency_a
         assert response.status_code == 422  # Validation error
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_upload_photo_minio_failure_no_db_record(async_client, db_session, agency_admin_user, test_listing):
     """Test that MinIO upload failure results in no DB record (atomic consistency)."""
     from sqlalchemy import text
@@ -157,7 +157,7 @@ async def test_upload_photo_minio_failure_no_db_record(async_client, db_session,
             assert result.scalar() == 0, "No photo record should be created when MinIO upload fails"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_upload_photo_db_failure_cleans_up_object(async_client, db_session, agency_admin_user, test_listing):
     """Test that an upload artifact is deleted if the DB write path fails after MinIO upload."""
     from sqlalchemy import text

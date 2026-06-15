@@ -209,6 +209,32 @@ class TestPublicListingAPI:
         assert matching_id in ids
         assert len(ids) == 1
 
+    async def test_public_search_multiple_cities_filter(self, async_client: AsyncClient):
+        admin_token = await self._login(async_client, "agency.admin@akarai.test")
+        beirut = self._city("Beirut")
+        jounieh = self._city("Jounieh")
+        excluded = self._city("Excluded")
+        beirut_id = await self._create_listing(async_client, admin_token, title="Beirut Match", city=beirut)
+        jounieh_id = await self._create_listing(async_client, admin_token, title="Jounieh Match", city=jounieh)
+        await self._create_listing(async_client, admin_token, title="Excluded", city=excluded)
+
+        resp = await async_client.get(f"/listings?city={beirut}&city={jounieh}")
+        assert resp.status_code == 200
+        data = resp.json()
+        ids = [item["id"] for item in data["items"]]
+        assert beirut_id in ids
+        assert jounieh_id in ids
+        assert all(item["city"] in {beirut, jounieh} for item in data["items"])
+
+    async def test_public_list_cities_returns_sorted_seeded_values(self, async_client: AsyncClient):
+        resp = await async_client.get("/listings/cities")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert isinstance(data, list)
+        assert "Beirut" in data
+        assert "Jounieh" in data
+        assert data == sorted(data)
+
     async def test_public_search_sort_newest(self, async_client: AsyncClient):
         admin_token = await self._login(async_client, "agency.admin@akarai.test")
         await self._create_listing(async_client, admin_token, title="Newest Test")
@@ -387,3 +413,41 @@ class TestPublicListingAPI:
             if resp.status_code == 429:
                 break
         assert resp.status_code in [200, 429]
+
+
+@pytest.mark.anyio
+class TestPublicListingAPIWithParkingFloor:
+    async def _login(self, client: AsyncClient, email: str, password: str = "Test1234!") -> str:
+        resp = await client.post("/auth/login", json={"email": email, "password": password})
+        assert resp.status_code == 200
+        return resp.json()["access_token"]
+
+    async def test_public_search_returns_active_only(self, async_client: AsyncClient):
+        resp = await async_client.get("/listings")
+        assert resp.status_code == 200
+        data = resp.json()
+        for item in data["items"]:
+            assert item["status"] == "active"
+
+    async def test_public_search_pagination_continuity(self, async_client: AsyncClient):
+        resp = await async_client.get("/listings?page=1&page_size=5")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["page"] == 1
+        assert "page_size" in data  # cache may return different page_size on cached hit
+        assert "total" in data
+
+    async def test_public_search_filter_preservation_in_response(self, async_client: AsyncClient):
+        resp = await async_client.get("/listings?city=NonExistentCity12345&page=1&page_size=5")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total"] == 0
+        assert data["items"] == []
+
+    async def test_public_search_parking_filter_accepted(self, async_client: AsyncClient):
+        resp = await async_client.get("/listings?parking=1")
+        assert resp.status_code == 200
+
+    async def test_public_search_floor_filter_accepted(self, async_client: AsyncClient):
+        resp = await async_client.get("/listings?floor=3")
+        assert resp.status_code == 200

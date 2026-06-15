@@ -3,6 +3,7 @@ import pytest
 from app.common.cache import cache_delete, cache_get, cache_set
 
 
+@pytest.mark.anyio
 class TestCache:
     @pytest.mark.integration
     async def test_cache_set_and_get(self):

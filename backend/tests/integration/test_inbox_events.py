@@ -7,6 +7,7 @@ from app.common.database import async_session_factory
 from app.common.events import INBOX_CONSUMED, InboxEvent, record_inbox_event
 
 
+@pytest.mark.anyio
 class TestInboxEvents:
     @pytest.mark.integration
     async def test_record_inbox_event(self):

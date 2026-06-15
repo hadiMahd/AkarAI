@@ -120,6 +120,18 @@ class Settings(BaseSettings):
     media_derivative_quality: int = 85
     media_bucket: str = "property-media"
 
+    # Search rate limits
+    search_manual_rate_limit_max_requests: int = 30
+    search_manual_rate_limit_window_seconds: int = 60
+    search_ai_text_rate_limit_max_requests: int = 10
+    search_ai_text_rate_limit_window_seconds: int = 60
+    search_voice_rate_limit_max_requests: int = 5
+    search_voice_rate_limit_window_seconds: int = 60
+    # Voice upload
+    voice_max_file_size_mb: int = 10
+    voice_allowed_content_types: str = "audio/wav,audio/mpeg,audio/mp4,audio/webm,audio/ogg"
+    voice_request_timeout_seconds: int = 30
+
     # RAG ingestion settings
     rag_fastcdc_min_size: int = 256
     rag_fastcdc_avg_size: int = 768

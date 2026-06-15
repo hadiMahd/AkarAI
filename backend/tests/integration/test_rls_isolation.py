@@ -142,6 +142,7 @@ async def _create_listing(session, tenant, user=None, status="active", title="RL
     return listing
 
 
+@pytest.mark.anyio
 class TestRLSTenantIsolation:
 
     async def test_tenant_a_cannot_see_tenant_b_inactive_listings(self):
@@ -214,6 +215,7 @@ class TestRLSTenantIsolation:
             assert len(rows) == 2, f"Platform admin should see all, got {len(rows)}"
 
 
+@pytest.mark.anyio
 class TestRLSUserIsolation:
 
     async def test_user_a_cannot_see_user_b_saved_listing(self):
@@ -284,6 +286,7 @@ class TestRLSUserIsolation:
             assert row is None, f"Expected None without context, got {row}"
 
 
+@pytest.mark.anyio
 class TestRLSMixedIsolation:
 
     async def test_tenant_context_can_see_tenant_viewings(self):
@@ -359,6 +362,7 @@ class TestRLSMixedIsolation:
             assert row.id == viewing.id
 
 
+@pytest.mark.anyio
 class TestRLSSearchLogs:
 
     async def test_public_insert_search_log(self):
@@ -396,6 +400,7 @@ class TestRLSSearchLogs:
             assert rows[0].id == log_a.id
 
 
+@pytest.mark.anyio
 class TestRLSContextHelpers:
 
     async def test_set_and_clear_context(self):
@@ -445,6 +450,7 @@ class TestRLSContextHelpers:
             assert result.scalar() == ""
 
 
+@pytest.mark.anyio
 class TestRLSDirectSQL:
     """Tests using raw SQL to prove RLS enforcement at the database level."""
 

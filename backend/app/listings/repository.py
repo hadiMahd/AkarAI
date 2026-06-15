@@ -35,6 +35,17 @@ class ListingRepository(BaseRepository):
         await self.session.flush()
         return listing
 
+    async def list_distinct_cities(self) -> list[str]:
+        q = (
+            select(func.distinct(Listing.city))
+            .where(
+                Listing.city.is_not(None),
+                func.length(func.trim(Listing.city)) > 0,
+            )
+        )
+        result = await self.session.execute(q)
+        return sorted((city for city in result.scalars().all() if city), key=str.lower)
+
 
 class ListingPhotoRepository(BaseRepository):
     async def list_by_listing(self, listing_id: UUID) -> list[ListingPhotoMetadata]:

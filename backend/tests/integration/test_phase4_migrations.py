@@ -2,6 +2,7 @@ import pytest
 from sqlalchemy import text
 
 
+@pytest.mark.anyio
 class TestPhase4Migrations:
     async def test_agency_profiles_table_exists(self, async_client, db_session):
         result = await db_session.execute(

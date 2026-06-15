@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { AlertCircle, CheckCircle2, ShieldCheck } from "lucide-react";
 import { useAgencyListings, useListingDetail, uploadListingPhoto } from "./useAgencyListings";
+import { useListingCities } from "./useListingCities";
 import type { StagedListingPhoto } from "./listing-media";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { getApiErrorMessage } from "@/lib/api/errors";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -67,6 +69,7 @@ export function ListingForm({
     isUpdating,
     updateError,
   } = useListingDetail(listingId || "");
+  const { data: cityOptions = [], isLoading: isCitiesLoading } = useListingCities();
 
   const [formData, setFormData] = useState<ListingFormData>(EMPTY_FORM);
   const [successMessage, setSuccessMessage] = useState("");
@@ -168,6 +171,9 @@ export function ListingForm({
   const showSeparatePublishButton = isEditing && listing && listing.status !== "active";
   const submitLabel = isEditing ? "Save Changes" : "Submit Listing";
   const isSaving = isCreating || isUpdating;
+  const availableCities = Array.from(
+    new Set([...(cityOptions ?? []), ...(formData.city ? [formData.city] : [])]),
+  ).sort((left, right) => left.localeCompare(right));
 
   return (
     <Card>
@@ -176,9 +182,9 @@ export function ListingForm({
       </CardHeader>
       <CardContent>
         {listingError ? (
-          <div className="mb-4 flex items-center gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+          <div role="alert" className="mb-4 flex items-center gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
             <AlertCircle className="h-4 w-4" />
-            <span>Unable to load this listing.</span>
+            <span>{getApiErrorMessage(listingError, "listing.load", { fallback: "We couldn't load this listing." })}</span>
           </div>
         ) : null}
 
@@ -190,21 +196,21 @@ export function ListingForm({
             </div>
           )}
           {localError && (
-            <div className="flex items-center gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+            <div role="alert" className="flex items-center gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
               <AlertCircle className="h-4 w-4" />
               <span>{localError}</span>
             </div>
           )}
           {createError && !isEditing && (
-            <div className="flex items-center gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+            <div role="alert" className="flex items-center gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
               <AlertCircle className="h-4 w-4" />
-              <span>Failed to create listing</span>
+              <span>{getApiErrorMessage(createError, "listing.create", { fallback: "We couldn't create this listing. Try again in a moment." })}</span>
             </div>
           )}
           {updateError && (
-            <div className="flex items-center gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+            <div role="alert" className="flex items-center gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
               <AlertCircle className="h-4 w-4" />
-              <span>Failed to save listing</span>
+              <span>{getApiErrorMessage(updateError, "listing.update", { fallback: "We couldn't save your changes. Try again in a moment." })}</span>
             </div>
           )}
 
@@ -339,12 +345,22 @@ export function ListingForm({
             </div>
             <div className="space-y-2">
               <Label htmlFor="city">City</Label>
-              <Input
+              <select
                 id="city"
                 value={formData.city}
                 onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                disabled={isListingLoading}
-              />
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                disabled={isListingLoading || (isCitiesLoading && availableCities.length === 0)}
+              >
+                <option value="">
+                  {isCitiesLoading && availableCities.length === 0 ? "Loading cities..." : "Select a city"}
+                </option>
+                {availableCities.map((city) => (
+                  <option key={city} value={city}>
+                    {city}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="country">Country</Label>

@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CheckCircle, AlertCircle } from "lucide-react";
+import { getApiErrorMessage } from "@/lib/api/errors";
 
 interface InquiryFormProps {
   listingId: string;
@@ -85,7 +86,9 @@ export function InquiryForm({ listingId }: InquiryFormProps) {
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                {submitInquiry.error.message || "Failed to submit inquiry. Please try again."}
+                {getApiErrorMessage(submitInquiry.error, "inquiry.submit", {
+                  fallback: "We couldn't send your inquiry. Try again in a moment.",
+                })}
               </AlertDescription>
             </Alert>
           )}

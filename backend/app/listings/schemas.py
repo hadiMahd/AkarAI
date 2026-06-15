@@ -15,6 +15,8 @@ class ListingCreateRequest(BaseModel):
     currency: Optional[str] = None
     bedrooms: Optional[int] = None
     bathrooms: Optional[int] = None
+    parking: Optional[int] = None
+    floor: Optional[int] = None
     area_size: Optional[Decimal] = None
     area_unit: Optional[str] = None
     furnishing: Optional[str] = None
@@ -34,6 +36,8 @@ class ListingUpdateRequest(BaseModel):
     currency: Optional[str] = None
     bedrooms: Optional[int] = None
     bathrooms: Optional[int] = None
+    parking: Optional[int] = None
+    floor: Optional[int] = None
     area_size: Optional[Decimal] = None
     area_unit: Optional[str] = None
     furnishing: Optional[str] = None
@@ -55,6 +59,8 @@ class ListingResponse(BaseModel):
     currency: Optional[str] = None
     bedrooms: Optional[int] = None
     bathrooms: Optional[int] = None
+    parking: Optional[int] = None
+    floor: Optional[int] = None
     area_size: Optional[Decimal] = None
     area_unit: Optional[str] = None
     furnishing: Optional[str] = None
@@ -82,6 +88,8 @@ class PublicListingResponse(BaseModel):
     currency: Optional[str] = None
     bedrooms: Optional[int] = None
     bathrooms: Optional[int] = None
+    parking: Optional[int] = None
+    floor: Optional[int] = None
     area_size: Optional[Decimal] = None
     area_unit: Optional[str] = None
     furnishing: Optional[str] = None

@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, MessageSquare, CheckCircle2, Calendar } from "lucide-react";
+import { Building2, MessageSquare, CheckCircle2, Calendar, AlertCircle } from "lucide-react";
 import { useDashboardSummary } from "./useDashboardSummary";
+import { getApiErrorMessage } from "@/lib/api/errors";
 
 export function DashboardCards() {
   const { data, isLoading, error } = useDashboardSummary();
@@ -26,19 +27,17 @@ export function DashboardCards() {
 
   if (error) {
     return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Card key={i}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">--</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">--</div>
-              <p className="text-xs text-muted-foreground">Error loading</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <Card>
+        <CardHeader className="flex flex-row items-center gap-2 space-y-0 pb-2">
+          <AlertCircle className="h-4 w-4 text-destructive" />
+          <CardTitle className="text-sm font-medium">Dashboard unavailable</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p role="alert" className="text-sm text-muted-foreground">
+            {getApiErrorMessage(error, "dashboard.summary")}
+          </p>
+        </CardContent>
+      </Card>
     );
   }
 

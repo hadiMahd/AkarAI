@@ -24,6 +24,12 @@ class TestListingQueryService:
         query_str = str(q).lower()
         assert "city" in query_str
 
+    async def test_build_public_search_query_multiple_city_filter(self, db_session):
+        q = ListingQueryService.build_public_search_query(city=["Beirut", "Jounieh"])
+        query_str = str(q).lower()
+        assert "city" in query_str
+        assert "lower" in query_str
+
     async def test_build_public_search_query_price_filters(self, db_session):
         q = ListingQueryService.build_public_search_query(min_price=100000, max_price=500000)
         query_str = str(q).lower()
@@ -118,3 +124,30 @@ class TestListingQueryService:
         assert "price" in query_str
         assert "bedrooms" in query_str
         assert "property_type" in query_str
+
+
+@pytest.mark.anyio
+class TestListingQueryServiceWithParkingFloor:
+    async def test_build_public_search_query_parking_filter(self, db_session):
+        q = ListingQueryService.build_public_search_query(parking=1)
+        query_str = str(q).lower()
+        assert "parking" in query_str
+
+    async def test_build_public_search_query_floor_filter(self, db_session):
+        q = ListingQueryService.build_public_search_query(floor=3)
+        query_str = str(q).lower()
+        assert "floor" in query_str
+
+    async def test_build_public_search_query_multiple_sorts_stable(self, db_session):
+        for sort_val in ("newest", "oldest", "price_asc", "price_desc", "area_size_asc", "area_size_desc"):
+            q = ListingQueryService.build_public_search_query(sort=sort_val)
+            query_str = str(q).lower()
+            assert "order by" in query_str
+
+    async def test_build_public_search_query_canonical_filter_map(self, db_session):
+        q = ListingQueryService.build_public_search_query(
+            location="Downtown", city="Beirut", bedrooms=2, bathrooms=1,
+            parking=1, floor=5, furnishing="furnished",
+        )
+        query_str = str(q).lower()
+        assert "status" in query_str  # always filters active only (parameterized as :status_1)

@@ -1,6 +1,7 @@
 import pytest
 
 
+@pytest.mark.anyio
 class TestPhase4PaginationContract:
     async def test_pagination_params_defaults(self):
         from app.common.dependencies import pagination_params

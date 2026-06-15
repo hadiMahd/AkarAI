@@ -1,7 +1,7 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/010-rag-retrieval-area-search/plan.md
+at specs/011-search-ai-text-and-voice-search/plan.md
 <!-- SPECKIT END -->
 
 ## Session Summary

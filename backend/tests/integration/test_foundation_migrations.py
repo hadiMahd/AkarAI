@@ -26,6 +26,7 @@ BUSINESS_TABLES = [
 ]
 
 
+@pytest.mark.anyio
 class TestFoundationMigrations:
     @pytest.mark.integration
     async def test_foundation_tables_exist(self):

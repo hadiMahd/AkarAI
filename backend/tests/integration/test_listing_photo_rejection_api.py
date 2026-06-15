@@ -17,7 +17,7 @@ async def _login(async_client, email: str, password: str) -> str:
     return response.json()["access_token"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_upload_rejects_invalid_file_type(async_client, agency_admin_user, test_listing):
     """Test that invalid file types are rejected at upload."""
     user, password = agency_admin_user
@@ -32,7 +32,7 @@ async def test_upload_rejects_invalid_file_type(async_client, agency_admin_user,
     assert response.status_code == 422
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_upload_rejects_oversized_file(async_client, agency_admin_user, test_listing):
     """Test that oversized files are rejected."""
     user, password = agency_admin_user
@@ -48,7 +48,7 @@ async def test_upload_rejects_oversized_file(async_client, agency_admin_user, te
     assert response.status_code == 422
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_upload_accepts_valid_image(async_client, agency_admin_user, test_listing):
     """Test that valid images are accepted."""
     user, password = agency_admin_user
@@ -72,7 +72,7 @@ async def test_upload_accepts_valid_image(async_client, agency_admin_user, test_
     assert response.status_code in [201, 503]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_preflight_marks_safe_image_as_uploadable(async_client, agency_admin_user):
     user, password = agency_admin_user
     token = await _login(async_client, user.email, password)
@@ -94,7 +94,7 @@ async def test_preflight_marks_safe_image_as_uploadable(async_client, agency_adm
     assert body["moderation_label"] == "safe"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_preflight_rejects_nsfw_image(async_client, agency_admin_user):
     user, password = agency_admin_user
     token = await _login(async_client, user.email, password)

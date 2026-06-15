@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { apiClient } from "@/lib/api/client";
+import { getApiErrorMessage } from "@/lib/api/errors";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,7 +40,7 @@ export function ScheduledViewingsTab() {
     return (
       <Card>
         <CardContent className="pt-6 text-center">
-          <p className="text-destructive">Failed to load viewings.</p>
+          <p className="text-destructive">{getApiErrorMessage(error, "profile.activity")}</p>
         </CardContent>
       </Card>
     );

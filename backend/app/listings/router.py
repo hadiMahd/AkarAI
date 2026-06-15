@@ -48,6 +48,7 @@ from app.listings.schemas import (
     ComparisonItemResponse,
 )
 from app.listings.service import ListingService, build_thumbnail_map
+from app.listings.repository import ListingRepository
 
 router = APIRouter(prefix="/agency/listings", tags=["Agency Listings"])
 
@@ -218,11 +219,13 @@ def _build_public_search_cache_key(filters: dict) -> str:
 async def public_search_listings(
     request: Request,
     location: Optional[str] = Query(None),
-    city: Optional[str] = Query(None),
+    city: Optional[list[str]] = Query(None),
     min_price: Optional[float] = Query(None),
     max_price: Optional[float] = Query(None),
     bedrooms: Optional[int] = Query(None),
     bathrooms: Optional[int] = Query(None),
+    parking: Optional[int] = Query(None),
+    floor: Optional[int] = Query(None),
     property_type: Optional[str] = Query(None),
     listing_purpose: Optional[str] = Query(None),
     furnishing: Optional[str] = Query(None),
@@ -246,7 +249,8 @@ async def public_search_listings(
     # Build cache key from filter params only (excluding pagination)
     cache_filters = {
         "location": location, "city": city, "min_price": min_price, "max_price": max_price,
-        "bedrooms": bedrooms, "bathrooms": bathrooms, "property_type": property_type,
+        "bedrooms": bedrooms, "bathrooms": bathrooms, "parking": parking, "floor": floor,
+        "property_type": property_type,
         "listing_purpose": listing_purpose, "furnishing": furnishing,
         "min_area_size": min_area_size, "max_area_size": max_area_size,
         "sort": sort,
@@ -262,7 +266,8 @@ async def public_search_listings(
 
     q = ListingQueryService.build_public_search_query(
         location=location, city=city, min_price=min_price, max_price=max_price,
-        bedrooms=bedrooms, bathrooms=bathrooms, property_type=property_type,
+        bedrooms=bedrooms, bathrooms=bathrooms, parking=parking, floor=floor,
+        property_type=property_type,
         listing_purpose=listing_purpose, furnishing=furnishing,
         min_area_size=min_area_size, max_area_size=max_area_size, sort=sort,
     )
@@ -341,6 +346,16 @@ async def public_search_listings(
     })
 
     return response_data
+
+
+@public_router.get("/cities", response_model=list[str])
+async def public_list_cities(
+    db: AsyncSession = Depends(get_db_session),
+):
+    from app.cities.repository import CityRepository
+
+    repo = CityRepository(db)
+    return await repo.list_active_names()
 
 
 @public_router.get("/{listing_id}", response_model=PublicListingResponse)

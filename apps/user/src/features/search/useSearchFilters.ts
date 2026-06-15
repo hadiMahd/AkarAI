@@ -10,6 +10,8 @@ export interface SearchFilters {
   max_price?: number;
   bedrooms?: number;
   bathrooms?: number;
+  parking?: number;
+  floor?: number;
   furnishing?: string;
   min_area_size?: number;
   max_area_size?: number;
@@ -32,6 +34,8 @@ export function useSearchFilters() {
       max_price: params.max_price ? Number(params.max_price) : undefined,
       bedrooms: params.bedrooms ? Number(params.bedrooms) : undefined,
       bathrooms: params.bathrooms ? Number(params.bathrooms) : undefined,
+      parking: params.parking ? Number(params.parking) : undefined,
+      floor: params.floor ? Number(params.floor) : undefined,
       furnishing: params.furnishing || undefined,
       min_area_size: params.min_area_size ? Number(params.min_area_size) : undefined,
       max_area_size: params.max_area_size ? Number(params.max_area_size) : undefined,

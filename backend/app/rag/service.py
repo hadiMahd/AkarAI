@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 
 from app.ai.guardrails import generate_guardrailed_policy_answer
 from app.ai.registry import get_embedding_provider, get_reranking_provider
-from app.common.exceptions import AppException, ForbiddenError, NotFoundError
+from app.common.exceptions import AppException, ForbiddenError, NotFoundError, UnauthorizedError
 from app.common.pagination import PaginationRequest
 from app.common.config import settings
 from app.common.redis import redis_get, redis_set
@@ -68,7 +68,8 @@ class RagDocumentService:
         except Exception as exc:
             raise AppException(
                 status_code=400,
-                detail="Uploaded PDF does not contain extractable text",
+                detail="This PDF has no extractable text. Scanned documents are not yet supported.",
+                error_code="PDF_NO_TEXT",
             ) from exc
 
         document_id = uuid4()
@@ -79,7 +80,11 @@ class RagDocumentService:
         try:
             upload_object(bucket, object_key, file_bytes, "application/pdf")
         except Exception as exc:
-            raise AppException(status_code=503, detail=f"Failed to store document: {exc}") from exc
+            raise AppException(
+                status_code=503,
+                detail="We couldn't store this document right now. Try again in a moment.",
+                error_code="DOCUMENT_STORAGE_FAILED",
+            ) from exc
 
         document = RagDocument(
             tenant_id=ctx.tenant_id,
@@ -150,7 +155,11 @@ class RagDocumentService:
         if document is None:
             raise NotFoundError(detail="RAG document not found")
         if document.status == "processing":
-            raise AppException(status_code=409, detail="Document is already processing")
+            raise AppException(
+                status_code=409,
+                detail="This document is still processing. Wait until it finishes before replacing it.",
+                error_code="DOCUMENT_PROCESSING",
+            )
 
         safe_filename = _sanitize_filename(filename)
         _validate_pdf_upload(file_bytes, content_type, safe_filename)
@@ -161,7 +170,8 @@ class RagDocumentService:
         except Exception as exc:
             raise AppException(
                 status_code=400,
-                detail="Uploaded PDF does not contain extractable text",
+                detail="This PDF has no extractable text. Scanned documents are not yet supported.",
+                error_code="PDF_NO_TEXT",
             ) from exc
 
         bucket = get_rag_bucket()
@@ -172,7 +182,11 @@ class RagDocumentService:
         try:
             upload_object(bucket, next_blob_path, file_bytes, "application/pdf")
         except Exception as exc:
-            raise AppException(status_code=503, detail=f"Failed to store document: {exc}") from exc
+            raise AppException(
+                status_code=503,
+                detail="We couldn't store this document right now. Try again in a moment.",
+                error_code="DOCUMENT_STORAGE_FAILED",
+            ) from exc
 
         replaced_blob_uploaded = True
         document.filename = safe_filename
@@ -763,7 +777,7 @@ class RagChatService:
     ) -> RagChatThreadRead:
         ctx = require_tenant(self._tenant)
         if ctx.actor_id is None:
-            raise ForbiddenError(detail="Authenticated user required")
+            raise UnauthorizedError(detail="Sign in to use the policy assistant.")
         title = (request.title.strip() if request and request.title else "") or "New conversation"
         title = title[:160]
         now = datetime.now(timezone.utc)
@@ -782,7 +796,7 @@ class RagChatService:
     async def list_threads(self, page: int, page_size: int) -> PaginatedRagChatThreadsResponse:
         ctx = require_tenant(self._tenant)
         if ctx.actor_id is None:
-            raise ForbiddenError(detail="Authenticated user required")
+            raise UnauthorizedError(detail="Sign in to use the policy assistant.")
         pagination = PaginationRequest(page=page, page_size=page_size)
         rows, total = await self._repo.list_chat_threads(ctx.tenant_id, ctx.actor_id, pagination)
         return PaginatedRagChatThreadsResponse(
@@ -795,7 +809,7 @@ class RagChatService:
     async def get_thread(self, thread_id: UUID) -> RagChatThreadDetailResponse:
         ctx = require_tenant(self._tenant)
         if ctx.actor_id is None:
-            raise ForbiddenError(detail="Authenticated user required")
+            raise UnauthorizedError(detail="Sign in to use the policy assistant.")
         cache_key = _rag_chat_cache_key(ctx.tenant_id, ctx.actor_id, thread_id)
         cached = await redis_get(cache_key)
         if cached:
@@ -820,7 +834,7 @@ class RagChatService:
     ) -> RagChatSendMessageResponse:
         ctx = require_tenant(self._tenant)
         if ctx.actor_id is None:
-            raise ForbiddenError(detail="Authenticated user required")
+            raise UnauthorizedError(detail="Sign in to use the policy assistant.")
         thread = await self._repo.get_chat_thread(thread_id, ctx.tenant_id, ctx.actor_id)
         if thread is None:
             raise NotFoundError(detail="Chat thread not found")
@@ -936,17 +950,34 @@ def _validate_pdf_upload(file_bytes: bytes, content_type: str | None, filename: 
     max_bytes = settings.rag_max_file_size_mb * 1024 * 1024
     if len(file_bytes) > max_bytes:
         raise AppException(
-            status_code=400,
-            detail=f"Uploaded PDF exceeds maximum size of {settings.rag_max_file_size_mb}MB",
+            status_code=413,
+            detail=f"This PDF exceeds the {settings.rag_max_file_size_mb}MB upload limit.",
+            error_code="PDF_TOO_LARGE",
         )
     if not filename.lower().endswith(".pdf"):
-        raise AppException(status_code=400, detail="Only PDF files are accepted")
+        raise AppException(
+            status_code=415,
+            detail="Only PDF files are accepted.",
+            error_code="PDF_WRONG_TYPE",
+        )
     if not file_bytes.startswith(b"%PDF"):
-        raise AppException(status_code=400, detail="Uploaded file is not a valid PDF")
+        raise AppException(
+            status_code=400,
+            detail="This file does not look like a valid PDF.",
+            error_code="PDF_INVALID",
+        )
     if content_type and content_type.lower().split(";", 1)[0].strip() not in ("application/pdf", "application/x-pdf"):
-        raise AppException(status_code=400, detail="Only PDF files are accepted")
+        raise AppException(
+            status_code=415,
+            detail="Only PDF files are accepted.",
+            error_code="PDF_WRONG_TYPE",
+        )
     if not file_bytes.strip():
-        raise AppException(status_code=400, detail="Uploaded PDF is empty")
+        raise AppException(
+            status_code=400,
+            detail="The PDF is empty.",
+            error_code="PDF_EMPTY",
+        )
 
 
 def _sanitize_filename(filename: str) -> str:
@@ -1023,21 +1054,30 @@ def _extract_text_from_pdf(file_bytes: bytes) -> str:
     try:
         import fitz
     except ImportError as exc:
-        raise AppException(status_code=400, detail="PDF text extraction is unavailable") from exc
+        raise AppException(
+            status_code=503,
+            detail="PDF text extraction is temporarily unavailable.",
+            error_code="PDF_EXTRACTION_UNAVAILABLE",
+        ) from exc
 
     try:
         doc = fitz.open(stream=file_bytes, filetype="pdf")
     except Exception as exc:
         raise AppException(
             status_code=400,
-            detail="Uploaded PDF is empty or unreadable",
+            detail="The PDF could not be opened. It may be empty or corrupted.",
+            error_code="PDF_UNREADABLE",
         ) from exc
     try:
         text = "\n".join(page.get_text() for page in doc)
     finally:
         doc.close()
     if not text.strip():
-        raise AppException(status_code=400, detail="Uploaded PDF does not contain extractable text")
+        raise AppException(
+            status_code=400,
+            detail="This PDF has no extractable text. Scanned documents are not yet supported.",
+            error_code="PDF_NO_TEXT",
+        )
     return text
 
 

@@ -378,7 +378,10 @@ class ListingService:
         try:
             upload_object(bucket, object_key, file_bytes, media_metadata["content_type"])
         except Exception as e:
-            raise ValidationError(detail=f"Failed to store image: {e}")
+            raise ServiceUnavailableError(
+                detail="We couldn't store this image right now. Try again in a moment.",
+                error_code="PHOTO_STORAGE_FAILED",
+            ) from e
 
         # Calculate display order
         if display_order is None or display_order == 0:

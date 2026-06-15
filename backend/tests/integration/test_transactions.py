@@ -5,6 +5,7 @@ from app.common.database import async_session_factory
 from app.common.transactions import transaction
 
 
+@pytest.mark.anyio
 class TestTransactions:
     @pytest.mark.integration
     async def test_transaction_commit(self):

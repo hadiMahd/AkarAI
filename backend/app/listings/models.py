@@ -20,6 +20,8 @@ class Listing(Base):
     currency = Column(String(8), nullable=True)
     bedrooms = Column(Integer, nullable=True)
     bathrooms = Column(Integer, nullable=True)
+    parking = Column(Integer, nullable=True)
+    floor = Column(Integer, nullable=True)
     area_size = Column(Numeric(12, 2), nullable=True)
     area_unit = Column(String(8), nullable=True)
     furnishing = Column(String(32), nullable=True)
