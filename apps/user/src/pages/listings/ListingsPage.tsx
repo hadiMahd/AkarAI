@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
+import { getApiErrorMessage } from "@/lib/api/errors";
 import { queryKeys } from "@/lib/query/query-client";
 import { SearchForm } from "@/features/search/SearchForm";
 import { ListingCard } from "@/features/listings/ListingCard";
@@ -44,11 +45,13 @@ interface SearchFilters {
   q?: string;
   purpose?: string;
   property_type?: string;
-  city?: string;
+  city?: string[];
   min_price?: number;
   max_price?: number;
   min_bedrooms?: number;
   min_bathrooms?: number;
+  parking?: number;
+  floor?: number;
   furnishing?: string;
   min_area_size?: number;
   max_area_size?: number;
@@ -79,15 +82,18 @@ export function ListingsPage() {
   const { savedListings: savedListingsFull } = useSavedListingsFull();
 
   useEffect(() => {
+    const cities = searchParams.getAll("city").filter(Boolean);
     const newFilters: SearchFilters = {
       q: searchParams.get("q") || undefined,
       purpose: searchParams.get("purpose") || undefined,
       property_type: searchParams.get("property_type") || undefined,
-      city: searchParams.get("city") || undefined,
+      city: cities.length > 0 ? cities : undefined,
       min_price: searchParams.get("min_price") ? Number(searchParams.get("min_price")) : undefined,
       max_price: searchParams.get("max_price") ? Number(searchParams.get("max_price")) : undefined,
       min_bedrooms: searchParams.get("min_bedrooms") ? Number(searchParams.get("min_bedrooms")) : undefined,
       min_bathrooms: searchParams.get("min_bathrooms") ? Number(searchParams.get("min_bathrooms")) : undefined,
+      parking: searchParams.get("parking") ? Number(searchParams.get("parking")) : undefined,
+      floor: searchParams.get("floor") ? Number(searchParams.get("floor")) : undefined,
       furnishing: searchParams.get("furnishing") || undefined,
       min_area_size: searchParams.get("min_area_size") ? Number(searchParams.get("min_area_size")) : undefined,
       max_area_size: searchParams.get("max_area_size") ? Number(searchParams.get("max_area_size")) : undefined,
@@ -112,6 +118,8 @@ export function ListingsPage() {
       max_price: filters.max_price,
       bedrooms: filters.min_bedrooms,
       bathrooms: filters.min_bathrooms,
+      parking: filters.parking,
+      floor: filters.floor,
       furnishing: filters.furnishing,
       min_area_size: filters.min_area_size,
       max_area_size: filters.max_area_size,
@@ -163,7 +171,10 @@ export function ListingsPage() {
         };
       }
 
-      const params: Record<string, string | number | boolean | undefined> = { ...buildApiParams() };
+      const params: Record<
+        string,
+        string | number | boolean | Array<string | number | boolean> | undefined
+      > = { ...buildApiParams() };
       if (cursor) {
         params.cursor = cursor;
       }
@@ -176,7 +187,13 @@ export function ListingsPage() {
     const params = new URLSearchParams();
     Object.entries(newFilters).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== "") {
-        params.set(key, String(value));
+        if (Array.isArray(value)) {
+          value
+            .filter((item) => item !== "")
+            .forEach((item) => params.append(key, String(item)));
+        } else {
+          params.set(key, String(value));
+        }
       }
     });
     setSearchParams(params);
@@ -216,7 +233,13 @@ export function ListingsPage() {
             <CardTitle>Search & Filter</CardTitle>
           </CardHeader>
           <CardContent>
-            <SearchForm filters={filters} onFilterChange={handleFilterChange} />
+            <SearchForm
+              filters={filters}
+              onFilterChange={handleFilterChange}
+              onFiltersChange={(partialFilters) =>
+                handleFilterChange({ ...filters, ...partialFilters } as SearchFilters)
+              }
+            />
           </CardContent>
         </Card>
       )}
@@ -236,7 +259,9 @@ export function ListingsPage() {
 
       {error && (
         <ErrorState
-          message="Failed to load listings. Please try again."
+          message={getApiErrorMessage(error, "listing.load", {
+            fallback: "We couldn't load listings. Try refreshing the page.",
+          })}
           onRetry={() => refetch()}
         />
       )}

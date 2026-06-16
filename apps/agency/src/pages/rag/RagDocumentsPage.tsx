@@ -16,6 +16,7 @@ import {
 } from "@/features/rag/useRagDocuments";
 import type { RagChatMessage, RagPolicyAnswer, RagRetrievalDebug, RagRetrievalLog } from "@/features/rag/useRagDocuments";
 import { getTenantSession } from "@/lib/session/auth-session";
+import { getApiErrorMessage } from "@/lib/api/errors";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bot, FileText, MessageSquarePlus, Upload, RefreshCw, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -84,8 +85,8 @@ export function RagDocumentsPage() {
             </Button>
           </div>
           {uploadMutation.error && (
-            <p className="mt-2 text-sm text-destructive">
-              Upload failed: {(uploadMutation.error as Error).message}
+            <p role="alert" data-testid="rag-upload-error" className="mt-2 text-sm text-destructive">
+              {getApiErrorMessage(uploadMutation.error, "rag.document.upload")}
             </p>
           )}
         </CardContent>
@@ -393,8 +394,8 @@ function PolicyAssistantTab({ hasProcessedDocuments }: { hasProcessedDocuments: 
                         className="resize-none border-border/80 bg-background"
                       />
                       {sendMessageMutation.error && (
-                        <p className="text-sm text-destructive">
-                          {(sendMessageMutation.error as Error).message}
+                        <p role="alert" data-testid="rag-chat-error" className="text-sm text-destructive">
+                          {getApiErrorMessage(sendMessageMutation.error, "rag.chat.message")}
                         </p>
                       )}
                       <div className="flex items-center justify-between gap-3">
@@ -571,8 +572,8 @@ function RetrievalLogSection() {
             ))}
           </div>
         ) : error ? (
-          <p className="text-sm text-destructive">
-            Failed to load retrieval logs: {(error as Error).message}
+          <p role="alert" className="text-sm text-destructive">
+            {getApiErrorMessage(error, "rag.retrieval.logs")}
           </p>
         ) : !data || data.items.length === 0 ? (
           <p className="text-sm text-muted-foreground">No retrieval queries yet.</p>

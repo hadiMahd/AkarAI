@@ -4,6 +4,7 @@ from sqlalchemy import text
 from app.common.database import async_session_factory
 
 
+@pytest.mark.anyio
 class TestPgvectorFoundation:
     @pytest.mark.integration
     async def test_pgvector_extension_installed(self):

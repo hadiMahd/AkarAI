@@ -5,26 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertCircle, CheckCircle2, UserPlus } from "lucide-react";
-import { ApiError } from "@/lib/api/client";
-
-function getEmployeeCreateErrorMessage(error: unknown): string {
-  if (error instanceof ApiError) {
-    const detail =
-      typeof error.data === "object" &&
-      error.data !== null &&
-      "detail" in error.data &&
-      typeof (error.data as { detail?: unknown }).detail === "string"
-        ? (error.data as { detail: string }).detail
-        : null;
-    return detail ?? error.message;
-  }
-
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return "Failed to create employee account. The email may already exist.";
-}
+import { getApiErrorMessage } from "@/lib/api/errors";
 
 export function EmployeeInviteForm() {
   const { createEmployee, isCreating, createError } = useEmployees();
@@ -50,6 +31,8 @@ export function EmployeeInviteForm() {
     }
   };
 
+  const errorMessage = createError ? getApiErrorMessage(createError, "employee.create") : null;
+
   return (
     <Card>
       <CardHeader>
@@ -70,11 +53,9 @@ export function EmployeeInviteForm() {
             </div>
           )}
           {createError && (
-            <div className="flex items-center gap-2 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+            <div role="alert" className="flex items-center gap-2 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
               <AlertCircle className="h-4 w-4" />
-              <span>
-                {getEmployeeCreateErrorMessage(createError)}
-              </span>
+              <span>{errorMessage}</span>
             </div>
           )}
           <div className="space-y-2">

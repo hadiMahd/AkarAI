@@ -13,6 +13,7 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
         yield c
 
 
+@pytest.mark.anyio
 class TestReadinessContract:
     async def test_ready_response_shape(self, client: AsyncClient):
         response = await client.get("/ready")

@@ -9,7 +9,7 @@ from app.common.tenant import TenantContext
 from app.common.exceptions import ForbiddenError
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_list_tenant_viewings_with_filters():
     mock_session = AsyncMock()
     mock_tenant = TenantContext(
@@ -43,7 +43,7 @@ async def test_list_tenant_viewings_with_filters():
         assert call_args[1]["date_to"] == "2026-12-31"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_update_viewing_status_forbidden_for_support_employee():
     mock_session = AsyncMock()
     mock_tenant = TenantContext(

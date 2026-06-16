@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agencies.models import AgencyProfile, AgencyEmployeeMembership
 from app.agencies.repository import AgencyProfileRepository, AgencyEmployeeRepository, AgenciesRepository
-from app.common.exceptions import NotFoundError, ForbiddenError, ValidationError
+from app.common.exceptions import ConflictError, NotFoundError, ForbiddenError, ValidationError
 from app.common.pagination import PaginationRequest, PaginationResult
 from app.common.tenant import TenantContext, require_tenant, ensure_tenant_match
 from app.common.events import write_domain_event_log
@@ -102,7 +102,10 @@ class AgencyService:
         users_repo = UsersRepository(self._session)
         existing_user = await users_repo.get_user_by_email(work_email)
         if existing_user is not None:
-            raise ValidationError(detail="A user account with this email already exists")
+            raise ConflictError(
+                detail="An account with this email already exists.",
+                error_code="EMPLOYEE_EMAIL_EXISTS",
+            )
 
         from app.auth.models import Role
         from sqlalchemy import select

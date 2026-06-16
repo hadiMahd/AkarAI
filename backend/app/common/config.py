@@ -95,6 +95,40 @@ class Settings(BaseSettings):
     # Email Provider
     email_provider: str = "resend"
 
+    # OCR Provider (Phase 12: Agency AI Workflows)
+    ocr_provider: str = "azure_computer_vision_read"
+    azure_cv_endpoint: str = Field(
+        default="",
+        validation_alias=AliasChoices("AZURE_CV_ENDPOINT", "AZURE_OCR_ENDPOINT"),
+    )
+    azure_cv_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("AZURE_CV_API_KEY", "AZURE_OCR_API_KEY"),
+    )
+    ocr_max_file_size_mb: int = 10
+    ocr_allowed_content_types: str = (
+        "application/pdf,image/jpeg,image/png,image/webp"
+    )
+    ocr_request_timeout_seconds: int = 60
+
+    # Agency AI job settings (Phase 12: Agency AI Workflows)
+    agency_ai_listing_draft_max_context_chars: int = 4000
+    agency_ai_lead_reply_max_context_chars: int = 4000
+    agency_ai_comparison_summary_max_context_chars: int = 6000
+    agency_ai_job_ttl_seconds: int = 86400
+    agency_ai_max_tool_listing_results: int = 10
+    agency_ai_max_tool_lead_results: int = 10
+
+    # Agency AI rate limits
+    agency_ai_listing_draft_rate_limit_max_requests: int = 10
+    agency_ai_listing_draft_rate_limit_window_seconds: int = 60
+    agency_ai_lead_reply_rate_limit_max_requests: int = 10
+    agency_ai_lead_reply_rate_limit_window_seconds: int = 60
+    agency_ai_comparison_summary_rate_limit_max_requests: int = 5
+    agency_ai_comparison_summary_rate_limit_window_seconds: int = 60
+    agency_ai_ocr_rate_limit_max_requests: int = 5
+    agency_ai_ocr_rate_limit_window_seconds: int = 60
+
     # Pagination
     pagination_default_page_size: int = 20
     pagination_max_page_size: int = 100
@@ -119,6 +153,18 @@ class Settings(BaseSettings):
     media_derivative_max_width: int = 1920
     media_derivative_quality: int = 85
     media_bucket: str = "property-media"
+
+    # Search rate limits
+    search_manual_rate_limit_max_requests: int = 30
+    search_manual_rate_limit_window_seconds: int = 60
+    search_ai_text_rate_limit_max_requests: int = 10
+    search_ai_text_rate_limit_window_seconds: int = 60
+    search_voice_rate_limit_max_requests: int = 5
+    search_voice_rate_limit_window_seconds: int = 60
+    # Voice upload
+    voice_max_file_size_mb: int = 10
+    voice_allowed_content_types: str = "audio/wav,audio/mpeg,audio/mp4,audio/webm,audio/ogg"
+    voice_request_timeout_seconds: int = 30
 
     # RAG ingestion settings
     rag_fastcdc_min_size: int = 256
@@ -325,3 +371,21 @@ def configure_secrets(target=None) -> None:
         s.openrouter_content_safety_model = s.openrouter_content_safety_model
     except Exception as e:
         raise RuntimeError(f"Failed to read secret akarai/openrouter from Vault: {e}") from e
+
+    # Load Azure Computer Vision (OCR) config (optional — OCR will fail-closed if not configured)
+    try:
+        secret = client.secrets.kv.v2.read_secret_version(
+            path="azure_cv", mount_point="akarai", raise_on_deleted_version=True
+        )
+        data = secret["data"]["data"]
+        endpoint = data.get("endpoint", "").strip()
+        api_key = data.get("api_key", "").strip()
+        if endpoint:
+            s.azure_cv_endpoint = endpoint
+        if api_key:
+            s.azure_cv_api_key = api_key
+    except hvac.exceptions.InvalidPath:
+        s.azure_cv_endpoint = s.azure_cv_endpoint
+        s.azure_cv_api_key = s.azure_cv_api_key
+    except Exception as e:
+        raise RuntimeError(f"Failed to read secret akarai/azure_cv from Vault: {e}") from e

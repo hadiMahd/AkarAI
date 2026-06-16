@@ -13,6 +13,8 @@ interface Listing {
   currency: string | null;
   bedrooms: number | null;
   bathrooms: number | null;
+  parking: number | null;
+  floor: number | null;
   area_size: number | null;
   area_unit: string | null;
   furnishing: string | null;
@@ -34,6 +36,8 @@ interface ListingCreateRequest {
   currency?: string;
   bedrooms?: number;
   bathrooms?: number;
+  parking?: number;
+  floor?: number;
   area_size?: number;
   area_unit?: string;
   furnishing?: string;

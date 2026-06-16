@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { getApiErrorMessage } from "@/lib/api/errors";
 
 export function SignUpForm() {
   const { signUp, isSigningUp, signUpError } = useAuth();
@@ -19,12 +20,12 @@ export function SignUpForm() {
     setValidationError("");
 
     if (password !== confirmPassword) {
-      setValidationError("Passwords do not match");
+      setValidationError("Passwords do not match.");
       return;
     }
 
     if (password.length < 8) {
-      setValidationError("Password must be at least 8 characters");
+      setValidationError("Use at least 8 characters for your password.");
       return;
     }
 
@@ -35,6 +36,9 @@ export function SignUpForm() {
     }
   };
 
+  const serverError = signUpError ? getApiErrorMessage(signUpError, "auth.signup") : null;
+  const displayedError = validationError || serverError;
+
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
@@ -43,9 +47,9 @@ export function SignUpForm() {
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
-          {(signUpError || validationError) && (
-            <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md">
-              {validationError || "An error occurred. Please try again."}
+          {displayedError && (
+            <div role="alert" className="p-3 text-sm text-destructive bg-destructive/10 rounded-md">
+              {displayedError}
             </div>
           )}
           <div className="space-y-2">

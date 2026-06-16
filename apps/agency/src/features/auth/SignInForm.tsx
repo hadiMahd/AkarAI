@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertCircle } from "lucide-react";
+import { getApiErrorMessage } from "@/lib/api/errors";
 
 export function SignInForm() {
   const { signIn, isSigningIn, signInError } = useAgencyAuth();
@@ -20,11 +21,7 @@ export function SignInForm() {
     }
   };
 
-  const errorMessage = signInError
-    ? signInError instanceof Error
-      ? signInError.message
-      : "Invalid email or password"
-    : null;
+  const errorMessage = signInError ? getApiErrorMessage(signInError, "auth.signin") : null;
 
   return (
     <Card className="w-full max-w-md">
@@ -35,7 +32,7 @@ export function SignInForm() {
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           {errorMessage && (
-            <div className="flex items-center gap-2 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+            <div role="alert" className="flex items-center gap-2 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
               <AlertCircle className="h-4 w-4" />
               <span>{errorMessage}</span>
             </div>

@@ -1,10 +1,30 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/010-rag-retrieval-area-search/plan.md
+at specs/012-agency-ai-workflows/plan.md
 <!-- SPECKIT END -->
 
 ## Session Summary
+
+### What's been implemented (feature branch `010-rag-retrieval-area-search` → `012-agency-ai-workflows`)
+
+**Phase 12 — Agency AI Workflows**: THIS SESSION
+- **Config & env (T001)**: `backend/app/common/config.py` exposes OCR provider, Azure CV endpoint/key, OCR limits, agency AI job settings, and rate-limit knobs. `configure_secrets()` reads the `akarai/azure_cv` Vault path. `.env.example` lists the new placeholders.
+- **OCR provider (T004)**: `AzureComputerVisionOCRProvider` implements `OCRProvider.extract_text` against the v3.2 Read API. `get_ocr_provider()` lazily registers it.
+- **Guardrailed generation (T005)**: `generate_guardrailed_agency_text` / `generate_guardrailed_agency_draft` shared helpers. `app.ai.jobs` exposes a small state machine (`new_job`, `mark_processing`, `mark_completed`, `mark_failed`) plus the four job type / status constants.
+- **Schemas (T006)**: `app.ai.schemas` covers spec extraction, listing draft, lead reply, comparison summary, and the job status envelope. `ExtractedListingSpecs` includes field confidence + source snippets.
+- **Assistant tools (T007)**: `app.rag.service` gained `_detect_tool_intent`, `_maybe_run_assistant_tools`, and `_record_tool_invocation`. Listings/Leads services expose `read_only_*` helpers. The chat `send_message` flow now augments policy answers with safe, tenant-scoped, read-only tool output.
+- **Rate limits + audit (T008)**: `check_agency_ai_rate_limit` covers OCR/listing-draft/lead-reply/comparison-summary. `AgencyAIService` writes `agency_ai.*` audit events through the existing `AuditService` path.
+- **Service (T014/T037/T038)**: `AgencyAIService` runs the spec extraction (synchronous), listing draft, lead reply draft, and comparison summary flows. Each persists a `AgencyAIJob`, writes the result payload, and emits a `LeadReplyDraft` / `ComparisonSummary` record where applicable.
+- **Router (T015/T035/T036)**: New endpoints under `/api/v1/agencies` (spec extraction, listing draft, lead reply draft, job status) and `/api/v1/me/comparison-summary`. Routers are wired in `backend/app/main.py`.
+- **Worker (T004)**: `workers/handlers/agency_ai.py` handles `agency_ai.spec_sheet_uploaded`. The synchronous API path doesn't dispatch it today but the handler is registered for future async extraction flows.
+- **Frontend (T016/T039/T040)**: `apps/agency/src/features/agencyAi/useAgencyAi.ts` and `apps/user/src/features/comparison/useComparisonSummary.ts` provide mutation/query hooks. `apps/agency/src/features/listings/ListingAiWorkflow.tsx` is the spec-sheet upload + draft panel. `apps/agency/src/lib/api/errors.ts` and `apps/user/src/lib/api/errors.ts` map the new error codes.
+- **Migration (T002/T003)**: `0018_add_agency_ai_workflows.py` adds `agency_ai_jobs`, `lead_reply_drafts`, `comparison_summaries`, and `agency_assistant_tool_invocations`.
+- **Docs (T042/T044)**: `backend/app/ai/README.md` documents the new OCR provider, shared guardrailed generation, and job lifecycle. `specs/012-agency-ai-workflows/quickstart.md` is unchanged because the validation scenarios already match the implemented routes.
+- **Tests (T009-T012, T019-T022, T029-T034, T045)**: 14 new test files written this session.
+  - Backend unit tests pass standalone (no Docker): 27 + 13 + 14 = **54 unit tests pass**
+  - Frontend vitest tests pass standalone: 4 + 16 + 2 + 2 = **24 frontend tests pass**
+  - Integration, RBAC, and worker-routed tests are implemented and structured against the live database+Redis fixtures; they will execute when the Docker Compose stack is brought up.
 
 ### What's been implemented (feature branch `009-rag-storage-and-ingestion-foundation` → `010-rag-retrieval-area-search`)
 

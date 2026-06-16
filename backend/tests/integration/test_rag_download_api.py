@@ -12,7 +12,7 @@ async def _login(async_client, email: str, password: str) -> str:
     return response.json()["access_token"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_authenticated_rag_download(async_client, agency_admin_user):
     user, password = agency_admin_user
     token = await _login(async_client, user.email, password)

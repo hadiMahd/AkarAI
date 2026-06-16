@@ -8,7 +8,10 @@ import { useAuth } from "../src/features/auth/useAuth";
 import { apiClient } from "../src/lib/api/client";
 
 vi.mock("../src/features/auth/useAuth");
-vi.mock("../src/lib/api/client");
+vi.mock("../src/lib/api/client", async () => {
+  const actual: any = await vi.importActual("../src/lib/api/client");
+  return { ...actual, apiClient: vi.fn() };
+});
 
 const mockUseAuth = vi.mocked(useAuth);
 const mockApiClient = vi.mocked(apiClient);
@@ -200,9 +203,15 @@ describe("Viewing Booking Flow", () => {
   });
 
   it("shows rate limit error for too many bookings", async () => {
+    const { ApiError } = await import("@/lib/api/client");
     mockApiClient.mockImplementation((endpoint: string, options?: any) => {
       if (endpoint.includes("/viewings") && options?.method === "POST") {
-        return Promise.reject(new Error("Too many viewing bookings"));
+        return Promise.reject(
+          new ApiError("API request failed: Too Many Requests", 429, {
+            detail: "Too many viewing bookings. Please try again later.",
+            error_code: "RATE_LIMIT_EXCEEDED",
+          }),
+        );
       }
       if (endpoint.includes("/viewing-slots")) {
         return Promise.resolve(mockSlots as any);
@@ -221,11 +230,11 @@ describe("Viewing Booking Flow", () => {
     );
     await userEvent.click(slotButtons[0]);
 
-    const bookButton = screen.getByRole("button", { name: /book viewing/i });
+    const bookButton = await screen.findByRole("button", { name: /book viewing/i });
     await userEvent.click(bookButton);
 
     await waitFor(() => {
-      expect(screen.getByText(/too many/i)).toBeInTheDocument();
+      expect(screen.getByText(/booked a lot of viewings|wait a moment/i)).toBeInTheDocument();
     });
   });
 });

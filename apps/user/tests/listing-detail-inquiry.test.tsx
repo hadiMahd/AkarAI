@@ -8,7 +8,10 @@ import { useAuth } from "../src/features/auth/useAuth";
 import { apiClient } from "../src/lib/api/client";
 
 vi.mock("../src/features/auth/useAuth");
-vi.mock("../src/lib/api/client");
+vi.mock("../src/lib/api/client", async () => {
+  const actual: any = await vi.importActual("../src/lib/api/client");
+  return { ...actual, apiClient: vi.fn() };
+});
 
 const mockUseAuth = vi.mocked(useAuth);
 const mockApiClient = vi.mocked(apiClient);
@@ -99,11 +102,12 @@ describe("ListingDetailPage", () => {
   });
 
   it("renders unavailable state when listing not found", async () => {
-    mockApiClient.mockRejectedValue(new Error("Not found"));
+    const { ApiError } = await import("@/lib/api/client");
+    mockApiClient.mockRejectedValue(new ApiError("API request failed: Not Found", 404, { detail: "Listing not found", error_code: "NOT_FOUND" }));
     renderWithProviders(<ListingDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByText(/unavailable/i)).toBeInTheDocument();
+      expect(screen.getByText(/no longer available/i)).toBeInTheDocument();
     });
   });
 
@@ -118,9 +122,15 @@ describe("ListingDetailPage", () => {
   });
 
   it("shows inquiry failure feedback on error", async () => {
+    const { ApiError } = await import("@/lib/api/client");
     mockApiClient.mockImplementation((endpoint: string) => {
       if (endpoint.includes("/inquiries")) {
-        return Promise.reject(new Error("Rate limit exceeded"));
+        return Promise.reject(
+          new ApiError("API request failed: Too Many Requests", 429, {
+            detail: "Too many inquiries. Please try again later.",
+            error_code: "RATE_LIMIT_EXCEEDED",
+          }),
+        );
       }
       if (endpoint.includes("/viewing-slots")) {
         return Promise.resolve([]);
@@ -141,7 +151,7 @@ describe("ListingDetailPage", () => {
     await userEvent.click(submitButton);
 
     await waitFor(() => {
-      expect(screen.getByText(/rate limit/i)).toBeInTheDocument();
+      expect(screen.getByText(/lot of inquiries/i)).toBeInTheDocument();
     });
   });
 
@@ -270,6 +280,7 @@ describe("ListingDetailPage", () => {
     });
 
     it("shows error state when media endpoint fails", async () => {
+      const { ApiError } = await import("@/lib/api/client");
       const mockListingNoImage = {
         ...mockListing,
         thumbnail_url: null,
@@ -277,7 +288,9 @@ describe("ListingDetailPage", () => {
 
       mockApiClient.mockImplementation((endpoint: string) => {
         if (endpoint.includes("/media")) {
-          return Promise.reject(new Error("Media fetch failed"));
+          return Promise.reject(
+            new ApiError("API request failed: Internal Server Error", 500, { detail: "boom" }),
+          );
         }
         if (endpoint.includes("/viewing-slots")) {
           return Promise.resolve([]);
@@ -291,7 +304,7 @@ describe("ListingDetailPage", () => {
         expect(screen.getAllByText("Test Property").length).toBeGreaterThan(0);
       });
 
-      expect(screen.getByText(/failed to load images/i)).toBeInTheDocument();
+      expect(screen.getByText(/couldn't load the photos/i)).toBeInTheDocument();
     });
   });
 });

@@ -49,5 +49,7 @@ class TestAgencyEmployeeAccountCreationAPI:
             },
             headers={"Authorization": f"Bearer {token}"},
         )
-        assert resp.status_code == 422
-        assert "already exists" in resp.json()["detail"]
+        assert resp.status_code == 409
+        body = resp.json()
+        assert "already exists" in body["detail"]
+        assert body["error_code"] == "EMPLOYEE_EMAIL_EXISTS"

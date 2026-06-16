@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Heart, LayoutGrid, Bed, Bath, Maximize, ImageIcon, MapPin, ArrowLeft, AlertCircle } from "lucide-react";
+import { getApiErrorMessage } from "@/lib/api/errors";
 
 export function ListingDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -29,7 +30,9 @@ export function ListingDetailPage() {
   if (error || !listing) {
     return (
       <ErrorState
-        message="Listing unavailable or not found."
+        message={getApiErrorMessage(error, "listing.detail", {
+          fallback: "This listing is no longer available.",
+        })}
         onRetry={() => window.location.reload()}
       />
     );
@@ -105,7 +108,7 @@ export function ListingDetailPage() {
                   {mediaError ? (
                     <>
                       <AlertCircle className="h-8 w-8 text-destructive" />
-                      <p className="text-sm">Failed to load images</p>
+                      <p className="text-sm">{getApiErrorMessage(mediaError, "listing.media")}</p>
                     </>
                   ) : (
                     <>

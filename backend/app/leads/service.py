@@ -9,6 +9,7 @@ from app.common.exceptions import NotFoundError, ForbiddenError, ValidationError
 from app.common.pagination import PaginationRequest, PaginationResult
 from app.common.tenant import TenantContext, require_tenant, ensure_tenant_match
 from app.common.events import write_domain_event_log
+from app.common.config import settings
 from app.leads.models import Lead, ReviewedLeadRecord
 from app.leads.repository import LeadRepository, ReviewedLeadRepository
 from app.listings.repository import ListingRepository
@@ -68,6 +69,56 @@ class LeadService:
             raise NotFoundError(detail="Lead not found")
         ensure_tenant_match(self._tenant, lead.agency_tenant_id)
         return lead
+
+    async def read_only_get_lead(self, lead_id: UUID) -> Lead | None:
+        """Read-only lookup for the agency assistant."""
+        ctx = require_tenant(self._tenant)
+        lead = await self._repo.get_by_id(lead_id)
+        if lead is None:
+            return None
+        if lead.agency_tenant_id != ctx.tenant_id:
+            return None
+        return lead
+
+    async def read_only_list_recent_leads(self, limit: int = 5) -> list[Lead]:
+        """Read-only recent leads lookup for the agency assistant."""
+        from sqlalchemy import select
+
+        from app.leads.models import Lead
+
+        ctx = require_tenant(self._tenant)
+        limit = max(1, min(limit, settings.agency_ai_max_tool_lead_results))
+        stmt = (
+            select(Lead)
+            .where(Lead.agency_tenant_id == ctx.tenant_id)
+            .order_by(Lead.created_at.desc())
+            .limit(limit)
+        )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def read_only_list_leads_by_date(
+        self,
+        *,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
+        limit: int = 5,
+    ) -> list[Lead]:
+        """Read-only date-range leads lookup for the agency assistant."""
+        from sqlalchemy import select
+
+        from app.leads.models import Lead
+
+        ctx = require_tenant(self._tenant)
+        limit = max(1, min(limit, settings.agency_ai_max_tool_lead_results))
+        stmt = select(Lead).where(Lead.agency_tenant_id == ctx.tenant_id)
+        if date_from is not None:
+            stmt = stmt.where(Lead.created_at >= date_from)
+        if date_to is not None:
+            stmt = stmt.where(Lead.created_at <= date_to)
+        stmt = stmt.order_by(Lead.created_at.desc()).limit(limit)
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
 
     async def update_lead_status(self, lead_id: UUID, new_status: str) -> Lead:
         ctx = require_tenant(self._tenant)

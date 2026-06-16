@@ -3,7 +3,7 @@ from typing import Optional
 import base64
 import json
 
-from sqlalchemy import Select, select, or_, and_
+from sqlalchemy import Select, select, or_, and_, func
 from app.listings.models import Listing
 
 
@@ -21,15 +21,35 @@ def decode_cursor(raw: str) -> dict | None:
 
 
 class ListingQueryService:
+    @staticmethod
+    def _normalize_city_filters(city: Optional[str | list[str]]) -> list[str]:
+        if city is None:
+            return []
+
+        raw_values = [city] if isinstance(city, str) else city
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for raw_value in raw_values:
+            stripped = raw_value.strip()
+            if not stripped:
+                continue
+            dedupe_key = stripped.lower()
+            if dedupe_key in seen:
+                continue
+            seen.add(dedupe_key)
+            normalized.append(stripped)
+        return normalized
 
     @staticmethod
     def build_public_search_query(
         location: Optional[str] = None,
-        city: Optional[str] = None,
+        city: Optional[str | list[str]] = None,
         min_price: Optional[float] = None,
         max_price: Optional[float] = None,
         bedrooms: Optional[int] = None,
         bathrooms: Optional[int] = None,
+        parking: Optional[int] = None,
+        floor: Optional[int] = None,
         property_type: Optional[str] = None,
         listing_purpose: Optional[str] = None,
         furnishing: Optional[str] = None,
@@ -47,8 +67,10 @@ class ListingQueryService:
                     Listing.address.ilike(f"%{location}%"),
                 )
             )
-        if city:
-            q = q.where(Listing.city.ilike(f"%{city}%"))
+        # Only exact city strings may be applied; vague location phrases are handled upstream
+        city_filters = ListingQueryService._normalize_city_filters(city)
+        if city_filters:
+            q = q.where(func.lower(Listing.city).in_([value.lower() for value in city_filters]))
         if min_price is not None:
             q = q.where(Listing.price >= min_price)
         if max_price is not None:
@@ -57,6 +79,10 @@ class ListingQueryService:
             q = q.where(Listing.bedrooms >= bedrooms)
         if bathrooms is not None:
             q = q.where(Listing.bathrooms >= bathrooms)
+        if parking is not None:
+            q = q.where(Listing.parking >= parking)
+        if floor is not None:
+            q = q.where(Listing.floor == floor)
         if property_type:
             q = q.where(Listing.property_type == property_type)
         if listing_purpose:

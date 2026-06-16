@@ -8,6 +8,7 @@ from app.common.database import (
 )
 
 
+@pytest.mark.anyio
 class TestDatabaseFoundation:
     @pytest.mark.integration
     async def test_database_connectivity(self):

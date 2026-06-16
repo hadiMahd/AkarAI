@@ -13,6 +13,7 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
         yield c
 
 
+@pytest.mark.anyio
 class TestLifespanLifecycle:
     async def test_app_starts_and_responds(self, client: AsyncClient):
         response = await client.get("/health")

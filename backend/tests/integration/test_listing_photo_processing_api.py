@@ -5,7 +5,7 @@ from unittest.mock import patch, MagicMock
 from uuid import uuid4
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_worker_processes_uploaded_image(async_client, db_session):
     """Test that the worker processes uploaded images."""
     # This test verifies the worker handler can be called
@@ -29,7 +29,7 @@ async def test_worker_processes_uploaded_image(async_client, db_session):
     assert callable(handle_listing_image_uploaded)
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_worker_handles_missing_fields_gracefully():
     """Test that worker handles missing fields in payload gracefully."""
     from workers.handlers.listing_media import handle_listing_image_uploaded
@@ -46,7 +46,7 @@ async def test_worker_handles_missing_fields_gracefully():
     await handle_listing_image_uploaded(mock_conn, payload)
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_worker_handles_moderation_failure():
     """Test that worker handles moderation service failure gracefully (fail-closed)."""
     from workers.handlers.listing_media import _run_nsfw_moderation

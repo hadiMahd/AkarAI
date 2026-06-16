@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY requirements.txt requirements.shared.txt requirements.backend.txt ./
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install -r requirements.txt && \
     python -m spacy download en_core_web_sm

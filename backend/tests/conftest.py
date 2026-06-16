@@ -11,7 +11,27 @@ os.environ["APP_ENV"] = "testing"
 import app.common.database as _db_module
 from app.common.rls import apply_rls_context_to_session
 
-_orig_factory = _db_module.async_session_factory
+# ── Test engine: NullPool prevents asyncpg connections from being bound to a
+# specific event loop.  Anyio and pytest-asyncio create separate loop instances;
+# without NullPool, a connection acquired on loop-A fails with
+# "Future attached to a different loop" when the next test runs on loop-B.
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
+
+_test_engine = create_async_engine(
+    _db_module.engine.url,
+    poolclass=NullPool,
+    echo=False,
+)
+_db_module.engine = _test_engine
+_test_base_factory = async_sessionmaker(
+    _test_engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+)
+_db_module.async_session_factory = _test_base_factory
+
+_orig_factory = _test_base_factory
 
 
 class _TestAsyncSession:
@@ -63,18 +83,24 @@ from app.common.events import DomainEventLog, OutboxEvent, InboxEvent
 from app.rag.models import RagDocument, RagPage, RagChunk, RagRetrievalLog
 
 
-@pytest.fixture(autouse=True)
-async def clear_rate_limits():
-    from app.common.database import engine
+@pytest.fixture(scope="session", autouse=True)
+async def cleanup_test_infra():
     from app.common.redis import close_redis, redis_scan_delete
 
-    await engine.dispose()
-    await close_redis()
     await redis_scan_delete("ratelimit:*")
     yield
     await redis_scan_delete("ratelimit:*")
     await close_redis()
-    await engine.dispose()
+    await _test_engine.dispose()
+
+
+@pytest.fixture(autouse=True)
+async def clear_rate_limits():
+    from app.common.redis import redis_scan_delete
+
+    await redis_scan_delete("ratelimit:*")
+    yield
+    await redis_scan_delete("ratelimit:*")
 
 
 @pytest.fixture(scope="session")

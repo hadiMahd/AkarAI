@@ -18,6 +18,7 @@ export const queryKeys = {
   listings: {
     all: ["listings"] as const,
     lists: (filters: Record<string, unknown>) => ["listings", "list", filters] as const,
+    cities: ["listings", "cities"] as const,
     details: (id: string) => ["listings", "detail", id] as const,
     saved: ["listings", "saved"] as const,
     media: (listingId: string) => ["listings", listingId, "media"] as const,
@@ -26,5 +27,12 @@ export const queryKeys = {
   profile: {
     inquiries: ["profile", "inquiries"] as const,
     viewings: ["profile", "viewings"] as const,
+  },
+  search: {
+    intent: (q: string) => ["search", "intent", q] as const,
+    confirmation: ["search", "confirmation"] as const,
+  },
+  comparison: {
+    summary: (ids: string[]) => ["comparison", "summary", ...ids] as const,
   },
 } as const;

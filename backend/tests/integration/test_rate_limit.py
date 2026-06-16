@@ -5,6 +5,7 @@ import pytest
 from app.common.rate_limit import check_rate_limit
 
 
+@pytest.mark.anyio
 class TestRateLimit:
     @pytest.mark.integration
     async def test_first_request_allowed(self):

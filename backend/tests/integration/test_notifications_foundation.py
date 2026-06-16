@@ -8,6 +8,7 @@ from app.notifications.repository import NotificationRepository
 from app.notifications.service import NotificationService
 
 
+@pytest.mark.anyio
 class TestNotificationsFoundation:
     @pytest.mark.integration
     async def test_create_notification(self):

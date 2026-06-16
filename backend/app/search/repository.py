@@ -29,6 +29,86 @@ class SearchLogRepository(BaseRepository):
         await self.session.flush()
         return log
 
+    async def create_manual_search_log(
+        self,
+        user_id: Optional[UUID],
+        filters: dict,
+        sort: Optional[str],
+        result_count: int,
+    ) -> SearchLog:
+        log = SearchLog(
+            user_id=user_id,
+            source_mode="manual",
+            event_type="manual_search",
+            filters=filters,
+            sort=sort,
+            result_count=result_count,
+        )
+        return await self.create(log)
+
+    async def create_ai_text_search_log(
+        self,
+        user_id: Optional[UUID],
+        raw_query_redacted: Optional[str],
+        intent: Optional[dict],
+        filters: dict,
+        result_count: int,
+        provider: Optional[str] = None,
+        fallback_reason: Optional[str] = None,
+    ) -> SearchLog:
+        log = SearchLog(
+            user_id=user_id,
+            source_mode="ai_text",
+            event_type="ai_text_search",
+            raw_query_redacted=raw_query_redacted,
+            intent=intent,
+            filters=filters,
+            result_count=result_count,
+            provider=provider,
+            fallback_reason=fallback_reason,
+        )
+        return await self.create(log)
+
+    async def create_voice_search_log(
+        self,
+        user_id: Optional[UUID],
+        transcript_redacted: Optional[str],
+        intent: Optional[dict],
+        filters: dict,
+        result_count: int,
+        provider: Optional[str] = None,
+        fallback_reason: Optional[str] = None,
+    ) -> SearchLog:
+        log = SearchLog(
+            user_id=user_id,
+            source_mode="voice",
+            event_type="voice_search",
+            transcript_redacted=transcript_redacted,
+            intent=intent,
+            filters=filters,
+            result_count=result_count,
+            provider=provider,
+            fallback_reason=fallback_reason,
+        )
+        return await self.create(log)
+
+    async def create_confirmation_log(
+        self,
+        user_id: Optional[UUID],
+        source_mode: str,
+        filters: dict,
+        edits: Optional[list] = None,
+    ) -> SearchLog:
+        log = SearchLog(
+            user_id=user_id,
+            source_mode=source_mode,
+            event_type="search_confirmation",
+            filters=filters,
+            intent={"edits": edits} if edits else None,
+            result_count=0,
+        )
+        return await self.create(log)
+
 
 class DomainLogRepository(BaseRepository):
     async def list_by_tenant(

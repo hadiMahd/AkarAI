@@ -27,6 +27,11 @@ def get_provider(name: str) -> object:
 
         register_provider(name, get_azure_openai_provider())
         return _registry[name]
+    if name == "azure_stt":
+        from app.ai.azure_openai import get_azure_stt_provider
+
+        register_provider(name, get_azure_stt_provider())
+        return _registry[name]
     raise KeyError(f"Provider '{name}' not registered. Available: {list(_registry.keys())}")
 
 
@@ -50,4 +55,25 @@ def get_reranking_provider() -> RerankingProvider:
         register_provider(provider_name, get_openrouter_reranking_provider())
     provider = get_provider(provider_name)
     assert isinstance(provider, RerankingProvider)
+    return provider
+
+
+def get_stt_provider() -> STTProvider:
+    name = "azure_stt"
+    if name not in _registry:
+        from app.ai.azure_openai import get_azure_stt_provider
+        register_provider(name, get_azure_stt_provider())
+    provider = get_provider(name)
+    assert isinstance(provider, STTProvider), f"Provider '{name}' does not implement STTProvider"
+    return provider
+
+
+def get_ocr_provider() -> OCRProvider:
+    name = settings.ocr_provider or "azure_computer_vision_read"
+    if name not in _registry:
+        if name == "azure_computer_vision_read":
+            from app.ai.azure_openai import get_azure_cv_ocr_provider
+            register_provider(name, get_azure_cv_ocr_provider())
+    provider = get_provider(name)
+    assert isinstance(provider, OCRProvider), f"Provider '{name}' does not implement OCRProvider"
     return provider

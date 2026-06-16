@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { getApiErrorMessage } from "@/lib/api/errors";
 
 export function SignInForm() {
   const { signIn, isSigningIn, signInError } = useAuth();
@@ -20,6 +21,8 @@ export function SignInForm() {
     }
   };
 
+  const errorMessage = signInError ? getApiErrorMessage(signInError, "auth.signin") : null;
+
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
@@ -28,9 +31,9 @@ export function SignInForm() {
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
-          {signInError && (
-            <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md">
-              Invalid email or password. Please try again.
+          {errorMessage && (
+            <div role="alert" className="p-3 text-sm text-destructive bg-destructive/10 rounded-md">
+              {errorMessage}
             </div>
           )}
           <div className="space-y-2">

@@ -27,6 +27,7 @@ from app.leads.models import Lead, LeadSpamResult, LeadLevelResult, LeadSuggeste
 from app.viewings.models import ListingViewingSlot, ScheduledViewing, ScheduledViewingStatusHistory  # noqa: F401
 from app.search.models import SearchLog  # noqa: F401
 from app.rag.models import RagDocument, RagPage, RagChunk, RagRetrievalLog  # noqa: F401
+from app.cities.models import City  # noqa: F401
 
 target_metadata = Base.metadata
 

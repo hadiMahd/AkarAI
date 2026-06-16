@@ -1,0 +1,5 @@
+{"audio_description": "clear voice: 3 bedroom villa in Jounieh", "expected_transcript": "3 bedroom villa in Jounieh", "expected_filters": {"bedrooms": 3, "property_type": "villa", "city": "Jounieh"}, "confidence": "usable"}
+{"audio_description": "clear voice: apartment for rent with 2 bathrooms", "expected_transcript": "apartment for rent with 2 bathrooms", "expected_filters": {"listing_purpose": "rent", "bathrooms": 2}, "confidence": "usable"}
+{"audio_description": "mumbled audio: unclear speech", "expected_transcript": "", "confidence": "unclear"}
+{"audio_description": "silent recording", "expected_transcript": "", "confidence": "empty"}
+{"audio_description": "clear voice: floor 4 with parking space", "expected_transcript": "floor 4 with parking space", "expected_filters": {"floor": 4, "parking": 1}, "confidence": "usable"}

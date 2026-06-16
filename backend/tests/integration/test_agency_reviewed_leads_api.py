@@ -8,7 +8,7 @@ from app.leads.models import Lead
 from app.common.tenant import TenantContext
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_list_tenant_leads_filtered_by_reviewed():
     mock_session = AsyncMock()
     mock_tenant = TenantContext(
@@ -36,7 +36,7 @@ async def test_list_tenant_leads_filtered_by_reviewed():
         assert call_args[1]["reviewed"] is False
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_list_tenant_leads_filtered_by_status():
     mock_session = AsyncMock()
     mock_tenant = TenantContext(

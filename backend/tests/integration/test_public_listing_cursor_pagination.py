@@ -217,3 +217,11 @@ class TestPublicListingCursorPagination:
         assert "next_cursor" in data2
         assert data2["page"] == 1
         assert data2["page_size"] == 2
+
+    async def test_cursor_pagination_with_parking_filter(self, async_client: AsyncClient):
+        # Verify that parking filter is accepted alongside cursor-based pagination
+        resp = await async_client.get("/listings?parking=1&page_size=5")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "items" in data
+        assert "next_cursor" in data

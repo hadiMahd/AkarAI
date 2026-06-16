@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CheckCircle, AlertCircle } from "lucide-react";
+import { getApiErrorMessage } from "@/lib/api/errors";
 
 interface BookingFormProps {
   listingId: string;
@@ -80,7 +81,9 @@ export function BookingForm({ listingId }: BookingFormProps) {
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
-                    {bookViewing.error.message || "Failed to book viewing. Please try again."}
+                    {getApiErrorMessage(bookViewing.error, "viewing.book", {
+                      fallback: "We couldn't book that viewing. Try again in a moment.",
+                    })}
                   </AlertDescription>
                 </Alert>
               )}

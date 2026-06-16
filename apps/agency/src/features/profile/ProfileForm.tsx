@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { getApiErrorMessage } from "@/lib/api/errors";
 
 export function ProfileForm() {
   const { profile, isLoading, updateProfile, isUpdating, updateError } = useAgencyProfile();
@@ -81,9 +82,9 @@ export function ProfileForm() {
             </div>
           )}
           {updateError && (
-            <div className="flex items-center gap-2 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+            <div role="alert" className="flex items-center gap-2 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
               <AlertCircle className="h-4 w-4" />
-              <span>Failed to update profile</span>
+              <span>{getApiErrorMessage(updateError, "agency.profile.update", { fallback: "We couldn't save your changes. Try again in a moment." })}</span>
             </div>
           )}
           <div className="grid gap-4 md:grid-cols-2">

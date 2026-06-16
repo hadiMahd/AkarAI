@@ -3,6 +3,7 @@ import pytest
 from app.auth.service import blacklist_token, is_token_blacklisted
 
 
+@pytest.mark.anyio
 class TestTokenInvalidation:
     @pytest.mark.integration
     async def test_blacklist_and_check(self):

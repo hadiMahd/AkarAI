@@ -44,6 +44,54 @@ class ListingService:
         ensure_tenant_match(self._tenant, listing.agency_tenant_id)
         return listing
 
+    async def read_only_get_listing(self, listing_id: UUID) -> Listing | None:
+        """Read-only lookup for the agency assistant. No RBAC check beyond
+        the existing tenant context. Returns None if the listing is not in
+        the current tenant, so the assistant can refuse gracefully.
+        """
+        ctx = require_tenant(self._tenant)
+        listing = await self._repo.get_by_id(listing_id)
+        if listing is None:
+            return None
+        if listing.agency_tenant_id != ctx.tenant_id:
+            return None
+        return listing
+
+    async def read_only_search_listings(
+        self,
+        *,
+        query: str | None = None,
+        status: str | None = None,
+        limit: int = 5,
+    ) -> list[Listing]:
+        """Read-only tenant-scoped search for the agency assistant.
+
+        Only supports lightweight substring-style filters; the assistant
+        tool must never be a backdoor into the broader search subsystem.
+        """
+        from sqlalchemy import or_, select
+
+        from app.listings.models import Listing
+
+        ctx = require_tenant(self._tenant)
+        limit = max(1, min(limit, settings.agency_ai_max_tool_listing_results))
+        stmt = select(Listing).where(Listing.agency_tenant_id == ctx.tenant_id)
+        if status:
+            stmt = stmt.where(Listing.status == status)
+        if query:
+            like = f"%{query[:80]}%"
+            stmt = stmt.where(
+                or_(
+                    Listing.title.ilike(like),
+                    Listing.address.ilike(like),
+                    Listing.city.ilike(like),
+                    Listing.location_text.ilike(like),
+                )
+            )
+        stmt = stmt.order_by(Listing.updated_at.desc()).limit(limit)
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
     async def create_listing(self, data: dict) -> Listing:
         ctx = require_tenant(self._tenant)
         if ctx.role == "support_employee":
@@ -378,7 +426,10 @@ class ListingService:
         try:
             upload_object(bucket, object_key, file_bytes, media_metadata["content_type"])
         except Exception as e:
-            raise ValidationError(detail=f"Failed to store image: {e}")
+            raise ServiceUnavailableError(
+                detail="We couldn't store this image right now. Try again in a moment.",
+                error_code="PHOTO_STORAGE_FAILED",
+            ) from e
 
         # Calculate display order
         if display_order is None or display_order == 0:
