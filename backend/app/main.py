@@ -190,3 +190,8 @@ app.include_router(analytics_router)
 app.include_router(rag_doc_router)
 app.include_router(rag_chat_router)
 app.include_router(rag_retrieval_router)
+
+from app.ai.router import agency_ai_router, user_ai_router
+
+app.include_router(agency_ai_router)
+app.include_router(user_ai_router)

@@ -32,4 +32,7 @@ export const queryKeys = {
     intent: (q: string) => ["search", "intent", q] as const,
     confirmation: ["search", "confirmation"] as const,
   },
+  comparison: {
+    summary: (ids: string[]) => ["comparison", "summary", ...ids] as const,
+  },
 } as const;

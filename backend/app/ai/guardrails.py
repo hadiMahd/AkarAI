@@ -68,7 +68,7 @@ def _build_grounded_messages(
     *,
     query: str,
     evidence_blocks: list[str],
-    conversation_messages: list[dict[str, str]],
+    conversation_messages: list[dict[str, str]] | None,
     confidence_status: str,
 ) -> list[dict[str, str]]:
     system_prompt = (
@@ -91,7 +91,7 @@ def _build_grounded_messages(
     )
     return [
         {"role": "system", "content": system_prompt},
-        *conversation_messages,
+        *(conversation_messages or []),
         {"role": "user", "content": user_prompt},
     ]
 
@@ -265,4 +265,151 @@ def _blocked_output(decision, generation_provider: str | None) -> GuardrailedGen
         guardrail_status="blocked",
         blocked_reason=decision.reason or decision.category or "unsafe_output",
         generation_provider=generation_provider,
+    )
+
+
+_PROMPT_INJECTION_PATTERNS_AGENCY = (
+    r"ignore (all|any|previous) instructions",
+    r"reveal (the )?(system prompt|hidden prompt)",
+    r"(show|print|dump) (the )?(system prompt|developer prompt)",
+    r"(api[_ -]?key|secret|password|token)",
+)
+
+_OUT_OF_SCOPE_PATTERNS_AGENCY = (
+    r"write me code",
+    r"tell me a joke",
+    r"what('?s| is) the weather",
+    r"capital of france",
+    r"how (do|can) I (hack|steal|attack|break into)",
+)
+
+
+def _detect_block_reason_agency(query: str) -> str | None:
+    for pattern in _PROMPT_INJECTION_PATTERNS_AGENCY:
+        if re.search(pattern, query, re.IGNORECASE):
+            return "prompt_injection_attempt"
+    for pattern in _OUT_OF_SCOPE_PATTERNS_AGENCY:
+        if re.search(pattern, query, re.IGNORECASE):
+            return "out_of_scope_request"
+    return None
+
+
+async def generate_guardrailed_agency_text(
+    *,
+    system_prompt: str,
+    user_prompt: str,
+    tenant_context: TenantContext,
+    conversation_messages: list[dict[str, str]] | None = None,
+) -> GuardrailedGenerationResult:
+    """Shared guardrailed generation helper for non-policy agency outputs
+    (listing drafts, lead reply drafts, comparison summaries). Routes
+    through the configured chat provider and OpenRouter content safety.
+    """
+    del tenant_context  # Reserved for future tenant-aware guard policies.
+
+    blocked_reason = _detect_block_reason_agency(user_prompt)
+    if blocked_reason:
+        return GuardrailedGenerationResult(
+            answer_text="",
+            guardrail_status="blocked",
+            blocked_reason=blocked_reason,
+            generation_provider=None,
+        )
+
+    input_safety = await _judge_content_safety(
+        user_prompt=user_prompt,
+        assistant_response=None,
+        stage="input",
+    )
+    if input_safety is not None and not input_safety.safe:
+        return GuardrailedGenerationResult(
+            answer_text="",
+            guardrail_status="blocked",
+            blocked_reason=input_safety.reason or input_safety.category or "unsafe_prompt",
+            generation_provider="openrouter_content_safety",
+        )
+
+    messages = _build_grounded_messages(
+        query=user_prompt,
+        evidence_blocks=[],
+        conversation_messages=conversation_messages,
+        confidence_status="agency_draft",
+    )
+
+    try:
+        chat_provider = get_chat_provider()
+        response: dict[str, Any] = await chat_provider.chat(messages, temperature=0.2)
+        answer_text = (response.get("text") or "").strip()
+    except Exception:
+        logger.exception("Agency AI chat provider failed")
+        return GuardrailedGenerationResult(
+            answer_text="",
+            guardrail_status="failed",
+            blocked_reason="provider_unavailable",
+            generation_provider=None,
+        )
+
+    if not answer_text:
+        return GuardrailedGenerationResult(
+            answer_text="",
+            guardrail_status="blocked",
+            blocked_reason="empty_response",
+            generation_provider=None,
+        )
+
+    if re.search(r"(system prompt|developer prompt|api[_ -]?key|secret)", answer_text, re.IGNORECASE):
+        return GuardrailedGenerationResult(
+            answer_text="",
+            guardrail_status="blocked",
+            blocked_reason="unsafe_output_blocked",
+            generation_provider=settings.ai_primary_provider,
+        )
+
+    output_safety = await _judge_content_safety(
+        user_prompt=user_prompt,
+        assistant_response=answer_text,
+        stage="output",
+    )
+    if output_safety is not None and not output_safety.safe:
+        return GuardrailedGenerationResult(
+            answer_text="",
+            guardrail_status="blocked",
+            blocked_reason=output_safety.reason or output_safety.category or "unsafe_output",
+            generation_provider=settings.ai_primary_provider,
+        )
+
+    return GuardrailedGenerationResult(
+        answer_text=answer_text,
+        guardrail_status=(
+            "passed"
+            if _content_safety_configured()
+            else "degraded" if settings.ai_guardrails_enabled else "bypassed"
+        ),
+        generation_provider=settings.ai_primary_provider,
+    )
+
+
+async def generate_guardrailed_agency_draft(
+    *,
+    query: str,
+    system_prompt: str,
+    user_prompt: str,
+    tenant_context: TenantContext,
+) -> GuardrailedGenerationResult:
+    """Convenience wrapper for agency draft generation. Re-runs prompt
+    injection detection on the originating user query for defense in
+    depth, then delegates to the shared agency text helper.
+    """
+    blocked_reason = _detect_block_reason_agency(query)
+    if blocked_reason:
+        return GuardrailedGenerationResult(
+            answer_text="",
+            guardrail_status="blocked",
+            blocked_reason=blocked_reason,
+            generation_provider=None,
+        )
+    return await generate_guardrailed_agency_text(
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        tenant_context=tenant_context,
     )

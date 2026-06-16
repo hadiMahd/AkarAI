@@ -1,22 +1,44 @@
 import { useState, type FormEvent } from "react";
 import { useLeadDetail } from "./useAgencyLeads";
+import { useLeadReplyDraft } from "@/features/agencyAi/useAgencyAi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Sparkles, Loader2, Mail, MessageSquareText, Send } from "lucide-react";
 import { useParams, Link, useNavigate } from "react-router-dom";
+import { getApiErrorMessage } from "@/lib/api/errors";
+
+type Channel = "email" | "whatsapp";
+
+interface ReplyDraft {
+  channel: Channel;
+  subject?: string | null;
+  body?: string | null;
+}
+
+function buildWhatsAppUrl(phone: string, body: string) {
+  const cleaned = phone.replace(/[^\d+]/g, "");
+  return `https://wa.me/${cleaned}?text=${encodeURIComponent(body)}`;
+}
+
+function buildMailtoUrl(email: string, subject: string | null | undefined, body: string | null | undefined) {
+  const params = new URLSearchParams();
+  if (subject) params.set("subject", subject);
+  if (body) params.set("body", body);
+  return `mailto:${email}?${params.toString()}`;
+}
 
 export function LeadReviewForm() {
   const { leadId } = useParams();
   const navigate = useNavigate();
   const { lead, isLoading, reviewLead, isReviewing } = useLeadDetail(leadId || "");
-  const [formData, setFormData] = useState({
-    outcome: "",
-    notes: "",
-  });
+  const replyDraftMutation = useLeadReplyDraft();
+  const [formData, setFormData] = useState({ outcome: "", notes: "" });
   const [successMessage, setSuccessMessage] = useState("");
+  const [draftingChannel, setDraftingChannel] = useState<Channel | null>(null);
+  const [replyDraft, setReplyDraft] = useState<ReplyDraft | null>(null);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -26,6 +48,17 @@ export function LeadReviewForm() {
       setTimeout(() => navigate("/leads"), 1500);
     } catch {
       // Error is handled by the mutation
+    }
+  };
+
+  const handleDraftReply = async (channel: Channel) => {
+    if (!leadId) return;
+    setDraftingChannel(channel);
+    try {
+      const result = await replyDraftMutation.mutateAsync({ leadId, channel });
+      setReplyDraft({ channel, subject: result.subject, body: result.body });
+    } finally {
+      setDraftingChannel(null);
     }
   };
 
@@ -150,6 +183,87 @@ export function LeadReviewForm() {
           </CardContent>
         </Card>
       )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4" />
+            AI reply draft
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void handleDraftReply("email")}
+              disabled={draftingChannel !== null}
+            >
+              {draftingChannel === "email" ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Mail className="mr-2 h-4 w-4" />
+              )}
+              {draftingChannel === "email" ? "Drafting…" : "Draft email reply"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void handleDraftReply("whatsapp")}
+              disabled={draftingChannel !== null}
+            >
+              {draftingChannel === "whatsapp" ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <MessageSquareText className="mr-2 h-4 w-4" />
+              )}
+              {draftingChannel === "whatsapp" ? "Drafting…" : "Draft WhatsApp reply"}
+            </Button>
+          </div>
+
+          {replyDraftMutation.error && (
+            <p className="text-sm text-destructive">
+              {getApiErrorMessage(replyDraftMutation.error, "agencyAi.leadReply.draft")}
+            </p>
+          )}
+
+          {replyDraft && (
+            <div className="rounded-md border bg-muted/30 p-4 space-y-3 text-sm">
+              {replyDraft.subject && (
+                <p className="font-medium">Subject: {replyDraft.subject}</p>
+              )}
+              <p className="whitespace-pre-wrap">{replyDraft.body}</p>
+
+              <div className="pt-1 flex flex-wrap gap-2">
+                {replyDraft.channel === "email" && lead.email && (
+                  <Button asChild size="sm" variant="default">
+                    <a
+                      href={buildMailtoUrl(lead.email, replyDraft.subject, replyDraft.body)}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <Send className="mr-2 h-3 w-3" />
+                      Open in email
+                    </a>
+                  </Button>
+                )}
+                {replyDraft.channel === "whatsapp" && lead.phone && (
+                  <Button asChild size="sm" variant="default">
+                    <a
+                      href={buildWhatsAppUrl(lead.phone, replyDraft.body ?? "")}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <MessageSquareText className="mr-2 h-3 w-3" />
+                      Open in WhatsApp
+                    </a>
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Button variant="outline" asChild>
         <Link to="/leads">Back to Leads</Link>

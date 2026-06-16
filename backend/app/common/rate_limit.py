@@ -97,3 +97,41 @@ async def check_phase4_rate_limit(
         max_requests=limits["max_requests"],
         window_seconds=limits["window_seconds"],
     )
+
+
+PHASE12_AI_RATE_LIMITS = {
+    "agency_ai:ocr": {
+        "max_requests": settings.agency_ai_ocr_rate_limit_max_requests,
+        "window_seconds": settings.agency_ai_ocr_rate_limit_window_seconds,
+    },
+    "agency_ai:listing_draft": {
+        "max_requests": settings.agency_ai_listing_draft_rate_limit_max_requests,
+        "window_seconds": settings.agency_ai_listing_draft_rate_limit_window_seconds,
+    },
+    "agency_ai:lead_reply": {
+        "max_requests": settings.agency_ai_lead_reply_rate_limit_max_requests,
+        "window_seconds": settings.agency_ai_lead_reply_rate_limit_window_seconds,
+    },
+    "agency_ai:comparison_summary": {
+        "max_requests": settings.agency_ai_comparison_summary_rate_limit_max_requests,
+        "window_seconds": settings.agency_ai_comparison_summary_rate_limit_window_seconds,
+    },
+}
+
+
+async def check_agency_ai_rate_limit(
+    action: str,
+    identifier: str,
+    max_requests: int | None = None,
+    window_seconds: int | None = None,
+) -> bool:
+    limits = PHASE12_AI_RATE_LIMITS.get(
+        action,
+        {"max_requests": settings.rate_limit_default_max_requests, "window_seconds": settings.rate_limit_default_window_seconds},
+    )
+    return await check_rate_limit(
+        key_type=action,
+        identifier=identifier,
+        max_requests=max_requests if max_requests is not None else limits["max_requests"],
+        window_seconds=window_seconds if window_seconds is not None else limits["window_seconds"],
+    )

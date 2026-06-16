@@ -1,8 +1,9 @@
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Heart, Bed, Bath, Maximize } from "lucide-react";
+import { Heart, Bed, Bath, Maximize, LayoutGrid } from "lucide-react";
 import { useSavedListings } from "@/features/saved-listings/useSavedListings";
+import { useSessionComparison } from "@/features/comparison/sessionComparison";
 
 interface Listing {
   id: string;
@@ -28,7 +29,9 @@ interface ListingCardProps {
 
 export function ListingCard({ listing }: ListingCardProps) {
   const { toggleSaved, isSaved: checkIsSaved } = useSavedListings();
+  const { addToComparison, isInComparison, canAddMore } = useSessionComparison();
   const isSaved = checkIsSaved(listing.id);
+  const inComparison = isInComparison(listing.id);
 
   const formatPrice = (price: number | null, currency: string | null) => {
     if (price === null || !currency) {
@@ -105,9 +108,21 @@ export function ListingCard({ listing }: ListingCardProps) {
           </span>
         </div>
       </CardContent>
-      <CardFooter className="p-4 pt-0">
-        <Button asChild className="w-full">
+      <CardFooter className="p-4 pt-0 flex gap-2">
+        <Button asChild className="flex-1">
           <Link to={`/listings/${listing.id}`}>View Details</Link>
+        </Button>
+        <Button
+          variant={inComparison ? "default" : "outline"}
+          size="icon"
+          onClick={(e) => {
+            e.preventDefault();
+            addToComparison(listing);
+          }}
+          disabled={inComparison || !canAddMore}
+          title={inComparison ? "In comparison" : canAddMore ? "Add to comparison" : "Comparison full"}
+        >
+          <LayoutGrid className="h-4 w-4" />
         </Button>
       </CardFooter>
     </Card>

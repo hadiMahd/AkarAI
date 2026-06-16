@@ -107,6 +107,13 @@ try:
 except ImportError as e:
     logger.warning("Could not import RAG handlers: %s", e)
 
+# Import and register agency AI handlers
+try:
+    from handlers.agency_ai import handle_agency_ai_spec_sheet_uploaded
+    register_event_handler("agency_ai.spec_sheet_uploaded")(handle_agency_ai_spec_sheet_uploaded)
+except ImportError as e:
+    logger.warning("Could not import agency AI handlers: %s", e)
+
 
 async def _poll_loop() -> None:
     from outbox import claim_and_dispatch

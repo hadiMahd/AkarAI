@@ -35,6 +35,7 @@ dist/
 build/
 *.tsbuildinfo
 .next/
+.vite/
 
 # IDE
 .vscode/
@@ -81,3 +82,6 @@ backend/alembic/versions/*_backup_*
 vault-data/
 
 .local-production-hardening-notes.md
+.claude/
+
+azureocr.txt

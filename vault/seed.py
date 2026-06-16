@@ -168,6 +168,36 @@ def main() -> None:
 
     print(f"[seed] akarai/openrouter seeded ({', '.join(openrouter_source)})")
 
+    # Seed Azure OCR / Computer Vision config (optional)
+    azure_cv_endpoint = (
+        dotenv.get("AZURE_CV_ENDPOINT", "")
+        or dotenv.get("AZURE_OCR_ENDPOINT", "")
+    ).strip()
+    azure_cv_api_key = (
+        dotenv.get("AZURE_CV_API_KEY", "")
+        or dotenv.get("AZURE_OCR_API_KEY", "")
+    ).strip()
+    azure_cv_source = []
+    if azure_cv_endpoint:
+        azure_cv_source.append("endpoint: .env")
+    else:
+        azure_cv_source.append("endpoint: not set")
+    if azure_cv_api_key:
+        azure_cv_source.append("api_key: .env")
+    else:
+        azure_cv_source.append("api_key: not set")
+
+    client.secrets.kv.v2.create_or_update_secret(
+        path="azure_cv",
+        secret={
+            "endpoint": azure_cv_endpoint,
+            "api_key": azure_cv_api_key,
+        },
+        mount_point="akarai",
+    )
+
+    print(f"[seed] akarai/azure_cv seeded ({', '.join(azure_cv_source)})")
+
 
 if __name__ == "__main__":
     try:

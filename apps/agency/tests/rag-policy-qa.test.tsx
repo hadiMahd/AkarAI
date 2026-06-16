@@ -485,3 +485,123 @@ describe("Pending assistant bubble", () => {
     });
   });
 });
+
+describe("Operational assistant answers", () => {
+  beforeEach(() => {
+    vi.mocked(getTenantSession).mockReturnValue({
+      userId: "user-1", tenantId: "tenant-1",
+      role: "support_employee", permissions: [], isActive: true,
+    });
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("renders operational answer (lead summary) for 'last 5 leads'", async () => {
+    let resolveSend: (v: unknown) => void;
+    vi.mocked(apiClient).mockImplementation(async (endpoint, opts) => {
+      if (typeof endpoint === "string" && /\/messages$/.test(endpoint)) {
+        return new Promise((res) => { resolveSend = res; });
+      }
+      if (endpoint === "/api/v1/agencies/rag/documents" && (!opts?.method || opts.method === "GET")) {
+        return {
+          items: [
+            { id: "doc-1", tenant_id: "tenant-1", filename: "policy.pdf", status: "processed", blob_path: "rag-vault/tenant-1/doc-1/original/policy.pdf", created_at: "2025-01-15T00:00:00Z", updated_at: "2025-01-15T00:00:00Z" },
+          ],
+          total: 1, page: 1, size: 20,
+        };
+      }
+      if (endpoint === "/api/v1/agencies/rag/chat/threads" && (!opts?.method || opts.method === "GET")) {
+        return {
+          items: [
+            { id: "thread-1", tenant_id: "tenant-1", owner_user_id: "user-1", title: "Operational queries", message_count: 2, created_at: "2025-01-15T00:00:00Z", updated_at: "2025-01-15T00:00:01Z", last_message_at: "2025-01-15T00:00:01Z" },
+          ],
+          total: 1, page: 1, size: 20,
+        };
+      }
+      if (endpoint === "/api/v1/agencies/rag/chat/threads/thread-1") {
+        return {
+          thread: { id: "thread-1", tenant_id: "tenant-1", owner_user_id: "user-1", title: "Operational queries", message_count: 2, created_at: "2025-01-15T00:00:00Z", updated_at: "2025-01-15T00:00:01Z", last_message_at: "2025-01-15T00:00:01Z" },
+          messages: [
+            { id: "msg-user-0", thread_id: "thread-1", tenant_id: "tenant-1", owner_user_id: "user-1", role: "user", content: "hello", sequence_number: 1, created_at: "2025-01-15T00:00:00Z" },
+            { id: "msg-assistant-0", thread_id: "thread-1", tenant_id: "tenant-1", owner_user_id: "user-1", role: "assistant", content: "Hi there", sequence_number: 2, created_at: "2025-01-15T00:00:01Z", answer: { status: "answered", answer: "Hi there", citations: [], evidence: [], debug: { reranker_used: false, reranker_provider: null, fallback_reason: null, confidence_status: "sufficient", retrieval_log_id: "log-0", vector_candidate_count: 0, rerank_candidate_count: 0 } } },
+          ],
+        };
+      }
+      return { items: [], total: 0, page: 1, size: 20 };
+    });
+
+    renderWithProviders(<RagAssistantPage />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: /operational queries/i }));
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/message the policy assistant/i)).toBeInTheDocument();
+    });
+    await user.type(
+      screen.getByPlaceholderText(/message the policy assistant/i),
+      "show me the last 5 leads",
+    );
+    fireEvent.click(screen.getByRole("button", { name: /send/i }));
+    await waitFor(() => expect(screen.getByTestId("pending-assistant-bubble")).toBeInTheDocument());
+
+    resolveSend({
+      thread: {
+        id: "thread-1", tenant_id: "tenant-1", owner_user_id: "user-1",
+        title: "Operational queries", message_count: 4,
+        created_at: "2025-01-15T00:00:00Z", updated_at: "2025-01-15T00:00:03Z",
+        last_message_at: "2025-01-15T00:00:03Z",
+      },
+      user_message: {
+        id: "msg-user-op", thread_id: "thread-1", tenant_id: "tenant-1",
+        owner_user_id: "user-1", role: "user",
+        content: "show me the last 5 leads", sequence_number: 3,
+        created_at: "2025-01-15T00:00:02Z",
+      },
+      assistant_message: {
+        id: "msg-assistant-op", thread_id: "thread-1", tenant_id: "tenant-1",
+        owner_user_id: "user-1", role: "assistant",
+        content: "Here are the most recent leads in your tenant: Layla status new email layla@example.com",
+        sequence_number: 4, created_at: "2025-01-15T00:00:03Z",
+        answer: {
+          status: "answered",
+          answer: "Here are the most recent leads in your tenant: Layla status new email layla@example.com",
+          citations: [], evidence: [],
+          debug: {
+            reranker_used: false, reranker_provider: null, fallback_reason: null,
+            confidence_status: "sufficient", retrieval_log_id: "log-op",
+            vector_candidate_count: 0, rerank_candidate_count: 0,
+            tool_invocations: [
+              { tool_name: "list_recent_leads", input_summary: { limit: 5 }, output_summary: { count: 1 } },
+            ],
+          },
+        },
+      },
+    });
+    await waitFor(() => {
+      // The assistant answer is rendered as Markdown which may split
+      // the text into multiple elements. We check the document body
+      // directly for the substring.
+      const body = document.body.textContent ?? "";
+      expect(body).toContain("Here are the most recent leads");
+      expect(body).toContain("Layla");
+    });
+  });
+
+  it("support employee can navigate to assistant page", async () => {
+    vi.mocked(apiClient).mockImplementation(async (endpoint, opts) => {
+      if (endpoint === "/api/v1/agencies/rag/documents" && (!opts?.method || opts.method === "GET")) {
+        return { items: [], total: 0, page: 1, size: 20 };
+      }
+      if (endpoint === "/api/v1/agencies/rag/chat/threads" && (!opts?.method || opts.method === "GET")) {
+        return { items: [], total: 0, page: 1, size: 20 };
+      }
+      return { items: [], total: 0, page: 1, size: 20 };
+    });
+
+    renderWithProviders(<RagAssistantPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/Policy Assistant/i)).toBeInTheDocument();
+    });
+  });
+});

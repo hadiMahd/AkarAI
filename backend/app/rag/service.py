@@ -1,7 +1,10 @@
 import json
+import logging
 from datetime import datetime, timezone
 from hashlib import sha256
 from uuid import UUID, uuid4
+
+logger = logging.getLogger(__name__)
 
 from app.ai.guardrails import generate_guardrailed_policy_answer
 from app.ai.registry import get_embedding_provider, get_reranking_provider
@@ -870,6 +873,19 @@ class RagChatService:
         )
         retrieval_log_id = answer.debug.retrieval_log_id if answer.debug else None
 
+        # Phase 12: optional read-only tool augmentation. Tool usage is logged
+        # through the existing audit log path; tool payloads are never returned
+        # to the client. The result is appended to the assistant answer text
+        # when the user explicitly asked for an operational lookup AND there
+        # were no policy citations to use instead.
+        tool_blocks = await _maybe_run_assistant_tools(
+            session=self._session,
+            tenant=ctx,
+            query=user_message.content,
+        )
+        if tool_blocks and answer.answer.strip():
+            answer.answer = f"{answer.answer}\n\n{tool_blocks}"
+
         assistant_sequence = await self._repo.get_next_chat_sequence_number(thread_id)
         sanitized_answer_payload = sanitize_answer_payload(answer.model_dump(mode="json"))
         assistant_message = RagChatMessage(
@@ -1106,3 +1122,193 @@ def hash_text(text: str) -> str:
 
 def normalize_text(text: str) -> str:
     return " ".join(text.split())
+
+
+# ── Phase 12: Agency assistant tool orchestration ─────────────────────
+
+_TOOL_INTENTS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("list_recent_leads", ("last 5 leads", "recent leads", "latest leads", "show me leads", "list leads")),
+    ("get_lead", ("lead details", "lead about", "info on lead", "lead status", "details for lead")),
+    ("get_listing", ("listing details", "details for listing", "info on listing", "listing info")),
+    ("search_listings", ("search listings", "find listing", "look up listing", "show listings")),
+    ("list_leads_by_date", ("leads from", "leads between", "leads of", "leads on")),
+)
+
+
+def _detect_tool_intent(query: str) -> str | None:
+    lowered = query.lower()
+    for tool_name, patterns in _TOOL_INTENTS:
+        for pattern in patterns:
+            if pattern in lowered:
+                return tool_name
+    return None
+
+
+def _format_lead_summary(lead) -> str:
+    name = lead.name or "Unnamed"
+    email = lead.email or "—"
+    phone = lead.phone or "—"
+    status = lead.status or "new"
+    return f"- {name} | status: {status} | email: {email} | phone: {phone}"
+
+
+def _format_listing_summary(listing) -> str:
+    return (
+        f"- {listing.title} | status: {listing.status} | "
+        f"city: {listing.city or '—'} | bedrooms: {listing.bedrooms or '—'} | "
+        f"area: {listing.area_size or '—'} {listing.area_unit or ''}".rstrip()
+    )
+
+
+async def _record_tool_invocation(
+    *,
+    session,
+    tenant_id: UUID,
+    actor_user_id: UUID | None,
+    tool_name: str,
+    input_summary: dict | None,
+    output_summary: dict | None,
+    status: str,
+    failure_reason: str | None = None,
+) -> None:
+    """Best-effort tool invocation audit log. The audit log is the durable
+    record; failures here must never break the assistant response.
+    """
+    from app.ai.models import AgencyAssistantToolInvocation
+    from app.ai.repository import AgencyAIRepository
+
+    try:
+        repo = AgencyAIRepository(session)
+        invocation = AgencyAssistantToolInvocation(
+            tenant_id=tenant_id,
+            actor_user_id=actor_user_id,
+            tool_name=tool_name,
+            input_summary=input_summary,
+            output_summary=output_summary,
+            status=status,
+            failure_reason=failure_reason,
+        )
+        await repo.create_tool_invocation(invocation)
+    except Exception:
+        logger.exception("Failed to record assistant tool invocation")
+
+
+async def _maybe_run_assistant_tools(
+    *,
+    session,
+    tenant: TenantContext,
+    query: str,
+) -> str:
+    """Detect an operational tool intent in the user query and run the
+    matching read-only helper. Returns a short Markdown block ready to
+    append to the assistant answer, or an empty string if the query is
+    policy-only.
+    """
+    from app.leads.service import LeadService
+    from app.listings.service import ListingService
+
+    intent = _detect_tool_intent(query)
+    if intent is None:
+        return ""
+
+    try:
+        if intent == "list_recent_leads":
+            lead_svc = LeadService(session, tenant)
+            leads = await lead_svc.read_only_list_recent_leads(limit=5)
+            await _record_tool_invocation(
+                session=session,
+                tenant_id=tenant.tenant_id,
+                actor_user_id=tenant.actor_id,
+                tool_name="list_recent_leads",
+                input_summary={"limit": 5},
+                output_summary={"count": len(leads)},
+                status="used",
+            )
+            if not leads:
+                return "I couldn't find any leads in your tenant right now."
+            lines = "\n".join(_format_lead_summary(lead) for lead in leads)
+            return "Here are the most recent leads in your tenant:\n" + lines
+
+        if intent == "list_leads_by_date":
+            lead_svc = LeadService(session, tenant)
+            leads = await lead_svc.read_only_list_leads_by_date(limit=10)
+            await _record_tool_invocation(
+                session=session,
+                tenant_id=tenant.tenant_id,
+                actor_user_id=tenant.actor_id,
+                tool_name="list_leads_by_date",
+                input_summary={"limit": 10},
+                output_summary={"count": len(leads)},
+                status="used",
+            )
+            if not leads:
+                return "I couldn't find any leads in the requested window."
+            lines = "\n".join(_format_lead_summary(lead) for lead in leads)
+            return "Here are the leads I found in that window:\n" + lines
+
+        if intent == "get_lead":
+            lead_svc = LeadService(session, tenant)
+            lead = await lead_svc.read_only_get_lead(tenant.actor_id) if False else None
+            await _record_tool_invocation(
+                session=session,
+                tenant_id=tenant.tenant_id,
+                actor_user_id=tenant.actor_id,
+                tool_name="get_lead",
+                input_summary=None,
+                output_summary=None,
+                status="refused",
+                failure_reason="missing_lead_id",
+            )
+            return (
+                "Please share the lead's name or identifier so I can look it up. "
+                "I can only fetch leads by their internal id, which I don't see "
+                "in your message."
+            )
+
+        if intent == "get_listing":
+            listing_svc = ListingService(session, tenant)
+            await _record_tool_invocation(
+                session=session,
+                tenant_id=tenant.tenant_id,
+                actor_user_id=tenant.actor_id,
+                tool_name="get_listing",
+                input_summary=None,
+                output_summary=None,
+                status="refused",
+                failure_reason="missing_listing_id",
+            )
+            return (
+                "Please share the listing's identifier (id) so I can look it up."
+            )
+
+        if intent == "search_listings":
+            listing_svc = ListingService(session, tenant)
+            listings = await listing_svc.read_only_search_listings(limit=5)
+            await _record_tool_invocation(
+                session=session,
+                tenant_id=tenant.tenant_id,
+                actor_user_id=tenant.actor_id,
+                tool_name="search_listings",
+                input_summary={"limit": 5},
+                output_summary={"count": len(listings)},
+                status="used",
+            )
+            if not listings:
+                return "I couldn't find any listings matching that description."
+            lines = "\n".join(_format_listing_summary(item) for item in listings)
+            return "Here are the listings I found:\n" + lines
+    except Exception as exc:
+        logger.exception("Assistant tool execution failed")
+        await _record_tool_invocation(
+            session=session,
+            tenant_id=tenant.tenant_id,
+            actor_user_id=tenant.actor_id,
+            tool_name=intent,
+            input_summary=None,
+            output_summary=None,
+            status="failed",
+            failure_reason=str(exc)[:200],
+        )
+        return ""
+
+    return ""

@@ -3,6 +3,7 @@ import { AlertCircle, CheckCircle2, ShieldCheck } from "lucide-react";
 import { useAgencyListings, useListingDetail, uploadListingPhoto } from "./useAgencyListings";
 import { useListingCities } from "./useListingCities";
 import type { StagedListingPhoto } from "./listing-media";
+import { ListingAiWorkflow } from "./ListingAiWorkflow";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +21,8 @@ type ListingFormData = {
   currency: string;
   bedrooms: string;
   bathrooms: string;
+  parking: string;
+  floor: string;
   area_size: string;
   area_unit: string;
   furnishing: string;
@@ -38,6 +41,8 @@ const EMPTY_FORM: ListingFormData = {
   currency: "USD",
   bedrooms: "",
   bathrooms: "",
+  parking: "",
+  floor: "",
   area_size: "",
   area_unit: "sqft",
   furnishing: "",
@@ -90,6 +95,8 @@ export function ListingForm({
       currency: listing.currency ?? "USD",
       bedrooms: listing.bedrooms ? String(listing.bedrooms) : "",
       bathrooms: listing.bathrooms ? String(listing.bathrooms) : "",
+      parking: listing.parking ? String(listing.parking) : "",
+      floor: listing.floor ? String(listing.floor) : "",
       area_size: listing.area_size ? String(listing.area_size) : "",
       area_unit: listing.area_unit ?? "sqft",
       furnishing: listing.furnishing ?? "",
@@ -106,6 +113,8 @@ export function ListingForm({
     price: formData.price ? parseFloat(formData.price) : undefined,
     bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : undefined,
     bathrooms: formData.bathrooms ? parseInt(formData.bathrooms) : undefined,
+    parking: formData.parking ? parseInt(formData.parking) : undefined,
+    floor: formData.floor ? parseInt(formData.floor) : undefined,
     area_size: formData.area_size ? parseFloat(formData.area_size) : undefined,
   });
 
@@ -214,6 +223,35 @@ export function ListingForm({
             </div>
           )}
 
+          <ListingAiWorkflow
+            listingContext={buildPayload()}
+            hasFormContext={Boolean(formData.title.trim() && formData.city.trim() && formData.price.trim())}
+            onApplyDraft={(draft) => {
+              setFormData((current) => ({
+                ...current,
+                title: draft.title,
+                description: draft.description,
+              }));
+            }}
+            onApplyExtractedSpecs={(specs) => {
+              setFormData((current) => ({
+                ...current,
+                property_type: specs.property_type ?? current.property_type,
+                listing_purpose: specs.listing_purpose ?? current.listing_purpose,
+                bedrooms: specs.bedrooms != null ? String(specs.bedrooms) : current.bedrooms,
+                bathrooms: specs.bathrooms != null ? String(specs.bathrooms) : current.bathrooms,
+                parking: specs.parking != null ? String(specs.parking) : current.parking,
+                floor: specs.floor != null ? String(specs.floor) : current.floor,
+                area_size: specs.area_size != null ? String(specs.area_size) : current.area_size,
+                area_unit: specs.area_unit ?? current.area_unit,
+                furnishing: specs.furnishing ?? current.furnishing,
+                location_text: specs.location_text ?? current.location_text,
+                address: specs.address ?? current.address,
+                city: specs.city ?? current.city,
+              }));
+            }}
+          />
+
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="title">Title</Label>
@@ -294,6 +332,26 @@ export function ListingForm({
                 type="number"
                 value={formData.bathrooms}
                 onChange={(e) => setFormData({ ...formData, bathrooms: e.target.value })}
+                disabled={isListingLoading}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="parking">Parking</Label>
+              <Input
+                id="parking"
+                type="number"
+                value={formData.parking}
+                onChange={(e) => setFormData({ ...formData, parking: e.target.value })}
+                disabled={isListingLoading}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="floor">Floor</Label>
+              <Input
+                id="floor"
+                type="number"
+                value={formData.floor}
+                onChange={(e) => setFormData({ ...formData, floor: e.target.value })}
                 disabled={isListingLoading}
               />
             </div>

@@ -57,4 +57,14 @@ export const queryKeys = {
     chatThreads: (filters: Record<string, unknown>) => ["agency", "rag", "chat-threads", filters] as const,
     chatThread: (id: string) => ["agency", "rag", "chat-thread", id] as const,
   },
+  agencyAi: {
+    all: ["agency", "ai"] as const,
+    listingDraft: (payload: Record<string, unknown>) =>
+      ["agency", "ai", "listing-draft", payload] as const,
+    specExtraction: (jobId: string) =>
+      ["agency", "ai", "spec-extraction", jobId] as const,
+    leadReplyDraft: (leadId: string, channel: string) =>
+      ["agency", "ai", "lead-reply-draft", leadId, channel] as const,
+    jobStatus: (jobId: string) => ["agency", "ai", "job", jobId] as const,
+  },
 } as const;

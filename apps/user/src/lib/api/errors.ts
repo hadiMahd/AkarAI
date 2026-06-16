@@ -29,6 +29,7 @@ export type ApiErrorContext =
   | "viewing.book"
   | "viewing.slots"
   | "profile.activity"
+  | "comparison.summary"
   | "generic";
 
 type BackendDetail = {
@@ -276,6 +277,31 @@ function mapByContext(error: unknown, context: ApiErrorContext): MappedMessage |
         };
       }
       return null;
+
+    case "comparison.summary": {
+      if (isRateLimited(error)) {
+        return {
+          message: "You're requesting summaries too quickly. Wait a moment and try again.",
+          isSpecific: true,
+        };
+      }
+      if (status === 404) {
+        return {
+          message: "One of the selected listings is no longer available.",
+          isSpecific: true,
+        };
+      }
+      if (status === 503 || (status != null && status >= 500)) {
+        return {
+          message: "The comparison service is temporarily unavailable. Try again in a moment.",
+          isSpecific: true,
+        };
+      }
+      if (status === 401) {
+        return { message: SESSION_EXPIRED_MESSAGE, isSpecific: true };
+      }
+      return null;
+    }
 
     case "inquiry.submit": {
       if (isRateLimited(error)) {

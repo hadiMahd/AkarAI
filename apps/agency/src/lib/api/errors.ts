@@ -39,6 +39,10 @@ export type ApiErrorContext =
   | "rag.chat.thread"
   | "rag.chat.message"
   | "rag.retrieval.logs"
+  | "agencyAi.spec.upload"
+  | "agencyAi.listing.draft"
+  | "agencyAi.leadReply.draft"
+  | "agencyAi.job.status"
   | "generic";
 
 type BackendDetail = {
@@ -384,6 +388,108 @@ function mapByContext(error: unknown, context: ApiErrorContext): MappedMessage |
         return { message: "Only agency admins can view retrieval history.", isSpecific: true };
       }
       return { message: "We couldn't load retrieval history. Try refreshing the page.", isSpecific: true };
+
+    case "agencyAi.spec.upload": {
+      if (code === "OCR_TOO_LARGE" || status === 413) {
+        return {
+          message: detail ?? "This spec sheet is too large. Use one under 10MB.",
+          isSpecific: true,
+        };
+      }
+      if (code === "OCR_WRONG_TYPE" || status === 415) {
+        return {
+          message: detail ?? "That file type isn't supported for spec extraction.",
+          isSpecific: true,
+        };
+      }
+      if (code === "OCR_EMPTY" || status === 400) {
+        return {
+          message: detail ?? "The uploaded file is empty.",
+          isSpecific: true,
+        };
+      }
+      if (isRateLimited(error)) {
+        return {
+          message: "Too many spec uploads in a row. Wait a moment and try again.",
+          isSpecific: true,
+        };
+      }
+      if (status === 403) {
+        return {
+          message: "Only agency admins can extract spec sheets.",
+          isSpecific: true,
+        };
+      }
+      return {
+        message: "We couldn't read that spec sheet. Try a different file or upload it manually.",
+        isSpecific: true,
+      };
+    }
+
+    case "agencyAi.listing.draft": {
+      if (code === "listing_draft_incomplete") {
+        return {
+          message: "The AI draft came back empty. Try adding more listing details and request again.",
+          isSpecific: true,
+        };
+      }
+      if (isRateLimited(error)) {
+        return {
+          message: "Too many draft requests. Wait a moment and try again.",
+          isSpecific: true,
+        };
+      }
+      if (status === 403) {
+        return {
+          message: "Only agency admins can generate listing drafts.",
+          isSpecific: true,
+        };
+      }
+      if (status === 404) {
+        return { message: "This listing no longer exists.", isSpecific: true };
+      }
+      if (status === 503 || (status != null && status >= 500)) {
+        return {
+          message: "The draft service is temporarily unavailable. Try again in a moment.",
+          isSpecific: true,
+        };
+      }
+      return null;
+    }
+
+    case "agencyAi.leadReply.draft": {
+      if (isRateLimited(error)) {
+        return {
+          message: "Too many reply draft requests. Wait a moment and try again.",
+          isSpecific: true,
+        };
+      }
+      if (status === 404) {
+        return { message: "This lead no longer exists.", isSpecific: true };
+      }
+      if (status === 403) {
+        return {
+          message: "You don't have permission to draft replies for this lead.",
+          isSpecific: true,
+        };
+      }
+      if (status === 503 || (status != null && status >= 500)) {
+        return {
+          message: "The reply service is temporarily unavailable. Try again in a moment.",
+          isSpecific: true,
+        };
+      }
+      return null;
+    }
+
+    case "agencyAi.job.status":
+      if (status === 404) {
+        return { message: "This job no longer exists.", isSpecific: true };
+      }
+      if (status === 403) {
+        return { message: "You don't have permission to view this job.", isSpecific: true };
+      }
+      return null;
 
     case "generic":
     default:

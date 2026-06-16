@@ -66,3 +66,14 @@ def get_stt_provider() -> STTProvider:
     provider = get_provider(name)
     assert isinstance(provider, STTProvider), f"Provider '{name}' does not implement STTProvider"
     return provider
+
+
+def get_ocr_provider() -> OCRProvider:
+    name = settings.ocr_provider or "azure_computer_vision_read"
+    if name not in _registry:
+        if name == "azure_computer_vision_read":
+            from app.ai.azure_openai import get_azure_cv_ocr_provider
+            register_provider(name, get_azure_cv_ocr_provider())
+    provider = get_provider(name)
+    assert isinstance(provider, OCRProvider), f"Provider '{name}' does not implement OCRProvider"
+    return provider
