@@ -142,6 +142,25 @@ describe("api error mapping (user app)", () => {
     });
   });
 
+  describe("getApiErrorMessage — inquiry.submit context", () => {
+    it("maps EMPTY_LEAD_MESSAGE to a specific inquiry message", () => {
+      const err = backendError(422, {
+        detail: "Write a short message before sending a lead.",
+        error_code: "EMPTY_LEAD_MESSAGE",
+      });
+      expect(getApiErrorMessage(err, "inquiry.submit")).toMatch(/write a short message/i);
+    });
+
+    it("maps PROFILE_INCOMPLETE_FOR_LEADS to a profile-completion message", () => {
+      const err = backendError(422, {
+        detail: "Complete your profile with your name and at least one contact method before sending a lead.",
+        error_code: "PROFILE_INCOMPLETE_FOR_LEADS",
+        missing_fields: ["name"],
+      });
+      expect(getApiErrorMessage(err, "inquiry.submit")).toMatch(/complete your profile/i);
+    });
+  });
+
   describe("getApiErrorMessage — generic fallbacks", () => {
     it("maps a network error to the network message regardless of context", () => {
       expect(getApiErrorMessage(new TypeError("Failed to fetch"), "generic")).toMatch(/network/i);

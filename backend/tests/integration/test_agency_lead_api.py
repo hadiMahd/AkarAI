@@ -33,6 +33,14 @@ class TestAgencyLeadAPI:
         assert resp.status_code == 201
         return resp.json()["id"]
 
+    async def _complete_profile(self, client: AsyncClient, token: str, *, name: str, phone: str = "+1234567890") -> None:
+        resp = await client.put(
+            "/me/profile",
+            json={"name": name, "phone": phone},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+
     async def test_list_agency_leads_empty(self, async_client: AsyncClient):
         token = await self._login(async_client, "agency.admin@akarai.test")
         resp = await async_client.get("/agency/leads", headers={"Authorization": f"Bearer {token}"})
@@ -50,6 +58,7 @@ class TestAgencyLeadAPI:
         listing_id = await self._create_listing(async_client, admin_token)
 
         user_token = await self._login(async_client, "user@akarai.test")
+        await self._complete_profile(async_client, user_token, name="Test Lead")
         resp = await async_client.post(
             f"/listings/{listing_id}/inquiries",
             json={"name": "Test Lead", "email": "lead@test.com", "message": "Interested"},
@@ -67,6 +76,7 @@ class TestAgencyLeadAPI:
         listing_id = await self._create_listing(async_client, admin_token)
 
         user_token = await self._login(async_client, "user@akarai.test")
+        await self._complete_profile(async_client, user_token, name="Get Test")
         inquiry_resp = await async_client.post(
             f"/listings/{listing_id}/inquiries",
             json={"name": "Get Test", "email": "get@test.com"},
@@ -85,6 +95,7 @@ class TestAgencyLeadAPI:
         listing_id = await self._create_listing(async_client, admin_token)
 
         user_token = await self._login(async_client, "user@akarai.test")
+        await self._complete_profile(async_client, user_token, name="Status Test")
         inquiry_resp = await async_client.post(
             f"/listings/{listing_id}/inquiries",
             json={"name": "Status Test", "email": "status@test.com"},
@@ -105,6 +116,7 @@ class TestAgencyLeadAPI:
         listing_id = await self._create_listing(async_client, admin_token)
 
         user_token = await self._login(async_client, "user@akarai.test")
+        await self._complete_profile(async_client, user_token, name="Review Test")
         inquiry_resp = await async_client.post(
             f"/listings/{listing_id}/inquiries",
             json={"name": "Review Test", "email": "review@test.com"},
@@ -133,6 +145,7 @@ class TestAgencyLeadAPI:
         listing_id = await self._create_listing(async_client, admin_token)
 
         user_token = await self._login(async_client, "user@akarai.test")
+        await self._complete_profile(async_client, user_token, name="Transition Test")
         inquiry_resp = await async_client.post(
             f"/listings/{listing_id}/inquiries",
             json={"name": "Transition Test", "email": "trans@test.com"},

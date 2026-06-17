@@ -118,6 +118,33 @@ PHASE12_AI_RATE_LIMITS = {
     },
 }
 
+LEAD_PROCESSING_RATE_LIMITS = {
+    "lead_callback": {
+        "max_requests": 60,
+        "window_seconds": 60,
+    },
+    "lead_inquiry": {
+        "max_requests": 10,
+        "window_seconds": 60,
+    },
+}
+
+
+async def check_lead_processing_rate_limit(
+    action: str,
+    identifier: str,
+) -> bool:
+    limits = LEAD_PROCESSING_RATE_LIMITS.get(
+        action,
+        {"max_requests": settings.rate_limit_default_max_requests, "window_seconds": settings.rate_limit_default_window_seconds},
+    )
+    return await check_rate_limit(
+        key_type=f"lead_processing:{action}",
+        identifier=identifier,
+        max_requests=limits["max_requests"],
+        window_seconds=limits["window_seconds"],
+    )
+
 
 async def check_agency_ai_rate_limit(
     action: str,

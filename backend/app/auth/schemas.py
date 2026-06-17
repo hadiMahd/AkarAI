@@ -64,6 +64,7 @@ class EmployeeDeactivationRequest(BaseModel):
 class ActorSummary(BaseModel):
     id: str
     email: str
+    name: str | None = None
     role: str
     permissions: list[str]
     tenant_id: str | None = None

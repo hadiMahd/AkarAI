@@ -8,6 +8,11 @@ interface Lead {
   listing_id: string;
   user_id: string | null;
   status: string;
+  processing_status: string | null;
+  spam_label: string | null;
+  spam_score: number | null;
+  lead_level: string | null;
+  level_score: number | null;
   name: string | null;
   email: string | null;
   phone: string | null;
@@ -53,6 +58,12 @@ async function fetchReviewedLeads(page = 1, pageSize = 20): Promise<PaginatedLea
   });
 }
 
+async function fetchSpamLeads(page = 1, pageSize = 20): Promise<PaginatedLeadsResponse> {
+  return apiClient<PaginatedLeadsResponse>("/agency/leads", {
+    params: { page, page_size: pageSize, spam_label: "spam" },
+  });
+}
+
 async function fetchLeadDetail(leadId: string): Promise<Lead> {
   return apiClient<Lead>(`/agency/leads/${leadId}`);
 }
@@ -68,6 +79,14 @@ export function useActiveLeads() {
   return useQuery({
     queryKey: queryKeys.leads.active({}),
     queryFn: () => fetchActiveLeads(),
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      if (!data?.items) return false;
+      const hasPending = data.items.some(
+        (lead) => lead.processing_status === "pending_spam" || lead.processing_status === "pending_level" || lead.processing_status === "pending"
+      );
+      return hasPending ? 5000 : false;
+    },
   });
 }
 
@@ -78,6 +97,21 @@ export function useReviewedLeads() {
   });
 }
 
+export function useSpamLeads() {
+  return useQuery({
+    queryKey: ["leads", "spam"],
+    queryFn: () => fetchSpamLeads(),
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      if (!data?.items) return false;
+      const hasPending = data.items.some(
+        (lead) => lead.processing_status === "pending_spam" || lead.processing_status === "pending_level" || lead.processing_status === "pending"
+      );
+      return hasPending ? 5000 : false;
+    },
+  });
+}
+
 export function useLeadDetail(leadId: string) {
   const queryClient = useQueryClient();
 
@@ -85,6 +119,11 @@ export function useLeadDetail(leadId: string) {
     queryKey: queryKeys.leads.detail(leadId),
     queryFn: () => fetchLeadDetail(leadId),
     enabled: !!leadId,
+    refetchInterval: (query) => {
+      const lead = query.state.data;
+      if (lead?.processing_status === "pending_spam" || lead?.processing_status === "pending_level" || lead?.processing_status === "pending") return 5000;
+      return false;
+    },
   });
 
   const reviewMutation = useMutation({

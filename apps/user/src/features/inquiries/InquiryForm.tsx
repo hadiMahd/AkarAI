@@ -1,8 +1,9 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useSubmitInquiry } from "./useSubmitInquiry";
+import { useUserProfile } from "@/features/profile/useUserProfile";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CheckCircle, AlertCircle } from "lucide-react";
@@ -14,20 +15,30 @@ interface InquiryFormProps {
 
 export function InquiryForm({ listingId }: InquiryFormProps) {
   const [message, setMessage] = useState("");
-  const [contactPhone, setContactPhone] = useState("");
+  const [clientError, setClientError] = useState<string | null>(null);
   const submitInquiry = useSubmitInquiry(listingId);
+  const { data: profile, isLoading: isProfileLoading } = useUserProfile();
+  const isProfileComplete = profile?.is_complete_for_leads ?? false;
+  const trimmedMessage = message.trim();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isProfileLoading || !isProfileComplete) {
+      return;
+    }
+    if (!trimmedMessage) {
+      setClientError("Write a short message before sending your inquiry.");
+      return;
+    }
+    setClientError(null);
     submitInquiry.mutate(
       {
-        message,
-        contact_phone: contactPhone || undefined,
+        message: trimmedMessage,
       },
       {
         onSuccess: () => {
           setMessage("");
-          setContactPhone("");
+          setClientError(null);
         },
       }
     );
@@ -55,6 +66,18 @@ export function InquiryForm({ listingId }: InquiryFormProps) {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {!isProfileComplete && (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <span>Complete your profile with your name and a contact method before sending a lead.</span>
+                <Button asChild size="sm" variant="outline">
+                  <Link to="/profile">Complete profile</Link>
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
           <div>
             <label htmlFor="message" className="block text-sm font-medium mb-2">
               Message *
@@ -62,39 +85,42 @@ export function InquiryForm({ listingId }: InquiryFormProps) {
             <Textarea
               id="message"
               value={message}
-              onChange={(e) => setMessage(e.target.value)}
+              onChange={(e) => {
+                setMessage(e.target.value);
+                if (clientError && e.target.value.trim()) {
+                  setClientError(null);
+                }
+              }}
               placeholder="I'm interested in this property..."
               required
               rows={4}
             />
           </div>
 
-          <div>
-            <label htmlFor="contact_phone" className="block text-sm font-medium mb-2">
-              Contact Phone (optional)
-            </label>
-            <Input
-              id="contact_phone"
-              type="tel"
-              value={contactPhone}
-              onChange={(e) => setContactPhone(e.target.value)}
-              placeholder="+1234567890"
-            />
-          </div>
-
-          {submitInquiry.isError && (
+          {(clientError || submitInquiry.isError) && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                {getApiErrorMessage(submitInquiry.error, "inquiry.submit", {
-                  fallback: "We couldn't send your inquiry. Try again in a moment.",
-                })}
+                {clientError ??
+                  getApiErrorMessage(submitInquiry.error, "inquiry.submit", {
+                    fallback: "We couldn't send your inquiry. Try again in a moment.",
+                  })}
               </AlertDescription>
             </Alert>
           )}
 
-          <Button type="submit" disabled={submitInquiry.isPending} className="w-full">
-            {submitInquiry.isPending ? "Submitting..." : "Submit Inquiry"}
+          <Button
+            type="submit"
+            disabled={submitInquiry.isPending || isProfileLoading || !isProfileComplete || !trimmedMessage}
+            className="w-full"
+          >
+            {submitInquiry.isPending
+              ? "Submitting..."
+              : isProfileLoading
+                ? "Checking Profile..."
+              : isProfileComplete
+                ? "Submit Inquiry"
+                : "Complete Profile to Submit"}
           </Button>
         </form>
       </CardContent>

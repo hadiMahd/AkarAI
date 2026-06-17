@@ -1,0 +1,153 @@
+{
+  "model_card_version": "1.0",
+  "model_name": "stage1_gatekeeper",
+  "model_artifact": "stage1_gatekeeper_best_model.joblib",
+  "model_type": "binary_text_classifier",
+  "selected_model": "linear_svc",
+  "created_at_utc": "2026-06-04T18:20:58.791048+00:00",
+  "owner": "lead_classifier_project",
+  "intended_use": {
+    "primary_use": "Classify inbound text messages as real-estate leads or spam/non-leads.",
+    "positive_label": "1 = lead",
+    "negative_label": "0 = spam_non_lead",
+    "recommended_decision_policy": "Use as a Stage 1 gatekeeper. Messages predicted as lead should proceed to downstream lead qualification or information extraction."
+  },
+  "out_of_scope_use": [
+    "Do not use as a final sales qualification model.",
+    "Do not use as a legal, financial, or housing eligibility decision system.",
+    "Do not use on languages or markets not represented in the training data without validation."
+  ],
+  "dataset": {
+    "dataset_path": "stage1_gatekeeper_data.csv",
+    "dataset_file_size_bytes": 41474,
+    "dataset_raw_sha256": "e5f3b5dee61f94bcefa0441df41b36641b83693cb80a1bf64824ae791b366093",
+    "dataset_content_sha256": "e5f3b5dee61f94bcefa0441df41b36641b83693cb80a1bf64824ae791b366093",
+    "row_count": 800,
+    "column_names": [
+      "text",
+      "label"
+    ],
+    "label_distribution": {
+      "0": 400,
+      "1": 400
+    },
+    "duplicate_text_label_rows": 0,
+    "created_at_utc": "2026-06-04T18:20:57.656826+00:00"
+  },
+  "features_and_preprocessing": {
+    "input_columns": [
+      "text"
+    ],
+    "target_column": "label",
+    "preprocessing": [
+      "SimpleImputer fills missing text with an empty string.",
+      "FunctionTransformer flattens text input for vectorization.",
+      "TfidfVectorizer lowercases text, strips unicode accents, and uses unigrams + bigrams."
+    ],
+    "tfidf_config": {
+      "ngram_range": [
+        1,
+        2
+      ],
+      "max_features": 10000,
+      "min_df": 2,
+      "max_df": 0.95,
+      "strip_accents": "unicode",
+      "lowercase": true
+    }
+  },
+  "training": {
+    "framework": "scikit-learn",
+    "models_compared": [
+      "logistic_regression",
+      "linear_svc"
+    ],
+    "train_test_split": {
+      "test_size": 0.2,
+      "stratified": true,
+      "random_state": 42
+    },
+    "cross_validation": {
+      "method": "StratifiedKFold",
+      "n_splits": 5,
+      "shuffle": true,
+      "random_state": 42
+    },
+    "model_selection_metric": "test_f1"
+  },
+  "evaluation": {
+    "test_results_all_models": [
+      {
+        "model": "linear_svc",
+        "test_accuracy": 0.99375,
+        "test_precision": 0.9876543209876543,
+        "test_recall": 1.0,
+        "test_f1": 0.9937888198757764
+      },
+      {
+        "model": "logistic_regression",
+        "test_accuracy": 0.9875,
+        "test_precision": 0.975609756097561,
+        "test_recall": 1.0,
+        "test_f1": 0.9876543209876543
+      }
+    ],
+    "cv_results_all_models": [
+      {
+        "model": "linear_svc",
+        "cv_accuracy_mean": 0.9890625,
+        "cv_precision_mean": 0.979004524886878,
+        "cv_recall_mean": 1.0,
+        "cv_f1_mean": 0.9892882311486962
+      },
+      {
+        "model": "logistic_regression",
+        "cv_accuracy_mean": 0.9875,
+        "cv_precision_mean": 0.9818577784156142,
+        "cv_recall_mean": 0.99375,
+        "cv_f1_mean": 0.9876910246168412
+      }
+    ],
+    "selected_model_test_metrics": {
+      "model": "linear_svc",
+      "test_accuracy": 0.99375,
+      "test_precision": 0.9876543209876543,
+      "test_recall": 1.0,
+      "test_f1": 0.9937888198757764
+    },
+    "selected_model_cv_metrics": {
+      "model": "linear_svc",
+      "cv_accuracy_mean": 0.9890625,
+      "cv_precision_mean": 0.979004524886878,
+      "cv_recall_mean": 1.0,
+      "cv_f1_mean": 0.9892882311486962
+    }
+  },
+  "limitations": [
+    "The dataset is synthetic, so production language may differ from training examples.",
+    "The model may over-rely on phrases seen in generated templates.",
+    "False positives may send non-leads to downstream processing.",
+    "False negatives may incorrectly block real leads.",
+    "Performance should be revalidated once real app traffic is available."
+  ],
+  "monitoring_recommendations": [
+    "Log predictions, confidence where available, and human correction labels.",
+    "Track lead false-negative rate using reviewed samples.",
+    "Track spam/non-lead false-positive rate using reviewed samples.",
+    "Review low-confidence or disputed predictions weekly.",
+    "Retrain when real production examples materially differ from synthetic data."
+  ],
+  "retraining_recommendations": [
+    "Add real inbound messages after removing sensitive personal data.",
+    "Add hard negatives that mention apartments but are not actionable leads.",
+    "Add multilingual or transliterated examples if the app receives them.",
+    "Re-run the same notebook and compare dataset hashes, F1, precision, and recall."
+  ],
+  "runtime": {
+    "python_version": "3.12.13 (main, Mar  4 2026, 09:23:07) [GCC 11.4.0]",
+    "platform": "Linux-6.6.122+-x86_64-with-glibc2.35",
+    "pandas_version": "2.2.2",
+    "numpy_version": "2.0.2",
+    "sklearn_version": "1.6.1"
+  }
+}

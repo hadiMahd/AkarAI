@@ -114,6 +114,13 @@ try:
 except ImportError as e:
     logger.warning("Could not import agency AI handlers: %s", e)
 
+# Import and register lead processing handlers
+try:
+    from handlers.leads import handle_lead_created
+    register_event_handler("lead.created")(handle_lead_created)
+except ImportError as e:
+    logger.warning("Could not import lead processing handlers: %s", e)
+
 
 async def _poll_loop() -> None:
     from outbox import claim_and_dispatch

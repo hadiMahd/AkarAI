@@ -5,6 +5,19 @@ import pytest
 from app.common.tenant import TenantContext, require_tenant, ensure_tenant_match
 
 
+@pytest.fixture(scope="session", autouse=True)
+def cleanup_test_infra():
+    """Sync no-op: shadows async conftest fixture for sync tests."""
+    yield
+
+
+@pytest.fixture(autouse=True)
+def clear_rate_limits():
+    """Sync no-op: shadows async conftest fixture for sync tests."""
+    yield
+
+
+
 class TestTenantContext:
     def test_default_tenant_context_is_empty(self):
         ctx = TenantContext()

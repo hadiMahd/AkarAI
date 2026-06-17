@@ -47,11 +47,27 @@ class TestUserInquiryViewingAPI:
         assert resp.status_code == 201
         return resp.json()["id"]
 
+    async def _complete_profile(
+        self,
+        client: AsyncClient,
+        token: str,
+        *,
+        name: str | None = "Test Lead",
+        phone: str | None = "+1234567890",
+    ) -> None:
+        resp = await client.put(
+            "/me/profile",
+            json={"name": name, "phone": phone},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+
     async def test_submit_inquiry(self, async_client: AsyncClient):
         admin_token = await self._login(async_client, "agency.admin@akarai.test")
         listing_id = await self._create_listing(async_client, admin_token)
 
         user_token = await self._login(async_client, "user@akarai.test")
+        await self._complete_profile(async_client, user_token, name="Test Lead", phone="+1234567890")
         resp = await async_client.post(
             f"/listings/{listing_id}/inquiries",
             json={
@@ -65,24 +81,69 @@ class TestUserInquiryViewingAPI:
         assert resp.status_code == 201
         data = resp.json()
         assert data["name"] == "Test Lead"
-        assert data["email"] == "test@example.com"
+        assert data["email"] == "user@akarai.test"
+        assert data["phone"] == "+1234567890"
         assert data["status"] == "new"
 
-    async def test_submit_inquiry_optional_fields(self, async_client: AsyncClient):
+    async def test_submit_inquiry_uses_stored_profile_fields(self, async_client: AsyncClient):
         admin_token = await self._login(async_client, "agency.admin@akarai.test")
         listing_id = await self._create_listing(async_client, admin_token)
 
         user_token = await self._login(async_client, "user@akarai.test")
+        await self._complete_profile(async_client, user_token, name="Stored Profile Name", phone="+96171111111")
         resp = await async_client.post(
             f"/listings/{listing_id}/inquiries",
-            json={"message": "Just a message"},
+            json={
+                "name": "Ignored Name",
+                "email": "ignored@example.com",
+                "phone": "+1111111111",
+                "message": "Just a message",
+            },
             headers={"Authorization": f"Bearer {user_token}"},
         )
         assert resp.status_code == 201
         data = resp.json()
         assert data["message"] == "Just a message"
-        assert data["name"] is None
-        assert data["email"] is None
+        assert data["name"] == "Stored Profile Name"
+        assert data["email"] == "user@akarai.test"
+        assert data["phone"] == "+96171111111"
+
+    async def test_submit_inquiry_requires_complete_profile(self, async_client: AsyncClient):
+        admin_token = await self._login(async_client, "agency.admin@akarai.test")
+        listing_id = await self._create_listing(async_client, admin_token)
+
+        user_token = await self._login(async_client, "user@akarai.test")
+        await async_client.put(
+            "/me/profile",
+            json={"name": "", "phone": None},
+            headers={"Authorization": f"Bearer {user_token}"},
+        )
+
+        resp = await async_client.post(
+            f"/listings/{listing_id}/inquiries",
+            json={"message": "Just a message"},
+            headers={"Authorization": f"Bearer {user_token}"},
+        )
+        assert resp.status_code == 422
+        data = resp.json()
+        assert data["error_code"] == "PROFILE_INCOMPLETE_FOR_LEADS"
+        assert data["missing_fields"] == ["name"]
+
+    async def test_submit_inquiry_rejects_empty_message(self, async_client: AsyncClient):
+        admin_token = await self._login(async_client, "agency.admin@akarai.test")
+        listing_id = await self._create_listing(async_client, admin_token)
+
+        user_token = await self._login(async_client, "user@akarai.test")
+        await self._complete_profile(async_client, user_token, name="Test Lead", phone="+1234567890")
+
+        resp = await async_client.post(
+            f"/listings/{listing_id}/inquiries",
+            json={"message": "   "},
+            headers={"Authorization": f"Bearer {user_token}"},
+        )
+        assert resp.status_code == 422
+        data = resp.json()
+        assert data["error_code"] == "EMPTY_LEAD_MESSAGE"
 
     async def test_submit_inquiry_listing_not_found(self, async_client: AsyncClient):
         user_token = await self._login(async_client, "user@akarai.test")
@@ -105,6 +166,7 @@ class TestUserInquiryViewingAPI:
         listing_id = await self._create_listing(async_client, admin_token)
 
         user_token = await self._login(async_client, "user@akarai.test")
+        await self._complete_profile(async_client, user_token)
         for _ in range(6):
             resp = await async_client.post(
                 f"/listings/{listing_id}/inquiries",

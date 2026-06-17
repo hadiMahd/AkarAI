@@ -205,6 +205,12 @@ function PolicyAssistantTab({ hasProcessedDocuments }: { hasProcessedDocuments: 
   const [pendingPhraseIndex, setPendingPhraseIndex] = useState(0);
 
   useEffect(() => {
+    if (!selectedThreadId && threadsData?.items?.length) {
+      setSelectedThreadId(threadsData.items[0].id);
+    }
+  }, [selectedThreadId, threadsData]);
+
+  useEffect(() => {
     if (!sendMessageMutation.isPending) {
       setPendingPhraseIndex(0);
       return;
@@ -231,7 +237,7 @@ function PolicyAssistantTab({ hasProcessedDocuments }: { hasProcessedDocuments: 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!query.trim() || !selectedThreadId) return;
+    if (!hasProcessedDocuments || !query.trim() || !selectedThreadId) return;
     const nextQuestion = query.trim();
     setQuery("");
     try {
@@ -253,6 +259,7 @@ function PolicyAssistantTab({ hasProcessedDocuments }: { hasProcessedDocuments: 
   };
 
   const handleCreateThread = async () => {
+    if (!hasProcessedDocuments) return;
     const result = await createThreadMutation.mutateAsync(undefined);
     setSelectedThreadId(result.thread.id);
   };
@@ -262,157 +269,161 @@ function PolicyAssistantTab({ hasProcessedDocuments }: { hasProcessedDocuments: 
   return (
     <Card className="h-full border-border/70">
       <CardContent className="flex h-full flex-col p-0">
-        {!hasProcessedDocuments ? (
-          <div className="p-5">
-            <p className="text-sm text-muted-foreground">
-              No processed policy documents available. Upload and wait for a document to finish processing before asking questions.
-            </p>
-          </div>
-        ) : (
-          <div className="grid h-full min-h-0 overflow-hidden rounded-lg bg-muted/20 md:grid-cols-[220px_minmax(0,1fr)] lg:grid-cols-[240px_minmax(0,1fr)]">
-            <aside className="flex min-h-0 flex-col border-r border-border/70 bg-background/90">
-              <div className="border-b border-border/70 p-3">
-                <Button size="sm" className="w-full" onClick={handleCreateThread} disabled={createThreadMutation.isPending}>
-                  <MessageSquarePlus className="mr-2 h-4 w-4" />
-                  {createThreadMutation.isPending ? "Creating..." : "New conversation"}
-                </Button>
-              </div>
-              <div className="min-h-0 flex-1 overflow-y-auto p-2">
-                {isLoadingThreads ? (
-                  <div className="space-y-2 p-1">
-                    {Array.from({ length: 4 }).map((_, index) => (
-                      <div key={index} className="h-14 animate-pulse rounded-md bg-muted" />
-                    ))}
-                  </div>
-                ) : !threadsData || threadsData.items.length === 0 ? (
-                  <div className="flex h-full items-center justify-center px-3 text-center text-xs text-muted-foreground">
-                    No conversations yet. Create one to start asking policy questions.
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    {threadsData.items.map((thread) => (
-                      <button
-                        key={thread.id}
-                        type="button"
-                        onClick={() => setSelectedThreadId(thread.id)}
-                        className={`w-full rounded-md border px-2.5 py-2 text-left transition ${
-                          selectedThreadId === thread.id
-                            ? "border-sky-300 bg-sky-50"
-                            : "border-transparent hover:border-border hover:bg-muted/40"
-                        }`}
-                      >
-                        <div className="truncate text-sm font-medium leading-5">{thread.title}</div>
-                        <div className="mt-0.5 flex items-center justify-between text-[11px] text-muted-foreground">
-                          <span>{thread.message_count} messages</span>
-                          <span>{new Date(thread.last_message_at).toLocaleDateString()}</span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </aside>
-
-            <section className="flex min-h-0 min-w-0 flex-col bg-background/95">
-              {!selectedThreadId ? (
-                <div className="flex h-full items-center justify-center px-5">
-                  <div className="max-w-sm text-center">
-                    <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full border border-sky-200 bg-sky-50 text-sky-700">
-                      <Bot className="h-5 w-5" />
-                    </div>
-                    <p className="text-sm font-medium">Choose a conversation or create a new one.</p>
-                    <p className="mt-1.5 text-sm text-muted-foreground">
-                      The assistant keeps the latest policy context while the full thread remains durable.
-                    </p>
-                  </div>
+        <div className="grid h-full min-h-0 overflow-hidden rounded-lg bg-muted/20 md:grid-cols-[220px_minmax(0,1fr)] lg:grid-cols-[240px_minmax(0,1fr)]">
+          {!hasProcessedDocuments && (
+            <div className="border-b border-border/70 bg-amber-50/80 px-4 py-3 text-sm text-amber-900 md:col-span-2">
+              No processed policy documents are currently available. Existing chats stay readable, but new questions are disabled until a document finishes processing.
+            </div>
+          )}
+          <aside className="flex min-h-0 flex-col border-r border-border/70 bg-background/90">
+            <div className="border-b border-border/70 p-3">
+              <Button
+                size="sm"
+                className="w-full"
+                onClick={handleCreateThread}
+                disabled={!hasProcessedDocuments || createThreadMutation.isPending}
+              >
+                <MessageSquarePlus className="mr-2 h-4 w-4" />
+                {createThreadMutation.isPending ? "Creating..." : "New conversation"}
+              </Button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto p-2">
+              {isLoadingThreads ? (
+                <div className="space-y-2 p-1">
+                  {Array.from({ length: 4 }).map((_, index) => (
+                    <div key={index} className="h-14 animate-pulse rounded-md bg-muted" />
+                  ))}
+                </div>
+              ) : !threadsData || threadsData.items.length === 0 ? (
+                <div className="flex h-full items-center justify-center px-3 text-center text-xs text-muted-foreground">
+                  No conversations yet. {hasProcessedDocuments ? "Create one to start asking policy questions." : "Upload and process a policy document to start a new one."}
                 </div>
               ) : (
-                <>
-                  <div className="border-b border-border/70 px-4 py-3">
-                    <div className="text-sm font-medium">{selectedThreadTitle}</div>
-                    <div className="text-[11px] text-muted-foreground">Context sent to the model is limited to the latest 4 turns.</div>
-                  </div>
+                <div className="space-y-1">
+                  {threadsData.items.map((thread) => (
+                    <button
+                      key={thread.id}
+                      type="button"
+                      onClick={() => setSelectedThreadId(thread.id)}
+                      className={`w-full rounded-md border px-2.5 py-2 text-left transition ${
+                        selectedThreadId === thread.id
+                          ? "border-sky-300 bg-sky-50"
+                          : "border-transparent hover:border-border hover:bg-muted/40"
+                      }`}
+                    >
+                      <div className="truncate text-sm font-medium leading-5">{thread.title}</div>
+                      <div className="mt-0.5 flex items-center justify-between text-[11px] text-muted-foreground">
+                        <span>{thread.message_count} messages</span>
+                        <span>{new Date(thread.last_message_at).toLocaleDateString()}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </aside>
 
-                  <div ref={transcriptContainerRef} className="min-h-0 flex-1 overflow-y-auto px-3 py-3 sm:px-4">
-                    {isLoadingThread ? (
-                      <div className="space-y-3">
-                        {Array.from({ length: 3 }).map((_, index) => (
-                          <div key={index} className="h-20 animate-pulse rounded-lg bg-muted" />
-                        ))}
-                      </div>
-                    ) : messages.length === 0 ? (
-                      <div className="flex h-full items-center justify-center">
-                        <div className="max-w-sm rounded-2xl border border-dashed border-border/80 bg-background/90 px-5 py-6 text-center shadow-sm">
-                          <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full border border-sky-200 bg-sky-50 text-sky-700">
-                            <Bot className="h-5 w-5" />
-                          </div>
-                          <p className="text-sm font-medium">Ask about policy documents, procedures, and internal rules.</p>
-                          <p className="mt-1.5 text-sm text-muted-foreground">Answers stay grounded in uploaded evidence and this conversation thread.</p>
+          <section className="flex min-h-0 min-w-0 flex-col bg-background/95">
+            {!selectedThreadId ? (
+              <div className="flex h-full items-center justify-center px-5">
+                <div className="max-w-sm text-center">
+                  <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full border border-sky-200 bg-sky-50 text-sky-700">
+                    <Bot className="h-5 w-5" />
+                  </div>
+                  <p className="text-sm font-medium">Choose a conversation or create a new one.</p>
+                  <p className="mt-1.5 text-sm text-muted-foreground">
+                    The assistant keeps the latest policy context while the full thread remains durable.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="border-b border-border/70 px-4 py-3">
+                  <div className="text-sm font-medium">{selectedThreadTitle}</div>
+                  <div className="text-[11px] text-muted-foreground">Context sent to the model is limited to the latest 4 turns.</div>
+                </div>
+
+                <div ref={transcriptContainerRef} className="min-h-0 flex-1 overflow-y-auto px-3 py-3 sm:px-4">
+                  {isLoadingThread ? (
+                    <div className="space-y-3">
+                      {Array.from({ length: 3 }).map((_, index) => (
+                        <div key={index} className="h-20 animate-pulse rounded-lg bg-muted" />
+                      ))}
+                    </div>
+                  ) : messages.length === 0 ? (
+                    <div className="flex h-full items-center justify-center">
+                      <div className="max-w-sm rounded-2xl border border-dashed border-border/80 bg-background/90 px-5 py-6 text-center shadow-sm">
+                        <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full border border-sky-200 bg-sky-50 text-sky-700">
+                          <Bot className="h-5 w-5" />
                         </div>
+                        <p className="text-sm font-medium">Ask about policy documents, procedures, and internal rules.</p>
+                        <p className="mt-1.5 text-sm text-muted-foreground">Answers stay grounded in uploaded evidence and this conversation thread.</p>
                       </div>
-                    ) : (
-                      <div className="space-y-4 pb-2">
-                        {messages.map((message) => (
-                          <ChatMessageRow
-                            key={message.id}
-                            message={message}
-                            showDebug={!!expandedMessages[message.id]}
-                            onToggleDebug={() =>
-                              setExpandedMessages((previous) => ({
-                                ...previous,
-                                [message.id]: !previous[message.id],
-                              }))
-                            }
-                          />
-                        ))}
-                        {sendMessageMutation.isPending && (
-                          <div className="flex justify-start" data-testid="pending-assistant-bubble">
-                            <div className="w-full max-w-[96%] rounded-2xl rounded-bl-md border border-border/70 bg-background px-3 py-3 shadow-sm">
-                              <div className="mb-2 flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-                                <Bot className="h-3.5 w-3.5" />
-                                Policy Assistant
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="h-2 w-2 animate-pulse rounded-full bg-sky-500" />
-                                <span className="text-sm text-muted-foreground">{PENDING_PHRASES[pendingPhraseIndex]}</span>
-                              </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4 pb-2">
+                      {messages.map((message) => (
+                        <ChatMessageRow
+                          key={message.id}
+                          message={message}
+                          showDebug={!!expandedMessages[message.id]}
+                          onToggleDebug={() =>
+                            setExpandedMessages((previous) => ({
+                              ...previous,
+                              [message.id]: !previous[message.id],
+                            }))
+                          }
+                        />
+                      ))}
+                      {sendMessageMutation.isPending && (
+                        <div className="flex justify-start" data-testid="pending-assistant-bubble">
+                          <div className="w-full max-w-[96%] rounded-2xl rounded-bl-md border border-border/70 bg-background px-3 py-3 shadow-sm">
+                            <div className="mb-2 flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                              <Bot className="h-3.5 w-3.5" />
+                              Policy Assistant
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="h-2 w-2 animate-pulse rounded-full bg-sky-500" />
+                              <span className="text-sm text-muted-foreground">{PENDING_PHRASES[pendingPhraseIndex]}</span>
                             </div>
                           </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="border-t border-border/70 bg-background p-3 sm:p-4">
-                    <form onSubmit={handleSubmit} className="space-y-2">
-                      <Textarea
-                        placeholder="Message the policy assistant..."
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                        disabled={isPending}
-                        rows={2}
-                        className="resize-none border-border/80 bg-background"
-                      />
-                      {sendMessageMutation.error && (
-                        <p role="alert" data-testid="rag-chat-error" className="text-sm text-destructive">
-                          {getApiErrorMessage(sendMessageMutation.error, "rag.chat.message")}
-                        </p>
+                        </div>
                       )}
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-[11px] text-muted-foreground">
-                          The latest 4 turns are sent for followups; the full chat stays stored.
-                        </p>
-                        <Button size="sm" type="submit" disabled={isPending || !query.trim()} className="min-w-24">
-                          {isPending ? "Sending..." : "Send"}
-                        </Button>
-                      </div>
-                    </form>
-                  </div>
-                </>
-              )}
-            </section>
-          </div>
-        )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t border-border/70 bg-background p-3 sm:p-4">
+                  <form onSubmit={handleSubmit} className="space-y-2">
+                    <Textarea
+                      placeholder={hasProcessedDocuments ? "Message the policy assistant..." : "Questions are disabled until a policy document finishes processing."}
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      disabled={isPending || !hasProcessedDocuments}
+                      rows={2}
+                      className="resize-none border-border/80 bg-background"
+                    />
+                    {sendMessageMutation.error && (
+                      <p role="alert" data-testid="rag-chat-error" className="text-sm text-destructive">
+                        {getApiErrorMessage(sendMessageMutation.error, "rag.chat.message")}
+                      </p>
+                    )}
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-[11px] text-muted-foreground">
+                        {hasProcessedDocuments
+                          ? "The latest 4 turns are sent for followups; the full chat stays stored."
+                          : "Existing chats stay available; upload and process a document to resume asking questions."}
+                      </p>
+                      <Button size="sm" type="submit" disabled={isPending || !hasProcessedDocuments || !query.trim()} className="min-w-24">
+                        {isPending ? "Sending..." : "Send"}
+                      </Button>
+                    </div>
+                  </form>
+                </div>
+              </>
+            )}
+          </section>
+        </div>
       </CardContent>
     </Card>
   );

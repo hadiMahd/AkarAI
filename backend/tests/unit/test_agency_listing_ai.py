@@ -296,12 +296,19 @@ class TestPublicListingSnapshot:
         listing = MagicMock()
         listing.id = uuid4()
         listing.title = "Test Listing"
+        listing.description = "Good apartment"
+        listing.property_type = "apartment"
+        listing.listing_purpose = "rent"
         listing.city = "Beirut"
+        listing.address = None
+        listing.country = None
+        listing.furnishing = None
+        listing.area_size = None
         listing.price = 1000
         snapshot = _public_listing_snapshot(listing)
         assert snapshot["title"] == "Test Listing"
-        assert snapshot["city"] == "Beirut"
-        assert snapshot["price"] == "1000"  # snapshot converts to string for json
+        assert snapshot["location"] == "Beirut"
+        assert snapshot["price"] == 1000.0
 
     def test_snapshot_handles_missing_optional_fields(self):
         listing = MagicMock()

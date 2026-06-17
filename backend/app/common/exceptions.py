@@ -5,12 +5,14 @@ class AppException(Exception):
     status_code: int = 500
     detail: str = "Internal server error"
     error_code: Optional[str] = None
+    extra: Optional[dict] = None
 
     def __init__(
         self,
         detail: Optional[str] = None,
         status_code: Optional[int] = None,
         error_code: Optional[str] = None,
+        extra: Optional[dict] = None,
     ):
         if detail is not None:
             self.detail = detail
@@ -18,6 +20,8 @@ class AppException(Exception):
             self.status_code = status_code
         if error_code is not None:
             self.error_code = error_code
+        if extra is not None:
+            self.extra = extra
         super().__init__(self.detail)
 
 

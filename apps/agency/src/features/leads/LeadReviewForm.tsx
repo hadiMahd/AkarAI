@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle2, Sparkles, Loader2, Mail, MessageSquareText, Send } from "lucide-react";
+import { CheckCircle2, Sparkles, Loader2, Mail, MessageSquareText, Send, ShieldAlert, TrendingUp } from "lucide-react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { getApiErrorMessage } from "@/lib/api/errors";
 
@@ -89,6 +89,12 @@ export function LeadReviewForm() {
     );
   }
 
+  const isProcessing =
+    lead.processing_status === "pending" ||
+    lead.processing_status === "pending_spam" ||
+    lead.processing_status === "pending_level";
+  const isSpamWithoutRank = lead.spam_label === "spam" && !lead.lead_level;
+
   return (
     <div className="space-y-6">
       <Card>
@@ -119,6 +125,50 @@ export function LeadReviewForm() {
                 }`}>
                   {lead.status}
                 </span>
+              </dd>
+            </div>
+            <div>
+              <dt className="text-sm font-medium text-muted-foreground">Classification</dt>
+              <dd className="flex flex-wrap gap-1 mt-1">
+                {isProcessing ? (
+                  <span className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs bg-yellow-100 text-yellow-700">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Processing
+                  </span>
+                ) : (
+                  <>
+                    {lead.spam_label && (
+                      <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs ${
+                        lead.spam_label === "spam"
+                          ? "bg-red-100 text-red-700"
+                          : "bg-green-100 text-green-700"
+                      }`}>
+                        {lead.spam_label === "spam" ? (
+                          <><ShieldAlert className="h-3 w-3 mr-1" /> Spam</>
+                        ) : "Not Spam"}
+                      </span>
+                    )}
+                    {lead.lead_level && (
+                      <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs ${
+                        lead.lead_level === "hot"
+                          ? "bg-orange-100 text-orange-700"
+                          : "bg-blue-100 text-blue-700"
+                      }`}>
+                        {lead.lead_level === "hot" ? (
+                          <><TrendingUp className="h-3 w-3 mr-1" /> Hot</>
+                        ) : "Normal"}
+                      </span>
+                    )}
+                    {isSpamWithoutRank && (
+                      <span className="inline-flex items-center rounded-full px-2 py-1 text-xs bg-slate-100 text-slate-700">
+                        Rank skipped for spam
+                      </span>
+                    )}
+                    {!lead.spam_label && !lead.lead_level && (
+                      <span className="text-sm text-muted-foreground">—</span>
+                    )}
+                  </>
+                )}
               </dd>
             </div>
             <div className="md:col-span-2">

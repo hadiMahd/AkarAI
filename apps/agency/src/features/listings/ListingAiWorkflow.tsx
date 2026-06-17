@@ -55,8 +55,9 @@ export function ListingAiWorkflow({
   const [phraseIndex, setPhraseIndex] = useState(0);
   const uploadMutation = useUploadSpecSheet();
   const draftMutation = useListingDraft();
+  const pollingJobId = extraction.kind === "polling" ? extraction.jobId : null;
   const { data: extractionData, error: extractionError } = useSpecExtraction(
-    extraction.kind === "polling" ? extraction.jobId : null,
+    pollingJobId,
   );
 
   useEffect(() => {
@@ -90,11 +91,11 @@ export function ListingAiWorkflow({
     }
     setExtraction({
       kind: "failed",
-      jobId: extraction.jobId,
+      jobId: pollingJobId ?? "",
       reason: describeExtractionFailure(getApiErrorMessage(extractionError, "agencyAi.job.status")),
       warnings: [],
     });
-  }, [extraction.kind, extraction.jobId, extractionError]);
+  }, [extraction.kind, extractionError, pollingJobId]);
 
   useEffect(() => {
     if (extraction.kind !== "polling") {

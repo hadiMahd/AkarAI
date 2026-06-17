@@ -5,6 +5,8 @@ from datetime import datetime, timezone
 from app.leads.models import Lead
 from app.leads.repository import LeadRepository
 from app.common.domain import LEAD_STATUS_NEW
+from app.common.exceptions import AppException
+from app.leads.service import LeadService
 
 
 @pytest.mark.anyio
@@ -112,3 +114,57 @@ class TestLeadRepository:
         assert result.email is None
         assert result.phone is None
         assert result.message == "Optional message"
+
+
+@pytest.mark.anyio
+class TestLeadInquiryUsesStoredProfile:
+    async def test_create_inquiry_uses_user_profile_contact_data(self, db_session, test_user, test_listing):
+        user, _ = test_user
+        user.name = "Stored Name"
+        user.phone = "+96170000000"
+        await db_session.commit()
+
+        svc = LeadService(db_session)
+        lead = await svc.create_inquiry(
+            test_listing.id,
+            user.id,
+            {
+                "name": "Ignored Name",
+                "email": "ignored@example.com",
+                "phone": "+10000000000",
+                "message": "Interested",
+            },
+        )
+
+        assert lead.name == "Stored Name"
+        assert lead.email == user.email
+        assert lead.phone == "+96170000000"
+
+    async def test_create_inquiry_rejects_incomplete_profile(self, db_session, test_user, test_listing):
+        user, _ = test_user
+        user.name = None
+        user.phone = None
+        await db_session.commit()
+
+        svc = LeadService(db_session)
+        with pytest.raises(AppException) as exc_info:
+            await svc.create_inquiry(test_listing.id, user.id, {"message": "Interested"})
+
+        exc = exc_info.value
+        assert exc.status_code == 422
+        assert exc.error_code == "PROFILE_INCOMPLETE_FOR_LEADS"
+        assert exc.extra == {"missing_fields": ["name"]}
+
+    async def test_create_inquiry_rejects_empty_message(self, db_session, test_user, test_listing):
+        user, _ = test_user
+        user.name = "Stored Name"
+        user.phone = "+96170000000"
+        await db_session.commit()
+
+        svc = LeadService(db_session)
+        with pytest.raises(AppException) as exc_info:
+            await svc.create_inquiry(test_listing.id, user.id, {"message": "   "})
+
+        exc = exc_info.value
+        assert exc.status_code == 422
+        assert exc.error_code == "EMPTY_LEAD_MESSAGE"

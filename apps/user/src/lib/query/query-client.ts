@@ -14,6 +14,7 @@ export const queryClient = new QueryClient({
 export const queryKeys = {
   user: {
     me: ["user", "me"] as const,
+    profile: ["user", "profile"] as const,
   },
   listings: {
     all: ["listings"] as const,

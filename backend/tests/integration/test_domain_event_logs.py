@@ -14,6 +14,14 @@ class TestDomainEventLogs:
         assert resp.status_code == 200
         return resp.json()["access_token"]
 
+    async def _complete_profile(self, client: AsyncClient, token: str, *, name: str) -> None:
+        resp = await client.put(
+            "/me/profile",
+            json={"name": name, "phone": "+1234567890"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+
     async def test_domain_event_log_created_on_lead_creation(self, async_client: AsyncClient, db_session):
         admin_token = await self._login(async_client, "agency.admin@akarai.test")
 
@@ -38,6 +46,7 @@ class TestDomainEventLogs:
         listing_id = listing_resp.json()["id"]
 
         user_token = await self._login(async_client, "user@akarai.test")
+        await self._complete_profile(async_client, user_token, name="Event Test")
         await async_client.post(
             f"/listings/{listing_id}/inquiries",
             json={"name": "Event Test", "email": "event@test.com", "message": "Interested"},
@@ -184,6 +193,7 @@ class TestDomainEventLogs:
         listing_id = listing_resp.json()["id"]
 
         user_token = await self._login(async_client, "user@akarai.test")
+        await self._complete_profile(async_client, user_token, name="Field Test")
         inquiry_resp = await async_client.post(
             f"/listings/{listing_id}/inquiries",
             json={"name": "Field Test", "email": "field@test.com"},

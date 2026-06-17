@@ -4,6 +4,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
+  phone?: string | null;
   avatar_url?: string;
   is_active: boolean;
   created_at: string;
@@ -13,6 +14,7 @@ export interface User {
 export interface ActorSummary {
   id: string;
   email: string;
+  name?: string | null;
   role: string;
   permissions: string[];
   tenant_id?: string | null;
@@ -60,7 +62,7 @@ export async function getCurrentUser(): Promise<User> {
   return {
     id: response.actor.id,
     email: response.actor.email,
-    name: response.actor.email,
+    name: response.actor.name || response.actor.email,
     is_active: response.actor.is_active,
     created_at: "",
     updated_at: "",

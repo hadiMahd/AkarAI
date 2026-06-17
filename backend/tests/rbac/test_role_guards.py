@@ -4,6 +4,19 @@ from app.auth.permissions import BuiltinRole, PermissionKey
 from app.auth.dependencies import require_permission, require_role
 
 
+@pytest.fixture(scope="session", autouse=True)
+def cleanup_test_infra():
+    """Sync no-op: shadows async conftest fixture for sync tests."""
+    yield
+
+
+@pytest.fixture(autouse=True)
+def clear_rate_limits():
+    """Sync no-op: shadows async conftest fixture for sync tests."""
+    yield
+
+
+
 class TestRoleGuards:
     def test_builtin_roles_exist(self):
         roles = [r.value for r in BuiltinRole]

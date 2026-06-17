@@ -63,6 +63,16 @@ const mockListing = {
 
 function setupListingMock() {
   mockApiClient.mockImplementation((endpoint: string) => {
+    if (endpoint === "/me/profile") {
+      return Promise.resolve({
+        id: "user-1",
+        email: "test@example.com",
+        name: "Test User",
+        phone: "+96170000000",
+        is_complete_for_leads: true,
+        missing_fields: [],
+      } as any);
+    }
     if (endpoint.includes("/viewing-slots")) {
       return Promise.resolve([]);
     }
@@ -74,7 +84,7 @@ describe("ListingDetailPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseAuth.mockReturnValue({
-      user: { id: "user-1", email: "test@example.com" },
+      user: { id: "user-1", email: "test@example.com", name: "Test User" },
       isAuthenticated: true,
       isLoading: false,
       signIn: vi.fn(),
@@ -124,6 +134,16 @@ describe("ListingDetailPage", () => {
   it("shows inquiry failure feedback on error", async () => {
     const { ApiError } = await import("@/lib/api/client");
     mockApiClient.mockImplementation((endpoint: string) => {
+      if (endpoint === "/me/profile") {
+        return Promise.resolve({
+          id: "user-1",
+          email: "test@example.com",
+          name: "Test User",
+          phone: "+96170000000",
+          is_complete_for_leads: true,
+          missing_fields: [],
+        } as any);
+      }
       if (endpoint.includes("/inquiries")) {
         return Promise.reject(
           new ApiError("API request failed: Too Many Requests", 429, {
@@ -153,6 +173,56 @@ describe("ListingDetailPage", () => {
     await waitFor(() => {
       expect(screen.getByText(/lot of inquiries/i)).toBeInTheDocument();
     });
+  });
+
+  it("blocks empty inquiry messages before submitting", async () => {
+    setupListingMock();
+    renderWithProviders(<ListingDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText("Test Property").length).toBeGreaterThan(0);
+    });
+
+    const submitButton = screen.getByRole("button", { name: /^submit inquiry$/i });
+    expect(submitButton).toBeDisabled();
+
+    const messageTextarea = screen.getByLabelText(/message/i);
+    await userEvent.type(messageTextarea, "   ");
+    expect(submitButton).toBeDisabled();
+
+    await userEvent.clear(messageTextarea);
+    await userEvent.type(messageTextarea, "Interested in a viewing");
+    expect(screen.getByRole("button", { name: /^submit inquiry$/i })).toBeEnabled();
+  });
+
+  it("blocks inquiry when profile is incomplete", async () => {
+    mockApiClient.mockImplementation((endpoint: string) => {
+      if (endpoint === "/me/profile") {
+        return Promise.resolve({
+          id: "user-1",
+          email: "test@example.com",
+          name: null,
+          phone: null,
+          is_complete_for_leads: false,
+          missing_fields: ["name"],
+        } as any);
+      }
+      if (endpoint.includes("/viewing-slots")) {
+        return Promise.resolve([]);
+      }
+      return Promise.resolve(mockListing as any);
+    });
+
+    renderWithProviders(<ListingDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText("Test Property").length).toBeGreaterThan(0);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /complete profile to submit/i })).toBeDisabled();
+    });
+    expect(screen.queryByLabelText(/contact phone/i)).not.toBeInTheDocument();
   });
 
   it("does not render AI widget, chatbot, or match score", async () => {

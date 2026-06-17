@@ -304,6 +304,18 @@ function mapByContext(error: unknown, context: ApiErrorContext): MappedMessage |
     }
 
     case "inquiry.submit": {
+      if (code === "EMPTY_LEAD_MESSAGE") {
+        return {
+          message: "Write a short message before sending your inquiry.",
+          isSpecific: true,
+        };
+      }
+      if (code === "PROFILE_INCOMPLETE_FOR_LEADS") {
+        return {
+          message: "Complete your profile with your name and a contact method before sending a lead.",
+          isSpecific: true,
+        };
+      }
       if (isRateLimited(error)) {
         return {
           message: "You've sent a lot of inquiries recently. Wait a moment and try again.",

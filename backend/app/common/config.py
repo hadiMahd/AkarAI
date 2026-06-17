@@ -129,6 +129,17 @@ class Settings(BaseSettings):
     agency_ai_ocr_rate_limit_max_requests: int = 5
     agency_ai_ocr_rate_limit_window_seconds: int = 60
 
+    # Lead Processing Pipeline
+    lead_model_service_url: str = "http://lead-model-service:8100"
+    lead_model_service_callback_token: str = ""
+    lead_model_service_request_timeout_seconds: int = 120
+    lead_processing_retry_max_attempts: int = 3
+    lead_processing_retry_base_delay_seconds: int = 5
+    lead_processing_retry_max_delay_seconds: int = 120
+    lead_processing_empty_message_is_spam: bool = True
+    lead_processing_idempotency_ttl_seconds: int = 86400
+    lead_processing_callback_path: str = "/api/v1/internal/leads/classification-callback"
+
     # Pagination
     pagination_default_page_size: int = 20
     pagination_max_page_size: int = 100
@@ -389,3 +400,21 @@ def configure_secrets(target=None) -> None:
         s.azure_cv_api_key = s.azure_cv_api_key
     except Exception as e:
         raise RuntimeError(f"Failed to read secret akarai/azure_cv from Vault: {e}") from e
+
+    # Load Lead Model Service config (optional — lead processing will fail-open if not configured)
+    try:
+        secret = client.secrets.kv.v2.read_secret_version(
+            path="lead_model_service", mount_point="akarai", raise_on_deleted_version=True
+        )
+        data = secret["data"]["data"]
+        callback_token = data.get("callback_token", "").strip()
+        service_url = data.get("service_url", "").strip()
+        if callback_token:
+            s.lead_model_service_callback_token = callback_token
+        if service_url:
+            s.lead_model_service_url = service_url
+    except hvac.exceptions.InvalidPath:
+        s.lead_model_service_callback_token = s.lead_model_service_callback_token
+        s.lead_model_service_url = s.lead_model_service_url
+    except Exception as e:
+        raise RuntimeError(f"Failed to read secret akarai/lead_model_service from Vault: {e}") from e

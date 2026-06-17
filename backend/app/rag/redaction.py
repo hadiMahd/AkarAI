@@ -40,6 +40,8 @@ _REDACT_PATTERNS: list[tuple[re.Pattern[str], str]] = [
 # Maximum character length for stored evidence previews (defense-in-depth on top of retrieval.py limits).
 _MAX_EVIDENCE_PREVIEW_CHARS = 500
 _MAX_PARENT_PAGE_TEXT_CHARS = 1000
+_MAX_LEAD_MESSAGE_CHARS = 2000
+_MAX_LEAD_DETAILS_CHARS = 1000
 
 
 def redact_text(text: str) -> str:
@@ -95,5 +97,23 @@ def sanitize_answer_payload(payload: dict[str, Any]) -> dict[str, Any]:
         blocked_reason = debug.get("guardrail_blocked_reason")
         if isinstance(blocked_reason, str) and len(blocked_reason) > 120:
             debug["guardrail_blocked_reason"] = blocked_reason[:120]
+
+    return sanitized
+
+
+def redact_lead_payload(payload: dict) -> dict:
+    """Redact PII and secrets from lead-processing payloads before logging or storage."""
+    sanitized = sanitize_payload(payload)
+
+    message = sanitized.get("message")
+    if isinstance(message, str) and len(message) > _MAX_LEAD_MESSAGE_CHARS:
+        sanitized["message"] = message[:_MAX_LEAD_MESSAGE_CHARS] + "…"
+
+    details = sanitized.get("details")
+    if isinstance(details, dict):
+        for key in list(details.keys()):
+            value = details.get(key)
+            if isinstance(value, str) and len(value) > _MAX_LEAD_DETAILS_CHARS:
+                details[key] = value[:_MAX_LEAD_DETAILS_CHARS] + "…"
 
     return sanitized
