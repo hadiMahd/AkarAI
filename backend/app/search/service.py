@@ -55,7 +55,26 @@ class SearchService:
             sort=data.get("sort"),
             result_count=data.get("result_count", 0),
         )
-        return await self._search_repo.create(log)
+        created = await self._search_repo.create(log)
+        await self._invalidate_platform_dashboard()
+        return created
+
+    async def _invalidate_platform_dashboard(self) -> None:
+        """Bust the platform admin insights cache when a new search log is written."""
+        from app.admin.service import (
+            PLATFORM_DASHBOARD_INSIGHTS_CACHE_NAMESPACE,
+        )
+        from app.common.cache import cache_invalidate_namespace
+
+        try:
+            await cache_invalidate_namespace(PLATFORM_DASHBOARD_INSIGHTS_CACHE_NAMESPACE)
+        except Exception:  # pragma: no cover
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "Failed to invalidate platform dashboard insights cache",
+                exc_info=True,
+            )
 
     async def list_search_logs(self, pagination: PaginationRequest) -> PaginationResult:
         ctx = require_tenant(self._tenant)

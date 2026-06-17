@@ -2,12 +2,17 @@ from typing import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.common.database import get_db
+from app.common.database import async_session_factory
 
 
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
-    async for session in get_db():
-        yield session
+    async with async_session_factory() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
 
 
 def pagination_params(page: int = 1, page_size: int = 20) -> dict:

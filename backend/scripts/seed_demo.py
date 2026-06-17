@@ -13,7 +13,7 @@ import asyncio
 import os
 import sys
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 if __package__ is None or __package__ == "":
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -24,6 +24,8 @@ from app.common.database import async_session_factory
 from app.common.rls import apply_rls_context_to_session
 from app.cities.models import City
 from app.listings.models import Listing
+from app.search.models import SearchLog
+from app.audit.models import AuditLog
 from app.users.models import User  # noqa: F401 — needed so SQLAlchemy can resolve FK target
 from app.agencies.models import AgencyTenant  # noqa: F401 — same reason
 
@@ -187,6 +189,26 @@ DEMO_LISTINGS: list[dict] = [
 
 DEMO_TAG = "demo-seed-v1"
 
+DEMO_SEARCH_LOGS: list[dict] = [
+    {"query": "2 bedroom apartment in Beirut under 1500", "filters": {"city": ["Beirut"], "property_type": "apartment", "listing_purpose": "rent", "max_price": 1500}, "source_mode": "manual", "event_type": "manual_search", "result_count": 6, "days_ago": 1},
+    {"query": "furnished studio in Beirut", "filters": {"city": ["Beirut"], "property_type": "apartment", "listing_purpose": "rent", "max_price": 900}, "source_mode": "ai_text", "event_type": "ai_text_search", "result_count": 4, "days_ago": 2},
+    {"query": "villa for sale in Jounieh", "filters": {"city": ["Jounieh"], "property_type": "villa", "listing_purpose": "sale", "min_price": 250000, "max_price": 600000}, "source_mode": "manual", "event_type": "manual_search", "result_count": 3, "days_ago": 3},
+    {"query": "family house in Sidon", "filters": {"city": ["Sidon"], "property_type": "house", "listing_purpose": "sale", "max_price": 250000}, "source_mode": "voice", "event_type": "voice_search", "result_count": 2, "days_ago": 5},
+    {"query": "apartment in Aley for rent", "filters": {"city": ["Aley"], "property_type": "apartment", "listing_purpose": "rent", "max_price": 1000}, "source_mode": "manual", "event_type": "manual_search", "result_count": 3, "days_ago": 6},
+    {"query": "land in Byblos", "filters": {"city": ["Byblos"], "property_type": "land", "listing_purpose": "sale", "min_price": 200000, "max_price": 400000}, "source_mode": "ai_text", "event_type": "ai_text_search", "result_count": 2, "days_ago": 8},
+    {"query": "cheap apartment in Tripoli", "filters": {"city": ["Tripoli"], "property_type": "apartment", "listing_purpose": "rent", "max_price": 800}, "source_mode": "manual", "event_type": "manual_search", "result_count": 5, "days_ago": 10},
+    {"query": "beirut rent apartment", "filters": {"city": ["Beirut"], "property_type": "apartment", "listing_purpose": "rent", "max_price": 2000}, "source_mode": "voice", "event_type": "voice_search", "result_count": 7, "days_ago": 11},
+    {"query": "jounieh apartment rent", "filters": {"city": ["Jounieh"], "property_type": "apartment", "listing_purpose": "rent", "max_price": 1200}, "source_mode": "manual", "event_type": "manual_search", "result_count": 4, "days_ago": 12},
+    {"query": "office or shop in Tripoli", "filters": {"city": ["Tripoli"], "property_type": "shop", "listing_purpose": "rent", "max_price": 2000}, "source_mode": "ai_text", "event_type": "ai_text_search", "result_count": 1, "days_ago": 14},
+]
+
+DEMO_AUDIT_LOGS: list[dict] = [
+    {"request_id": f"{DEMO_TAG}-audit-1", "action": "platform_dashboard.insights.read", "resource_type": "platform_dashboard", "result": "success", "event_metadata": {"feature_area": "platform_dashboard", "actor_role": "platform_admin", "demo_seed": True}},
+    {"request_id": f"{DEMO_TAG}-audit-2", "action": "platform_dashboard.roles.read", "resource_type": "platform_dashboard", "result": "success", "event_metadata": {"feature_area": "platform_dashboard", "actor_role": "platform_admin", "demo_seed": True}},
+    {"request_id": f"{DEMO_TAG}-audit-3", "action": "agency_ai.spec_extraction.completed", "resource_type": "agency_ai", "result": "success", "event_metadata": {"feature_area": "ai_assistant", "actor_role": "agency_admin", "demo_seed": True}},
+    {"request_id": f"{DEMO_TAG}-audit-4", "action": "lead.processing.level.completed", "resource_type": "lead", "result": "success", "event_metadata": {"feature_area": "lead", "actor_role": "agency_admin", "demo_seed": True}},
+]
+
 
 async def seed_cities(session) -> int:
     inserted = 0
@@ -274,6 +296,61 @@ async def seed_listings(session, agency_tenant_id: uuid.UUID, user_id: uuid.UUID
     return len(to_insert)
 
 
+async def seed_search_logs(session, agency_tenant_id: uuid.UUID, user_id: uuid.UUID) -> int:
+    inserted = 0
+    for entry in DEMO_SEARCH_LOGS:
+        query_text = f"{DEMO_TAG}:{entry['query']}"
+        existing = await session.execute(
+            select(SearchLog).where(SearchLog.raw_query_redacted == query_text)
+        )
+        if existing.scalar_one_or_none() is not None:
+            continue
+        created_at = datetime.now(timezone.utc).replace(microsecond=0)
+        session.add(
+            SearchLog(
+                id=uuid.uuid4(),
+                user_id=user_id,
+                agency_tenant_id=agency_tenant_id,
+                source_mode=entry["source_mode"],
+                event_type=entry["event_type"],
+                raw_query_redacted=query_text,
+                filters=entry["filters"],
+                result_count=entry["result_count"],
+                provider="demo_seed",
+                created_at=created_at - timedelta(days=entry["days_ago"]),
+            )
+        )
+        inserted += 1
+    await session.commit()
+    return inserted
+
+
+async def seed_audit_logs(session, user_id: uuid.UUID) -> int:
+    inserted = 0
+    for index, entry in enumerate(DEMO_AUDIT_LOGS, start=1):
+        existing = await session.execute(
+            select(AuditLog).where(AuditLog.request_id == entry["request_id"])
+        )
+        if existing.scalar_one_or_none() is not None:
+            continue
+        session.add(
+            AuditLog(
+                id=uuid.uuid4(),
+                request_id=entry["request_id"],
+                actor_user_id=user_id,
+                tenant_id=None,
+                action=entry["action"],
+                resource_type=entry["resource_type"],
+                result=entry["result"],
+                event_metadata=entry["event_metadata"],
+                created_at=datetime.now(timezone.utc) - timedelta(hours=index),
+            )
+        )
+        inserted += 1
+    await session.commit()
+    return inserted
+
+
 async def main() -> None:
     print("=== AkarAI Demo Seed ===")
 
@@ -298,6 +375,14 @@ async def main() -> None:
         print(f"Seeding demo listings (tenant={agency_tenant_id})...")
         listing_count = await seed_listings(session, agency_tenant_id, user_id)
         print(f"  Inserted {listing_count} new listings (skipped existing).")
+
+        print("Seeding marketplace demand logs...")
+        search_count = await seed_search_logs(session, agency_tenant_id, user_id)
+        print(f"  Inserted {search_count} new search logs (skipped existing).")
+
+        print("Seeding presentation-friendly audit logs...")
+        audit_count = await seed_audit_logs(session, user_id)
+        print(f"  Inserted {audit_count} new audit logs (skipped existing).")
 
     print("Done.")
 

@@ -138,6 +138,27 @@ def require_role(*roles: str):
     return _check
 
 
+def require_platform_dashboard_access():
+    """Require ``platform_admin`` role + dedicated dashboard access permission.
+
+    The platform admin dashboard requires both:
+    1. The actor's role must be ``platform_admin`` (existing platform
+       auth boundary).
+    2. The actor must hold the dedicated ``platform:dashboard_read``
+       permission (the new dashboard-specific gate).
+    """
+
+    role_check = require_role("platform_admin")
+    perm_check = require_permission(PermissionKey.PLATFORM_DASHBOARD_READ)
+
+    async def _check(
+        actor: dict = Depends(role_check),
+    ) -> dict:
+        return await perm_check(actor=actor)
+
+    return _check
+
+
 async def get_tenant_context(
     request: Request,
     actor: dict = Depends(get_current_actor),

@@ -1,0 +1,317 @@
+openapi: 3.1.0
+info:
+  title: AkarAI Platform Admin API
+  version: 0.1.0
+  description: Read-only backend contracts consumed by the Streamlit platform admin dashboard in phase 15.
+servers:
+  - url: http://localhost:8000
+security:
+  - bearerAuth: []
+paths:
+  /api/v1/platform/dashboard/insights:
+    get:
+      summary: Get aggregate marketplace demand insights
+      tags: [Platform Admin]
+      parameters:
+        - in: query
+          name: date_from
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: date_to
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: range_preset
+          schema:
+            type: string
+            enum: [last_7_days, last_30_days, last_90_days, custom]
+        - in: query
+          name: city
+          schema:
+            type: string
+        - in: query
+          name: property_type
+          schema:
+            type: string
+        - in: query
+          name: listing_purpose
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Aggregate insight payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemandInsightSnapshot'
+        '401':
+          description: Missing or invalid bearer token
+        '403':
+          description: Caller is not a platform admin or lacks dashboard access permission
+
+  /api/v1/platform/audit-logs:
+    get:
+      summary: List redacted AI audit logs for platform admins
+      tags: [Platform Admin]
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - in: query
+          name: page_size
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - in: query
+          name: date_from
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: date_to
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: feature_area
+          schema:
+            type: string
+        - in: query
+          name: actor_role
+          schema:
+            type: string
+        - in: query
+          name: result
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Paginated redacted audit logs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAuditLogResponse'
+        '401':
+          description: Missing or invalid bearer token
+        '403':
+          description: Caller is not a platform admin or lacks dashboard access permission
+
+  /api/v1/platform/roles/overview:
+    get:
+      summary: Get read-only role and permission overview
+      tags: [Platform Admin]
+      responses:
+        '200':
+          description: Role overview
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RoleAccessSummary'
+        '401':
+          description: Missing or invalid bearer token
+        '403':
+          description: Caller is not a platform admin or lacks dashboard access permission
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    DashboardFilterScope:
+      type: object
+      required: [date_from, date_to, range_preset]
+      properties:
+        date_from:
+          type: string
+          format: date
+        date_to:
+          type: string
+          format: date
+        range_preset:
+          type: string
+        city:
+          type: string
+          nullable: true
+        property_type:
+          type: string
+          nullable: true
+        listing_purpose:
+          type: string
+          nullable: true
+    SearchVolumeTrendPoint:
+      type: object
+      required: [bucket_start, bucket_end, search_count]
+      properties:
+        bucket_start:
+          type: string
+          format: date-time
+        bucket_end:
+          type: string
+          format: date-time
+        search_count:
+          type: integer
+          minimum: 0
+    RankedSegment:
+      type: object
+      required: [label, search_count, share, rank]
+      properties:
+        label:
+          type: string
+        search_count:
+          type: integer
+          minimum: 0
+        share:
+          type: number
+          format: float
+        rank:
+          type: integer
+          minimum: 1
+    DemandGapEntry:
+      type: object
+      required: [dimension_type, dimension_label, demand_count, supply_count, gap_score, gap_direction]
+      properties:
+        dimension_type:
+          type: string
+        dimension_label:
+          type: string
+        demand_count:
+          type: integer
+          minimum: 0
+        supply_count:
+          type: integer
+          minimum: 0
+        gap_score:
+          type: number
+          format: float
+        gap_direction:
+          type: string
+          enum: [undersupplied, balanced, oversupplied]
+    DemandInsightSnapshot:
+      type: object
+      required:
+        - generated_at
+        - scope
+        - search_volume_total
+        - search_volume_trend
+        - top_areas
+        - top_budget_bands
+        - top_property_types
+        - demand_gaps
+      properties:
+        generated_at:
+          type: string
+          format: date-time
+        scope:
+          $ref: '#/components/schemas/DashboardFilterScope'
+        search_volume_total:
+          type: integer
+          minimum: 0
+        search_volume_trend:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchVolumeTrendPoint'
+        top_areas:
+          type: array
+          items:
+            $ref: '#/components/schemas/RankedSegment'
+        top_budget_bands:
+          type: array
+          items:
+            $ref: '#/components/schemas/RankedSegment'
+        top_property_types:
+          type: array
+          items:
+            $ref: '#/components/schemas/RankedSegment'
+        demand_gaps:
+          type: array
+          items:
+            $ref: '#/components/schemas/DemandGapEntry'
+    PlatformAuditLogView:
+      type: object
+      required:
+        - id
+        - created_at
+        - actor_role
+        - feature_area
+        - action
+        - result
+        - redacted_metadata
+      properties:
+        id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        actor_role:
+          type: string
+        actor_user_id:
+          type: string
+          format: uuid
+          nullable: true
+        tenant_scope_label:
+          type: string
+          nullable: true
+        feature_area:
+          type: string
+        action:
+          type: string
+        result:
+          type: string
+        redacted_metadata:
+          type: object
+          additionalProperties: true
+    PaginatedAuditLogResponse:
+      type: object
+      required: [items, page, page_size, total, has_next, has_previous]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlatformAuditLogView'
+        page:
+          type: integer
+        page_size:
+          type: integer
+        total:
+          type: integer
+        has_next:
+          type: boolean
+        has_previous:
+          type: boolean
+    RoleAccessSummary:
+      type: object
+      required: [role_slug, display_name, granted_permissions, surface_access, restricted_surfaces]
+      properties:
+        role_slug:
+          type: string
+        display_name:
+          type: string
+        granted_permissions:
+          type: array
+          items:
+            type: string
+        surface_access:
+          type: array
+          items:
+            type: string
+        restricted_surfaces:
+          type: array
+          items:
+            type: string

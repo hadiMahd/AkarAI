@@ -1,7 +1,7 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/013-lead-processing-pipeline/plan.md
+at specs/015-platform-admin-streamlit/plan.md
 <!-- SPECKIT END -->
 
 ## Session Summary
