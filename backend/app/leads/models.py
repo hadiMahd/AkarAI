@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import uuid4
 
-from sqlalchemy import Column, ForeignKey, Numeric, String, Text
+from sqlalchemy import Column, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import JSON, UUID
 from sqlalchemy.types import DateTime
 
@@ -16,6 +16,7 @@ class Lead(Base):
     listing_id = Column(UUID(as_uuid=True), ForeignKey("listings.id", ondelete="CASCADE"), nullable=False)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     status = Column(String(16), default="new", nullable=False)
+    processing_status = Column(String(32), default="pending", nullable=False)
     name = Column(String(255), nullable=True)
     email = Column(String(255), nullable=True)
     phone = Column(String(64), nullable=True)
@@ -36,6 +37,9 @@ class LeadSpamResult(Base):
     label = Column(String(64), nullable=True)
     score = Column(Numeric(5, 4), nullable=True)
     details = Column(JSON, nullable=True)
+    retry_count = Column(Integer, default=0, nullable=False)
+    last_error = Column(Text, nullable=True)
+    idempotency_key = Column(String(128), nullable=True)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
@@ -50,6 +54,9 @@ class LeadLevelResult(Base):
     level = Column(String(32), nullable=True)
     score = Column(Numeric(5, 4), nullable=True)
     details = Column(JSON, nullable=True)
+    retry_count = Column(Integer, default=0, nullable=False)
+    last_error = Column(Text, nullable=True)
+    idempotency_key = Column(String(128), nullable=True)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 

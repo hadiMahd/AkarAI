@@ -46,3 +46,25 @@ Phase 5 added minimal backend support endpoints:
 
 ### Rationale
 These decisions support the Phase 5 goal of delivering a functional user app without AI features while maintaining security (RLS), performance (client-side state for comparison), and clear separation of concerns (repository pattern, no DAO files).
+
+---
+
+## Phase 13: Lead Processing Pipeline
+
+**Date**: 2026-06-16  
+**Status**: Decided
+
+### Context
+Phase 13 adds two-stage lead processing: spam detection first, then Hot/Normal ranking for non-spam leads. The user wants the system to scale cleanly as traffic grows.
+
+### Decision
+
+#### Separate Model Service
+- Run lead classification in a dedicated model service behind the existing async/event pipeline.
+- The backend saves the lead first, then emits `lead.created`.
+- The worker forwards the lead to the model service.
+- The model service loads the local classifier assets and returns spam / Hot-Normal results.
+- The backend stores the results and preserves retry behavior for each stage.
+
+### Rationale
+This keeps inference horizontally scalable, isolates model runtime dependencies, and allows independent rollout of the spam gatekeeper and Hot/Normal ranker without tying them to the main API process.

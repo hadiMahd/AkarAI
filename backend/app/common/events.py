@@ -30,7 +30,25 @@ EVENT_NAMES = [
     "listing.image_rejected",
     "listing.image_warning",
     "email.notification_requested",
+    "lead.processing.spam_result",
+    "lead.processing.level_result",
+    "lead.processing.failed",
+    "lead.reviewed",
+    "lead.status_changed",
 ]
+
+LEAD_PROCESSING_STAGE_SPAM = "spam"
+LEAD_PROCESSING_STAGE_LEVEL = "level"
+
+LEAD_PROCESSING_STATUS_PENDING = "pending"
+LEAD_PROCESSING_STATUS_COMPLETED = "completed"
+LEAD_PROCESSING_STATUS_FAILED = "failed"
+
+LEAD_SPAM_LABEL_SPAM = "spam"
+LEAD_SPAM_LABEL_NOT_SPAM = "not_spam"
+
+LEAD_LEVEL_HOT = "hot"
+LEAD_LEVEL_NORMAL = "normal"
 
 
 class OutboxEvent(Base):

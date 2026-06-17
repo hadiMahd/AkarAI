@@ -8,7 +8,7 @@ function actorToUser(actor: ActorSummary) {
   return {
     id: actor.id,
     email: actor.email,
-    name: actor.email,
+    name: actor.name || actor.email,
     is_active: actor.is_active,
     created_at: "",
     updated_at: "",

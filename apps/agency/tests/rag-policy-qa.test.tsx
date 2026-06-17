@@ -390,6 +390,123 @@ describe("Empty state", () => {
   });
 });
 
+describe("Policy assistant without currently processed docs", () => {
+  beforeEach(() => {
+    vi.mocked(getTenantSession).mockReturnValue({
+      userId: "user-1", tenantId: "tenant-1",
+      role: "agency_admin", permissions: [], isActive: true,
+    });
+    vi.mocked(apiClient).mockImplementation(async (endpoint: string, opts?: Record<string, unknown>) => {
+      if (endpoint === "/api/v1/agencies/rag/documents" && (!opts?.method || opts.method === "GET")) {
+        return {
+          items: [
+            {
+              id: "doc-1",
+              tenant_id: "tenant-1",
+              filename: "policy.pdf",
+              status: "pending",
+              blob_path: "rag-vault/tenant-1/doc-1/original/policy.pdf",
+              created_at: "2025-01-15T00:00:00Z",
+              updated_at: "2025-01-15T00:00:00Z",
+            },
+          ],
+          total: 1,
+          page: 1,
+          size: 20,
+        };
+      }
+      if (endpoint === "/api/v1/agencies/rag/chat/threads" && (!opts?.method || opts.method === "GET")) {
+        return {
+          items: [
+            {
+              id: "thread-1",
+              tenant_id: "tenant-1",
+              owner_user_id: "user-1",
+              title: "Old policy thread",
+              message_count: 2,
+              created_at: "2025-01-15T00:00:00Z",
+              updated_at: "2025-01-15T00:00:00Z",
+              last_message_at: "2025-01-15T00:00:00Z",
+            },
+          ],
+          total: 1,
+          page: 1,
+          size: 20,
+        };
+      }
+      if (endpoint === "/api/v1/agencies/rag/chat/threads/thread-1") {
+        return {
+          thread: {
+            id: "thread-1",
+            tenant_id: "tenant-1",
+            owner_user_id: "user-1",
+            title: "Old policy thread",
+            message_count: 2,
+            created_at: "2025-01-15T00:00:00Z",
+            updated_at: "2025-01-15T00:00:00Z",
+            last_message_at: "2025-01-15T00:00:00Z",
+          },
+          messages: [
+            {
+              id: "msg-user-1",
+              thread_id: "thread-1",
+              tenant_id: "tenant-1",
+              owner_user_id: "user-1",
+              role: "user",
+              content: "parking policy?",
+              sequence_number: 1,
+              created_at: "2025-01-15T00:00:00Z",
+            },
+            {
+              id: "msg-assistant-1",
+              thread_id: "thread-1",
+              tenant_id: "tenant-1",
+              owner_user_id: "user-1",
+              role: "assistant",
+              content: "Visitor parking is limited to 2 hours.",
+              sequence_number: 2,
+              created_at: "2025-01-15T00:00:01Z",
+              answer: {
+                status: "answered",
+                answer: "Visitor parking is limited to 2 hours.",
+                citations: [],
+                evidence: [],
+                debug: {
+                  reranker_used: false,
+                  reranker_provider: null,
+                  fallback_reason: null,
+                  confidence_status: "sufficient",
+                  retrieval_log_id: "log-1",
+                  vector_candidate_count: 8,
+                  rerank_candidate_count: 0,
+                },
+              },
+            },
+          ],
+        };
+      }
+      return { items: [], total: 0, page: 1, size: 20 };
+    });
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("keeps old chats visible and disables new questions", async () => {
+    renderWithProviders(<RagAssistantPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/existing chats stay readable/i)).toBeInTheDocument();
+      expect(screen.getAllByText("Old policy thread").length).toBeGreaterThan(0);
+      expect(screen.getByText("parking policy?")).toBeInTheDocument();
+    });
+
+    expect(screen.getByPlaceholderText(/questions are disabled until a policy document finishes processing/i)).toBeDisabled();
+    expect(screen.getByRole("button", { name: /new conversation/i })).toBeDisabled();
+  });
+});
+
 describe("Pending assistant bubble", () => {
   let resolveSend: (v: unknown) => void;
   let rejectSend: (e: Error) => void;

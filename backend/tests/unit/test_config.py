@@ -116,6 +116,24 @@ class TestSettingsLoading:
                             }
                         }
                     },
+                    # Fifth call: akarai/azure_cv
+                    {
+                        "data": {
+                            "data": {
+                                "endpoint": "https://vision.example/read/v3.2",
+                                "api_key": "vision-key-123",
+                            }
+                        }
+                    },
+                    # Sixth call: akarai/lead_model_service
+                    {
+                        "data": {
+                            "data": {
+                                "service_url": "http://lead-model-service:8100",
+                                "callback_token": "lead-callback-token",
+                            }
+                        }
+                    },
                 ]
 
                 configure_secrets(target=s)
@@ -132,14 +150,20 @@ class TestSettingsLoading:
                 assert s.openrouter_api_key == "or-test-key"
                 assert s.openrouter_rerank_model == "test/rerank-model"
                 assert s.openrouter_content_safety_model == "test/content-safety-model"
+                assert s.azure_cv_endpoint == "https://vision.example/read/v3.2"
+                assert s.azure_cv_api_key == "vision-key-123"
+                assert s.lead_model_service_url == "http://lead-model-service:8100"
+                assert s.lead_model_service_callback_token == "lead-callback-token"
 
                 # Verify all secrets were read
-                assert mock_client.secrets.kv.v2.read_secret_version.call_count == 4
+                assert mock_client.secrets.kv.v2.read_secret_version.call_count == 6
                 calls = mock_client.secrets.kv.v2.read_secret_version.call_args_list
                 assert calls[0].kwargs == {"path": "jwt", "mount_point": "akarai", "raise_on_deleted_version": True}
                 assert calls[1].kwargs == {"path": "ai", "mount_point": "akarai", "raise_on_deleted_version": True}
                 assert calls[2].kwargs == {"path": "azure", "mount_point": "akarai", "raise_on_deleted_version": True}
                 assert calls[3].kwargs == {"path": "openrouter", "mount_point": "akarai", "raise_on_deleted_version": True}
+                assert calls[4].kwargs == {"path": "azure_cv", "mount_point": "akarai", "raise_on_deleted_version": True}
+                assert calls[5].kwargs == {"path": "lead_model_service", "mount_point": "akarai", "raise_on_deleted_version": True}
 
     def test_configure_secrets_optional_ai_secrets_missing_from_vault(self):
         """Test that configure_secrets handles missing optional AI secrets gracefully."""
@@ -166,6 +190,10 @@ class TestSettingsLoading:
                     hvac.exceptions.InvalidPath("No secret found"),
                     # Fourth call: akarai/openrouter - not found
                     hvac.exceptions.InvalidPath("No secret found"),
+                    # Fifth call: akarai/azure_cv - not found
+                    hvac.exceptions.InvalidPath("No secret found"),
+                    # Sixth call: akarai/lead_model_service - not found
+                    hvac.exceptions.InvalidPath("No secret found"),
                 ]
 
                 configure_secrets(target=s)
@@ -175,3 +203,4 @@ class TestSettingsLoading:
                 assert s.hf_token == ""  # Empty when not configured
                 assert s.azure_openai_api_key == ""
                 assert s.openrouter_content_safety_model == ""
+                assert s.azure_cv_api_key == ""

@@ -3,6 +3,19 @@ import pytest
 from app.auth.permissions import BuiltinRole, PermissionKey
 
 
+@pytest.fixture(scope="session", autouse=True)
+def cleanup_test_infra():
+    """Sync no-op: shadows async conftest fixture for sync tests."""
+    yield
+
+
+@pytest.fixture(autouse=True)
+def clear_rate_limits():
+    """Sync no-op: shadows async conftest fixture for sync tests."""
+    yield
+
+
+
 class TestRoleRestrictions:
     def test_support_employee_does_not_have_listing_create(self):
         from sqlalchemy import text

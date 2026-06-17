@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, MessageSquare, CheckCircle2, Calendar, AlertCircle } from "lucide-react";
+import { Building2, MessageSquare, CheckCircle2, Calendar, AlertCircle, TrendingUp, Users } from "lucide-react";
 import { useDashboardSummary } from "./useDashboardSummary";
 import { getApiErrorMessage } from "@/lib/api/errors";
 
@@ -82,6 +82,102 @@ export function DashboardCards() {
           </CardContent>
         </Card>
       ))}
+    </div>
+  );
+}
+
+
+import { useLeadProcessingTrends } from "./useDashboardSummary";
+
+export function LeadProcessingTrendsCards() {
+  const { data, isLoading, error } = useLeadProcessingTrends();
+
+  if (isLoading) {
+    return (
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mt-6">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Card key={i}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <div className="h-4 w-24 bg-muted animate-pulse rounded" />
+            </CardHeader>
+            <CardContent>
+              <div className="h-8 w-16 bg-muted animate-pulse rounded" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  if (error || !data) return null;
+
+  const percent = (v: number) => `${(v * 100).toFixed(1)}%`;
+  const summary = data.summary ?? {
+    total_leads: 0,
+    spam_count: 0,
+    not_spam_count: 0,
+    hot_count: 0,
+    normal_count: 0,
+    pending_count: 0,
+    reviewed_count: 0,
+  };
+
+  return (
+    <div className="space-y-4 mt-6">
+      <h3 className="text-lg font-semibold">Lead Processing Trends</h3>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Spam Rate</CardTitle>
+            <AlertCircle className="h-4 w-4 text-red-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{percent(data.spam_rate)}</div>
+            <p className="text-xs text-muted-foreground">
+              {summary.spam_count} spam / {summary.total_leads} leads
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Hot Lead Rate</CardTitle>
+            <TrendingUp className="h-4 w-4 text-orange-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{percent(data.hot_rate)}</div>
+            <p className="text-xs text-muted-foreground">
+              {summary.hot_count} hot / {summary.not_spam_count} non-spam
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Review Rate</CardTitle>
+            <Users className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{percent(data.review_rate)}</div>
+            <p className="text-xs text-muted-foreground">
+              {summary.reviewed_count} reviewed / {summary.total_leads} leads
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Fallbacks</CardTitle>
+            <AlertCircle className="h-4 w-4 text-yellow-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{data.fallback_count}</div>
+            <p className="text-xs text-muted-foreground">
+              Classification fallback events
+            </p>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

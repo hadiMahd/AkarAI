@@ -116,3 +116,30 @@ Set the following environment variables (or Vault secrets):
 
 The OCR provider is registered lazily under `azure_computer_vision_read` and cached
 after first access. Calls fail-closed if the endpoint or key is missing.
+
+## Lead Processing Pipeline
+
+Lead classification uses a dedicated model service for two-stage inference.
+
+### Architecture
+
+```
+User → Lead Creation → outbox(lead.created) → Worker → Model Service → Callback → Backend
+```
+
+1. **Lead Creation**: Save lead + create pending `LeadSpamResult` (and `LeadLevelResult` for non-empty).
+2. **Outbox Event**: Emit `lead.created` with idempotency key `lead.created.{lead_id}`.
+3. **Worker**: Claims the event, forwards to model service via `POST /classify`.
+4. **Model Service**: Runs spam classifier → calls back with spam result → runs Hot/Normal ranker → calls back with level result.
+5. **Callback**: Backend persists `LeadClassificationCallbackRequest` via idempotent upsert. Late callbacks update classification without touching review state.
+
+### Fail-Open
+- Empty messages → immediate spam (no model service call).
+- Model unavailable → `not_spam` / `normal` defaults.
+- Worker failures → best-effort, lead is already saved.
+
+### Configuration
+- `LEAD_MODEL_SERVICE_URL` (default: `http://lead-model-service:8100`)
+- `LEAD_MODEL_SERVICE_CALLBACK_TOKEN` (Vault secret: `akarai/lead_model_service`)
+- `LEAD_PROCESSING_RETRY_MAX_ATTEMPTS` (default: 3)
+- `LEAD_PROCESSING_EMPTY_MESSAGE_IS_SPAM` (default: true)

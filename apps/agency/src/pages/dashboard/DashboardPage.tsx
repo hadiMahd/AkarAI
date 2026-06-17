@@ -1,4 +1,4 @@
-import { DashboardCards } from "@/features/dashboard/DashboardCards";
+import { DashboardCards, LeadProcessingTrendsCards } from "@/features/dashboard/DashboardCards";
 import { TransactionsForecastChart } from "@/features/dashboard/TransactionsForecastChart";
 import { useTenantSession } from "@/features/auth/useTenantSession";
 import { isAgencyAdmin } from "@/lib/session/tenant-session";
@@ -14,6 +14,7 @@ export function DashboardPage() {
         <p className="text-muted-foreground">Overview of your agency operations</p>
       </div>
       <DashboardCards />
+      <LeadProcessingTrendsCards />
       {showForecast ? <TransactionsForecastChart /> : null}
     </div>
   );

@@ -96,8 +96,18 @@ describe("Saved Listings Flow", () => {
           has_previous: false,
         });
       }
+      if (endpoint === "/me/profile") {
+        return Promise.resolve({
+          id: "user-1",
+          email: "test@example.com",
+          name: "Test User",
+          phone: null,
+          is_complete_for_leads: true,
+          missing_fields: [],
+        } as any);
+      }
       if (endpoint === "/auth/me") {
-        return Promise.resolve({ actor: { id: "user-1", email: "test@example.com", role: "user", permissions: [], is_active: true } });
+        return Promise.resolve({ actor: { id: "user-1", email: "test@example.com", name: "Test User", role: "user", permissions: [], is_active: true } });
       }
       return Promise.reject(new Error("Unexpected endpoint: " + endpoint));
     });
@@ -137,8 +147,18 @@ describe("Saved Listings Flow", () => {
           has_previous: false,
         });
       }
+      if (endpoint === "/me/profile") {
+        return Promise.resolve({
+          id: "user-1",
+          email: "test@example.com",
+          name: "Test User",
+          phone: null,
+          is_complete_for_leads: true,
+          missing_fields: [],
+        } as any);
+      }
       if (endpoint === "/auth/me") {
-        return Promise.resolve({ actor: { id: "user-1", email: "test@example.com", role: "user", permissions: [], is_active: true } });
+        return Promise.resolve({ actor: { id: "user-1", email: "test@example.com", name: "Test User", role: "user", permissions: [], is_active: true } });
       }
       return Promise.reject(new Error("Unexpected endpoint: " + endpoint));
     });

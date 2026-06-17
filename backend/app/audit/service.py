@@ -90,3 +90,32 @@ class AuditService:
             user_agent=user_agent,
             metadata={"action": action, "identifier": identifier},
         )
+
+    async def log_lead_processing(
+        self,
+        action: str,
+        result: str,
+        lead_id: UUID,
+        tenant_id: UUID,
+        stage: str | None = None,
+        details: dict | None = None,
+        actor_user_id: UUID | None = None,
+        request_id: str | None = None,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+    ) -> AuditLog:
+        metadata = {
+            "lead_id": str(lead_id),
+            "processing_stage": stage,
+            **(details or {}),
+        }
+        return await self.log_auth_event(
+            action=f"lead_processing.{action}",
+            result=result,
+            actor_user_id=actor_user_id,
+            tenant_id=tenant_id,
+            request_id=request_id,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            metadata=metadata,
+        )

@@ -126,6 +126,7 @@ async def _build_actor_summary(user: User, db: AsyncSession) -> ActorSummary:
     return ActorSummary(
         id=str(user.id),
         email=user.email,
+        name=user.name,
         role=role_name or "user",
         permissions=perm_keys,
         is_active=user.is_active,
@@ -481,6 +482,7 @@ async def get_me(actor: dict = Depends(get_current_actor)):
         actor=ActorSummary(
             id=actor["id"],
             email=actor["email"],
+            name=actor.get("name"),
             role=actor.get("role") or "user",
             permissions=actor.get("permissions", []),
             is_active=actor.get("is_active", True),

@@ -1,7 +1,6 @@
 """Seed Vault with secrets from .env file. No env-var leakage in docker logs."""
 
 import os
-import secrets
 import sys
 import time
 
@@ -197,6 +196,33 @@ def main() -> None:
     )
 
     print(f"[seed] akarai/azure_cv seeded ({', '.join(azure_cv_source)})")
+
+    # Seed Lead Model Service config (optional)
+    lead_model_service_url = dotenv.get("LEAD_MODEL_SERVICE_URL", "http://lead-model-service:8100").strip()
+    lead_model_service_callback_token = dotenv.get(
+        "LEAD_MODEL_SERVICE_CALLBACK_TOKEN",
+        "dev-callback-token-do-not-use-in-production",
+    ).strip()
+    lead_model_source = []
+    if dotenv.get("LEAD_MODEL_SERVICE_URL"):
+        lead_model_source.append("service_url: .env")
+    else:
+        lead_model_source.append("service_url: default")
+    if dotenv.get("LEAD_MODEL_SERVICE_CALLBACK_TOKEN"):
+        lead_model_source.append("callback_token: .env")
+    else:
+        lead_model_source.append("callback_token: default")
+
+    client.secrets.kv.v2.create_or_update_secret(
+        path="lead_model_service",
+        secret={
+            "service_url": lead_model_service_url,
+            "callback_token": lead_model_service_callback_token,
+        },
+        mount_point="akarai",
+    )
+
+    print(f"[seed] akarai/lead_model_service seeded ({', '.join(lead_model_source)})")
 
 
 if __name__ == "__main__":

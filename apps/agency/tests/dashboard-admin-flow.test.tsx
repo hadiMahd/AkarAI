@@ -25,6 +25,24 @@ vi.mock("@/lib/api/client", async (importOriginal) => {
           ],
         };
       }
+      if (endpoint === "/agency/dashboard/lead-processing-trends") {
+        return {
+          tenant_id: "tenant-1",
+          summary: {
+            total_leads: 20,
+            spam_count: 4,
+            not_spam_count: 16,
+            hot_count: 6,
+            normal_count: 10,
+            pending_count: 2,
+            reviewed_count: 12,
+          },
+          spam_rate: 0.2,
+          hot_rate: 0.375,
+          review_rate: 0.6,
+          fallback_count: 1,
+        };
+      }
       return { total: 0, items: [], has_next: false, has_previous: false, page: 1, page_size: 1 };
     }),
   };

@@ -284,6 +284,8 @@ services:
       RAG_FASTCDC_MAX_SIZE: "1536"
       VAULT_ADDR: http://vault:8200
       VAULT_TOKEN: root
+      BACKEND_URL: http://backend:8000
+      LEAD_MODEL_SERVICE_CALLBACK_TOKEN: ${LEAD_MODEL_SERVICE_CALLBACK_TOKEN:-dev-callback-token-do-not-use-in-production}
     restart: unless-stopped
     depends_on:
       pgbouncer:
@@ -292,6 +294,31 @@ services:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "python", "healthcheck.py"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  lead-model-service:
+    build:
+      context: ./model-service
+      dockerfile: Dockerfile
+    container_name: akarai-lead-model-service
+    environment:
+      APP_ENV: development
+      BACKEND_URL: http://backend:8000
+      CALLBACK_TOKEN: ${LEAD_MODEL_SERVICE_CALLBACK_TOKEN:-dev-callback-token-do-not-use-in-production}
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8100:8100"
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8100/health')"]
       interval: 15s
       timeout: 5s
       retries: 3

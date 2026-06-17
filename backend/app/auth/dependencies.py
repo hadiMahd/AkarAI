@@ -76,6 +76,7 @@ async def get_current_actor(
     actor = {
         "id": str(user.id),
         "email": user.email,
+        "name": user.name,
         "role": role.slug if role else None,
         "permissions": perm_keys,
         "is_active": user.is_active,

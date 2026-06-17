@@ -85,3 +85,12 @@ vault-data/
 .claude/
 
 azureocr.txt
+
+# Local model artifacts and raw dumps
+dump/**/*.joblib
+dump/**/*.safetensors
+dump/**/*.bin
+dump/**/*.csv
+dump/**/*.Zone.Identifier
+dump/**/*:Zone.Identifier
+model-service/artifacts/

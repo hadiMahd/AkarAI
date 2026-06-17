@@ -47,11 +47,16 @@ class _TestAsyncSession:
                 if s.in_transaction() and not s.is_active:
                     await s.rollback()
                 await _orig_commit()
+                if not s.in_transaction():
+                    await s.begin()
                 await apply_rls_context_to_session(
                     s, role="platform_admin", is_platform_admin=True,
                 )
             s.commit = _commit
             self._wrapped = True
+        # Ensure a transaction is active so set_config(..., true) persists
+        if not s.in_transaction():
+            await s.begin()
         await apply_rls_context_to_session(
             s, role="platform_admin", is_platform_admin=True,
         )
@@ -97,8 +102,8 @@ async def cleanup_test_infra():
 @pytest.fixture(autouse=True)
 async def clear_rate_limits():
     from app.common.redis import redis_scan_delete
-
-    await redis_scan_delete("ratelimit:*")
+    count = await redis_scan_delete("ratelimit:*")
+    print(f"[CLEAR_RATE_LIMITS] Cleared {count} keys", flush=True)
     yield
     await redis_scan_delete("ratelimit:*")
 
@@ -128,6 +133,8 @@ async def db_session() -> AsyncGenerator:
             if session.in_transaction() and not session.is_active:
                 await session.rollback()
             await _orig_commit()
+            if not session.in_transaction():
+                await session.begin()
             await apply_rls_context_to_session(
                 session, role="platform_admin", is_platform_admin=True,
             )

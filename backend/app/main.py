@@ -29,15 +29,15 @@ app.add_middleware(RequestIDMiddleware)
 
 @app.exception_handler(AppException)
 async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={
-            "status": "error",
-            "detail": exc.detail,
-            "error_code": exc.error_code,
-            "request_id": get_request_id(request),
-        },
-    )
+    content = {
+        "status": "error",
+        "detail": exc.detail,
+        "error_code": exc.error_code,
+        "request_id": get_request_id(request),
+    }
+    if exc.extra:
+        content.update(exc.extra)
+    return JSONResponse(status_code=exc.status_code, content=content)
 
 
 @app.exception_handler(ValidationError)
@@ -165,7 +165,7 @@ from app.listings.router import (
     comparison_router as comparison_sessions_router,
 )
 from app.viewings.router import router as viewings_router, booking_router, agency_viewings_router
-from app.leads.router import router as leads_router, agency_router as agency_leads_router
+from app.leads.router import router as leads_router, agency_router as agency_leads_router, internal_router as leads_internal_router
 from app.notifications.router import router as notifications_router
 from app.search.router import router as search_router, public_search_router
 from app.analytics.router import router as analytics_router
@@ -183,6 +183,7 @@ app.include_router(booking_router)
 app.include_router(agency_viewings_router)
 app.include_router(leads_router)
 app.include_router(agency_leads_router)
+app.include_router(leads_internal_router)
 app.include_router(notifications_router)
 app.include_router(search_router)
 app.include_router(public_search_router)
@@ -192,6 +193,8 @@ app.include_router(rag_chat_router)
 app.include_router(rag_retrieval_router)
 
 from app.ai.router import agency_ai_router, user_ai_router
+from app.users.router import router as users_router
 
 app.include_router(agency_ai_router)
 app.include_router(user_ai_router)
+app.include_router(users_router)

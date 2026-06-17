@@ -3,7 +3,6 @@ import { apiClient } from "@/lib/api/client";
 
 export interface InquiryRequest {
   message: string;
-  contact_phone?: string;
 }
 
 export interface InquiryResponse {

@@ -1,0 +1,175 @@
+{
+  "model_card_version": "1.0",
+  "model_name": "lead_ranker_hot_normal",
+  "model_type": "transformer_sequence_classifier",
+  "task": "binary_text_classification",
+  "selected_model_key": "modernbert_base",
+  "selected_hugging_face_model": "answerdotai/ModernBERT-base",
+  "exported_model_dir": "lead_ranker_best_transformer_model",
+  "created_at_utc": "2026-06-04T20:58:43.824915+00:00",
+  "labels": {
+    "0": "normal",
+    "1": "hot"
+  },
+  "intended_use": {
+    "primary_use": "Rank accepted real-estate leads as normal or hot.",
+    "upstream_dependency": "This model assumes the message has already passed the Stage 1 lead gatekeeper.",
+    "recommended_use": "Use the hot probability to prioritize follow-up, routing, or notification urgency."
+  },
+  "out_of_scope_use": [
+    "Do not use as a spam detector.",
+    "Do not use as a final sales qualification decision system.",
+    "Do not use for legal, financial, credit, or housing eligibility decisions.",
+    "Do not use on production traffic without monitoring and periodic review."
+  ],
+  "dataset": {
+    "dataset_path": "lead_ranker_hot_normal_data.csv",
+    "dataset_file_size_bytes": 64088,
+    "dataset_raw_sha256": "df054fae9859f4a8ede1f02f66d5ba36b8147bd5b1767c8ced08154d5f8142f5",
+    "dataset_content_sha256": "8ec03c40cc96c2c75f2014d7660a4a3a789ae468063337d64b82719fe60e79fd",
+    "rows": 1000,
+    "columns": [
+      "text",
+      "label"
+    ],
+    "label_distribution": {
+      "0": 500,
+      "1": 500
+    },
+    "duplicate_text_rows": 0,
+    "created_at_utc": "2026-06-04T20:46:54.406386+00:00"
+  },
+  "splits": {
+    "train_rows": 700,
+    "validation_rows": 150,
+    "test_rows": 150,
+    "train_label_distribution": {
+      "0": 350,
+      "1": 350
+    },
+    "validation_label_distribution": {
+      "0": 75,
+      "1": 75
+    },
+    "test_label_distribution": {
+      "0": 75,
+      "1": 75
+    }
+  },
+  "training_config": {
+    "random_state": 42,
+    "max_length": 128,
+    "num_epochs": 4,
+    "train_batch_size": 8,
+    "eval_batch_size": 16,
+    "gradient_accumulation_steps": 2,
+    "learning_rate": 2e-05,
+    "weight_decay": 0.01,
+    "selection_metric": "test_f1"
+  },
+  "models_compared": {
+    "deberta_v3_small": "microsoft/deberta-v3-small",
+    "modernbert_base": "answerdotai/ModernBERT-base"
+  },
+  "evaluation": {
+    "selection_metric": "test_f1",
+    "all_results": [
+      {
+        "model_key": "modernbert_base",
+        "model_name": "answerdotai/ModernBERT-base",
+        "saved_model_dir": "lead_ranker_transformer_runs/modernbert_base/final_model",
+        "validation_accuracy": 1.0,
+        "validation_precision": 1.0,
+        "validation_recall": 1.0,
+        "validation_f1": 1.0,
+        "test_accuracy": 1.0,
+        "test_precision": 1.0,
+        "test_recall": 1.0,
+        "test_f1": 1.0,
+        "confusion_matrix": [
+          [
+            75,
+            0
+          ],
+          [
+            0,
+            75
+          ]
+        ]
+      },
+      {
+        "model_key": "deberta_v3_small",
+        "model_name": "microsoft/deberta-v3-small",
+        "saved_model_dir": "lead_ranker_transformer_runs/deberta_v3_small/final_model",
+        "validation_accuracy": 0.5,
+        "validation_precision": 0.0,
+        "validation_recall": 0.0,
+        "validation_f1": 0.0,
+        "test_accuracy": 0.5,
+        "test_precision": 0.0,
+        "test_recall": 0.0,
+        "test_f1": 0.0,
+        "confusion_matrix": [
+          [
+            75,
+            0
+          ],
+          [
+            75,
+            0
+          ]
+        ]
+      }
+    ],
+    "selected_model_metrics": {
+      "model_key": "modernbert_base",
+      "model_name": "answerdotai/ModernBERT-base",
+      "saved_model_dir": "lead_ranker_transformer_runs/modernbert_base/final_model",
+      "validation_accuracy": 1.0,
+      "validation_precision": 1.0,
+      "validation_recall": 1.0,
+      "validation_f1": 1.0,
+      "test_accuracy": 1.0,
+      "test_precision": 1.0,
+      "test_recall": 1.0,
+      "test_f1": 1.0,
+      "confusion_matrix": [
+        [
+          75,
+          0
+        ],
+        [
+          0,
+          75
+        ]
+      ]
+    }
+  },
+  "limitations": [
+    "The dataset is synthetic, so real app traffic may contain phrasing not represented here.",
+    "The model may learn template-specific patterns.",
+    "Hot-vs-normal ranking is subjective and should be reviewed against business outcomes.",
+    "A hot prediction should prioritize follow-up, not guarantee deal quality.",
+    "The model was not validated on multilingual production messages unless such messages are added to the dataset."
+  ],
+  "monitoring_recommendations": [
+    "Log prediction, hot probability, message length, timestamp, and downstream outcome.",
+    "Review false hot predictions that waste agent time.",
+    "Review false normal predictions that later became high-value leads.",
+    "Track class distribution drift over time.",
+    "Retrain with real reviewed leads once available."
+  ],
+  "retraining_recommendations": [
+    "Add real production messages with reviewed hot/normal labels.",
+    "Add borderline cases such as 'price please' vs 'ready to pay deposit today'.",
+    "Include multilingual and shorthand user messages if expected in the app.",
+    "Keep a held-out real-world evaluation set separate from synthetic training data."
+  ],
+  "runtime": {
+    "python": "3.12.13 (main, Mar  4 2026, 09:23:07) [GCC 11.4.0]",
+    "platform": "Linux-6.6.122+-x86_64-with-glibc2.35",
+    "torch": "2.11.0+cu128",
+    "cuda_available": true,
+    "created_at_utc": "2026-06-04T20:58:40.464320+00:00"
+  }
+}
