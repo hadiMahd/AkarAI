@@ -21,6 +21,7 @@ class PermissionKey(Enum):
 
     PLATFORM_READ = "platform:read"
     PLATFORM_MANAGE = "platform:manage"
+    PLATFORM_DASHBOARD_READ = "platform:dashboard_read"
 
     SYSTEM_ADMIN = "system:admin"
 

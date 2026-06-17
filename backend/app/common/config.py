@@ -129,6 +129,15 @@ class Settings(BaseSettings):
     agency_ai_ocr_rate_limit_max_requests: int = 5
     agency_ai_ocr_rate_limit_window_seconds: int = 60
 
+    # Platform Admin Dashboard (Phase 15)
+    platform_dashboard_max_window_days: int = 90
+    platform_dashboard_insights_cache_ttl_seconds: int = 120
+    platform_dashboard_audit_cache_ttl_seconds: int = 60
+    platform_dashboard_audit_page_size: int = 20
+    platform_dashboard_audit_max_page_size: int = 100
+    platform_dashboard_top_segment_limit: int = 10
+    platform_dashboard_trend_bucket_count: int = 14
+
     # Lead Processing Pipeline
     lead_model_service_url: str = "http://lead-model-service:8100"
     lead_model_service_callback_token: str = ""

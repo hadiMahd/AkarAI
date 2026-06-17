@@ -198,3 +198,7 @@ from app.users.router import router as users_router
 app.include_router(agency_ai_router)
 app.include_router(user_ai_router)
 app.include_router(users_router)
+
+from app.admin.router import router as platform_admin_router
+
+app.include_router(platform_admin_router)

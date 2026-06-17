@@ -29,6 +29,23 @@ class ListingService:
         self._repo = ListingRepository(session, tenant)
         self._photo_repo = ListingPhotoRepository(session, tenant)
 
+    async def _invalidate_platform_dashboard(self) -> None:
+        """Bust the platform admin insights cache when listing inventory changes."""
+        from app.admin.service import (
+            PLATFORM_DASHBOARD_INSIGHTS_CACHE_NAMESPACE,
+        )
+        from app.common.cache import cache_invalidate_namespace
+
+        try:
+            await cache_invalidate_namespace(PLATFORM_DASHBOARD_INSIGHTS_CACHE_NAMESPACE)
+        except Exception:  # pragma: no cover — invalidation must not break writes
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "Failed to invalidate platform dashboard insights cache",
+                exc_info=True,
+            )
+
     async def list_tenant_listings(self, pagination: PaginationRequest) -> PaginationResult:
         ctx = require_tenant(self._tenant)
         items, total = await self._repo.list_by_tenant(
@@ -121,6 +138,7 @@ class ListingService:
             raise ValidationError(detail=f"Invalid listing status: {listing.status}")
         listing = await self._repo.create(listing)
         await invalidate_listing_search_cache(str(listing.id))
+        await self._invalidate_platform_dashboard()
         await write_domain_event_log(
             self._session, "listing.created",
             aggregate_type="listing", aggregate_id=str(listing.id),
@@ -172,6 +190,7 @@ class ListingService:
         listing.updated_by_user_id = ctx.actor_id
         await self._session.flush()
         await invalidate_listing_search_cache(str(listing_id))
+        await self._invalidate_platform_dashboard()
         await write_domain_event_log(
             self._session, "listing.updated",
             aggregate_type="listing", aggregate_id=str(listing_id),
@@ -194,6 +213,7 @@ class ListingService:
         listing.updated_by_user_id = ctx.actor_id
         await self._session.flush()
         await invalidate_listing_search_cache(str(listing_id))
+        await self._invalidate_platform_dashboard()
         await write_domain_event_log(
             self._session, "listing.archived",
             aggregate_type="listing", aggregate_id=str(listing_id),
