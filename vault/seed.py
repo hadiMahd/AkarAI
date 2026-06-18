@@ -1,6 +1,7 @@
 """Seed Vault with secrets from .env file. No env-var leakage in docker logs."""
 
 import os
+import secrets
 import sys
 import time
 
