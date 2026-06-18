@@ -1,5 +1,6 @@
 import asyncio
 import os
+import socket
 import uuid
 from collections.abc import AsyncGenerator
 from datetime import datetime, timezone
@@ -17,6 +18,15 @@ from app.common.rls import apply_rls_context_to_session
 # "Future attached to a different loop" when the next test runs on loop-B.
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
+
+
+def require_test_database() -> None:
+    host = _db_module.engine.url.host
+    port = _db_module.engine.url.port or 5432
+    try:
+        socket.getaddrinfo(host, port)
+    except OSError:
+        pytest.skip(f"test database host {host}:{port} is not reachable")
 
 _test_engine = create_async_engine(
     _db_module.engine.url,
@@ -126,6 +136,7 @@ async def async_client():
 async def db_session() -> AsyncGenerator:
     from app.common.database import async_session_factory
 
+    require_test_database()
     async with async_session_factory() as session:
         _orig_commit = session.commit
 
