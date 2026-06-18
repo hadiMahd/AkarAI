@@ -1,0 +1,19 @@
+Support employees cannot approve listings and cannot create listings.
+Support employees may prepare draft notes for review but cannot publish listing changes.
+Support employees cannot access audit logs.
+Policy documents cannot be viewed across agency tenants.
+=== PAGE BREAK ===
+Document retention records for retrieval operations are kept for ninety days unless a legal hold applies.
+Operational dashboards may summarize counts after retention expiry, but the underlying retained records still follow the ninety-day rule.
+Inquiry retention records are kept for one hundred eighty days unless a dispute requires longer preservation.
+Phone verification requires a confirmed code before a profile phone number is trusted for critical contact flows.
+=== PAGE BREAK ===
+Office opening hours are Monday to Friday from 09:00 to 18:00 Beirut time.
+Reception may unlock the lobby slightly earlier for deliveries, but official office opening hours remain 09:00 to 18:00 Beirut time.
+Shared team inboxes may be used only through the approved workspace mailbox and must not forward policy files externally.
+If a policy conflicts with a listing detail, staff must follow policy and escalate the listing discrepancy to an agency admin.
+=== PAGE BREAK ===
+Policy updates must be approved by an agency admin and recorded with the effective date.
+Minor wording corrections still require the same approval trail if they affect the policy text shown to staff.
+Only agency admins may delete a policy document after replacement verification.
+Another agency's policy must never be disclosed or cited in answers.

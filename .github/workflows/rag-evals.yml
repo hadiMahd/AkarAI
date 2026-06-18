@@ -1,0 +1,47 @@
+name: RAG Evals
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      rag_eval_mode:
+        description: "Which self-seeded suite to run"
+        required: true
+        default: "blocking"
+        type: choice
+        options:
+          - blocking
+          - manual
+      allow_judge_failures:
+        description: "Allow judge failures in manual mode"
+        required: true
+        default: false
+        type: boolean
+
+jobs:
+  rag-evals:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements.shared.txt
+            backend/requirements.backend.txt
+      - name: Install backend deps
+        run: pip install -r backend/requirements.txt
+      - name: Run live RAGAS evaluation
+        env:
+          USE_RAGAS_EVALS: "1"
+          RAG_EVAL_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.rag_eval_mode || 'blocking' }}
+          RAG_EVAL_ALLOW_JUDGE_FAILURES: ${{ github.event_name == 'workflow_dispatch' && inputs.allow_judge_failures || '0' }}
+          AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+          AZURE_OPENAI_CHAT_DEPLOYMENT: ${{ secrets.AZURE_OPENAI_CHAT_DEPLOYMENT }}
+          AZURE_OPENAI_EMBEDDING_DEPLOYMENT: ${{ secrets.AZURE_OPENAI_EMBEDDING_DEPLOYMENT }}
+        run: make quality-rag-eval

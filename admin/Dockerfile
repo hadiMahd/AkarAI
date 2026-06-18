@@ -14,10 +14,10 @@ RUN mkdir -p /app/admin
 RUN touch /app/admin/__init__.py
 
 # Copy library modules into the admin package so "from admin.xxx" imports work
-COPY api_client.py auth.py components.py insights_view.py audit_logs_view.py role_access_view.py /app/admin/
+COPY api_client.py auth.py components.py insights_view.py audit_logs_view.py rag_evals_view.py role_access_view.py /app/admin/
 # Copy Streamlit entry point and view modules to top-level /app
 COPY app.py /app/
-COPY insights_view.py audit_logs_view.py role_access_view.py /app/
+COPY insights_view.py audit_logs_view.py rag_evals_view.py role_access_view.py /app/
 # Reuse the main entry point inside the admin package for tests
 RUN cp /app/app.py /app/admin/
 # Copy test suite for testability

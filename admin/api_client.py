@@ -212,5 +212,26 @@ class AdminAPIClient:
     def get_role_overview(self, token: str) -> dict[str, Any]:
         return self._request("GET", "/api/v1/platform/roles/overview", token=token)
 
+    def list_rag_eval_runs(
+        self,
+        token: str,
+        *,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> dict[str, Any]:
+        return self._request(
+            "GET",
+            "/api/v1/platform/rag-evals/runs",
+            token=token,
+            params={"page": page, "page_size": page_size},
+        )
+
+    def get_rag_eval_run(self, token: str, run_id: str) -> dict[str, Any]:
+        return self._request(
+            "GET",
+            f"/api/v1/platform/rag-evals/runs/{run_id}",
+            token=token,
+        )
+
 
 __all__ = ["AdminAPIError", "AdminAPIClient"]

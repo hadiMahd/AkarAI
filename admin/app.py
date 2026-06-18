@@ -18,6 +18,7 @@ from admin.components import (
     require_dashboard_access,
 )
 from admin.insights_view import render_marketplace_insights
+from admin.rag_evals_view import render_rag_evals
 from admin.role_access_view import render_role_access_overview
 
 
@@ -42,7 +43,7 @@ def _render_home(auth: AuthState) -> None:
         "Read-only platform oversight for marketplace health, access posture, and audit review."
     )
 
-    cols = st.columns(3)
+    cols = st.columns(4)
     with cols[0]:
         with st.container(border=True):
             st.markdown("**Marketplace Insights**")
@@ -55,6 +56,10 @@ def _render_home(auth: AuthState) -> None:
         with st.container(border=True):
             st.markdown("**Role & Access Overview**")
             st.caption("Readable access boundaries for every supported platform role.")
+    with cols[3]:
+        with st.container(border=True):
+            st.markdown("**RAG Evals**")
+            st.caption("Latest judged retrieval runs, thresholds, and per-example results.")
 
     st.divider()
 
@@ -107,8 +112,8 @@ def main() -> None:
                     st.code(permission, language=None)
         render_sign_out_button()
 
-    home_tab, insights_tab, audit_tab, role_tab = st.tabs(
-        ["Home", "Marketplace Insights", "AI Audit Logs", "Role & Access Overview"]
+    home_tab, insights_tab, audit_tab, role_tab, rag_eval_tab = st.tabs(
+        ["Home", "Marketplace Insights", "AI Audit Logs", "Role & Access Overview", "RAG Evals"]
     )
     with home_tab:
         _render_home(auth)
@@ -118,6 +123,8 @@ def main() -> None:
         render_ai_audit_logs(auth)
     with role_tab:
         render_role_access_overview(auth)
+    with rag_eval_tab:
+        render_rag_evals(auth)
 
 
 if __name__ == "__main__":

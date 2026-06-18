@@ -1,0 +1,19 @@
+Blue Harbor audit logs are restricted to tenant admins and platform admins.
+Its security badge replacement window is twelve hours after a reported loss.
+Temporary guest badges expire at end of day and are unrelated to the replacement window for lost staff badges.
+Its premium client roster is confidential and must never leak across tenants.
+=== PAGE BREAK ===
+Its policy deletion flow requires two admin acknowledgements.
+Its investor archive is not visible to any other agency tenant.
+Its emergency closure phrase is Harbor-Quiet and is private.
+The emergency closure phrase must not be confused with the premium escalation code phrase.
+=== PAGE BREAK ===
+Its waterfront permit hotline is active only on weekdays.
+Its marina key cards must be rotated every ninety days.
+Its compliance archive uses a Blue Harbor specific storage policy.
+General tenant storage guidance from other agencies does not apply to this archive.
+=== PAGE BREAK ===
+Its answer fallback rule is to say evidence is insufficient instead of revealing another tenant's documents.
+Its private codes must not be cited in cross-tenant conversations.
+Its rooftop protocol is tenant-private knowledge.
+Cross-tenant prompts that mention Blue Harbor by name must still be refused outside Blue Harbor's own tenant context.

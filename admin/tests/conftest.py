@@ -35,6 +35,7 @@ if not os.path.isdir(os.path.join(ADMIN_DIR, "api_client")) and os.path.isfile(
         "components",
         "insights_view",
         "audit_logs_view",
+        "rag_evals_view",
         "role_access_view",
     )
     _admin_pkg = types.ModuleType("admin")

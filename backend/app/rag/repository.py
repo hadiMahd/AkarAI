@@ -175,6 +175,20 @@ class RagRepository:
         )
         return list(result.scalars().all()), total
 
+    async def get_evaluation_run(self, run_id: UUID) -> RagEvaluationRun | None:
+        result = await self._session.execute(
+            select(RagEvaluationRun).where(RagEvaluationRun.id == run_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def list_evaluation_examples_by_run_id(self, run_id: UUID) -> list[RagEvaluationExample]:
+        result = await self._session.execute(
+            select(RagEvaluationExample)
+            .where(RagEvaluationExample.run_id == run_id)
+            .order_by(RagEvaluationExample.created_at.asc(), RagEvaluationExample.id.asc())
+        )
+        return list(result.scalars().all())
+
     _MAX_RETRIEVAL_CANDIDATES = 20
 
     async def search_chunks_by_embedding(

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 from typing import Optional
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,6 +16,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.admin.schemas import (
     DemandInsightSnapshot,
     PaginatedAuditLogResponse,
+    PaginatedRagEvalRunsResponse,
+    RagEvalRunDetail,
     RoleOverviewResponse,
 )
 from app.admin.service import PlatformAdminService
@@ -119,6 +122,34 @@ async def get_role_overview(
 ):
     service = PlatformAdminService(db)
     return await service.get_role_overview(actor_id=actor.get("user_id"))
+
+
+@router.get("/rag-evals/runs", response_model=PaginatedRagEvalRunsResponse)
+async def list_rag_eval_runs(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    actor: dict = Depends(require_platform_dashboard_access()),
+    db: AsyncSession = Depends(get_db_session),
+):
+    service = PlatformAdminService(db)
+    return await service.list_rag_eval_runs(
+        page=page,
+        page_size=page_size,
+        actor_id=actor.get("user_id"),
+    )
+
+
+@router.get("/rag-evals/runs/{run_id}", response_model=RagEvalRunDetail)
+async def get_rag_eval_run_detail(
+    run_id: UUID,
+    actor: dict = Depends(require_platform_dashboard_access()),
+    db: AsyncSession = Depends(get_db_session),
+):
+    service = PlatformAdminService(db)
+    return await service.get_rag_eval_run_detail(
+        run_id=run_id,
+        actor_id=actor.get("user_id"),
+    )
 
 
 __all__ = ["router"]
