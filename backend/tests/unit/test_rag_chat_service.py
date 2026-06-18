@@ -125,10 +125,11 @@ class TestRagChatService:
                     }
                 ),
             )
-            await service.send_message(
-                thread_id,
-                RagChatMessageCreateRequest(content="latest question"),
-            )
+            with patch("app.rag.service.redis_set", new=AsyncMock()):
+                await service.send_message(
+                    thread_id,
+                    RagChatMessageCreateRequest(content="latest question"),
+                )
 
         conversation = mock_answer.call_args.args[0].conversation_messages
         assert len(conversation) == 8
