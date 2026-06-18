@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { ProfilePage } from "../src/pages/profile/ProfilePage";
@@ -9,11 +8,17 @@ import { apiClient } from "../src/lib/api/client";
 
 vi.mock("../src/features/auth/useAuth");
 vi.mock("../src/lib/api/client");
+vi.mock("../src/lib/session/auth-session", () => ({
+  getSession: () => ({
+    accessToken: "mock-token",
+    user: { id: "user-1", email: "test@example.com" },
+  }),
+}));
 
 const mockUseAuth = vi.mocked(useAuth);
 const mockApiClient = vi.mocked(apiClient);
 
-function renderWithProviders(ui: React.ReactElement) {
+function renderWithProviders(ui: React.ReactElement, route = "/profile?tab=saved") {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false, staleTime: 0, gcTime: 0 },
@@ -23,7 +28,7 @@ function renderWithProviders(ui: React.ReactElement) {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={["/profile"]}>
+      <MemoryRouter initialEntries={[route]}>
         <Routes>
           <Route path="/profile" element={ui} />
         </Routes>
