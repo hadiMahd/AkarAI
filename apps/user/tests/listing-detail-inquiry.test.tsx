@@ -12,6 +12,12 @@ vi.mock("../src/lib/api/client", async () => {
   const actual: any = await vi.importActual("../src/lib/api/client");
   return { ...actual, apiClient: vi.fn() };
 });
+vi.mock("../src/lib/session/auth-session", () => ({
+  getSession: () => ({
+    accessToken: "mock-token",
+    user: { id: "user-1", email: "test@example.com", name: "Test User" },
+  }),
+}));
 
 const mockUseAuth = vi.mocked(useAuth);
 const mockApiClient = vi.mocked(apiClient);
@@ -233,7 +239,7 @@ describe("ListingDetailPage", () => {
       expect(screen.getAllByText("Test Property").length).toBeGreaterThan(0);
     });
 
-    expect(screen.getByText(/listing assistant/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /open listing assistant/i })).toBeInTheDocument();
     expect(screen.queryByText(/chatbot/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/match score/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/microphone/i)).not.toBeInTheDocument();
