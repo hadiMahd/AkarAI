@@ -39,10 +39,9 @@ interface SearchFilters {
 interface SearchFormProps {
   filters: SearchFilters;
   onFilterChange: (filters: SearchFilters) => void;
-  onFiltersChange?: (filters: Partial<SearchFilters>) => void;
 }
 
-export function SearchForm({ filters, onFilterChange, onFiltersChange }: SearchFormProps) {
+export function SearchForm({ filters, onFilterChange }: SearchFormProps) {
   const VOICE_PENDING_PHRASES = [
     "Transcribing your request...",
     "Extracting property filters...",

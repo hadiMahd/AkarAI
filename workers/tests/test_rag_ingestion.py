@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
+from conftest import require_test_database
 
 # Add backend to sys.path so we can import app.* (mirrors workers/main.py).
 _backend_root = os.path.join(os.path.dirname(__file__), "..", "..", "backend")
@@ -28,6 +29,7 @@ from app.rag.models import RagChunk, RagDocument, RagPage
 
 @pytest.fixture
 async def db_session():
+    require_test_database()
     await engine.dispose()
     async with async_session_factory() as session:
         _orig_commit = session.commit

@@ -183,7 +183,7 @@ describe("ListingDetailPage", () => {
       expect(screen.getAllByText("Test Property").length).toBeGreaterThan(0);
     });
 
-    const submitButton = screen.getByRole("button", { name: /^submit inquiry$/i });
+    const submitButton = await screen.findByRole("button", { name: /^submit inquiry$/i });
     expect(submitButton).toBeDisabled();
 
     const messageTextarea = screen.getByLabelText(/message/i);
