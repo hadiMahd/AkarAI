@@ -8,6 +8,12 @@ import { useAuth } from "../src/features/auth/useAuth";
 import { apiClient } from "../src/lib/api/client";
 
 vi.mock("../src/features/auth/useAuth");
+vi.mock("../src/lib/session/auth-session", () => ({
+  getSession: () => ({
+    accessToken: "mock-token",
+    user: { id: "user-1", email: "test@example.com" },
+  }),
+}));
 vi.mock("../src/lib/api/client", async () => {
   const actual: any = await vi.importActual("../src/lib/api/client");
   return { ...actual, apiClient: vi.fn() };

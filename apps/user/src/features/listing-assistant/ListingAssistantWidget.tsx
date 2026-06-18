@@ -318,6 +318,9 @@ export function ListingAssistantWidget({
 
             <div className="mt-3 space-y-3">
               <div className="rounded-[1.35rem] border border-slate-200 bg-white p-3 shadow-sm">
+                <label htmlFor="listing_assistant_message" className="sr-only">
+                  Message
+                </label>
                 <Textarea
                   id="listing_assistant_message"
                   value={draft}
