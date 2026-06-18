@@ -94,3 +94,6 @@ dump/**/*.csv
 dump/**/*.Zone.Identifier
 dump/**/*:Zone.Identifier
 model-service/artifacts/
+*.Zone.Identifier
+*:Zone.Identifier
+to-talk-about.txt

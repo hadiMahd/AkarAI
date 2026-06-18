@@ -1,0 +1,3 @@
+- how to update single policy in a big doc without reingesting the whole thing.
+- how to apply parent child chunking the correct way because what if a pdf is 
+hundreds of pages and i just need one page.
