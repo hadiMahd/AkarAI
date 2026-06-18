@@ -99,6 +99,10 @@ vi.mock("@/lib/api/client", () => ({
 }));
 
 vi.mock("@/lib/session/auth-session", () => ({
+  getSession: () => ({
+    accessToken: "mock-token",
+    user: { id: "user-1", email: "test@example.com" },
+  }),
   getAccessToken: () => "mock-token",
   setAccessToken: vi.fn(),
   setSession: vi.fn(),
