@@ -236,9 +236,6 @@ export function ListingsPage() {
             <SearchForm
               filters={filters}
               onFilterChange={handleFilterChange}
-              onFiltersChange={(partialFilters) =>
-                handleFilterChange({ ...filters, ...partialFilters } as SearchFilters)
-              }
             />
           </CardContent>
         </Card>

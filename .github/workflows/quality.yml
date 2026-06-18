@@ -1,0 +1,110 @@
+name: Quality
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - "extra/**"
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install pre-commit
+        run: pip install pre-commit
+      - name: Run pre-commit quality slice
+        env:
+          PRECOMMIT_BASE_REF: main
+        run: make quality-precommit
+
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements.shared.txt
+            backend/requirements.backend.txt
+      - name: Install backend deps
+        run: pip install -r backend/requirements.txt
+      - name: Run backend quality slice
+        run: make quality-backend
+
+  admin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: admin/requirements.txt
+      - name: Install admin deps
+        run: pip install -r admin/requirements.txt
+      - name: Run admin quality slice
+        run: make quality-admin
+
+  workers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: |
+            workers/requirements.txt
+            backend/requirements.shared.txt
+      - name: Install worker deps
+        run: pip install -r workers/requirements.txt
+      - name: Run worker quality slice
+        run: make quality-workers
+
+  model-service:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: model-service/requirements.txt
+      - name: Install model-service deps
+        run: pip install -r model-service/requirements.txt
+      - name: Run model-service quality slice
+        run: make quality-model-service
+
+  user-app:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: apps/user/package-lock.json
+      - name: Run user-app quality slice
+        run: make quality-user
+
+  agency-app:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: apps/agency/package-lock.json
+      - name: Run agency-app quality slice
+        run: make quality-agency

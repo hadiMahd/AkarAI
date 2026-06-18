@@ -3,12 +3,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
-
 from app.common.tenant import TenantContext
 from app.rag.models import RagChatMessage, RagChatThread
 from app.rag.schemas import RagChatMessageCreateRequest
 from app.rag.service import RagChatService
-
 
 pytestmark = pytest.mark.anyio
 
@@ -67,7 +65,10 @@ class TestRagChatService:
             },
             "messages": [],
         }
-        with patch("app.rag.service.redis_get", new=AsyncMock(return_value=__import__("json").dumps(payload))):
+        with patch(
+            "app.rag.service.redis_get",
+            new=AsyncMock(return_value=__import__("json").dumps(payload)),
+        ):
             result = await service.get_thread(thread_id)
 
         assert result.thread.title == "Cached thread"
@@ -103,6 +104,7 @@ class TestRagChatService:
         service._repo.get_chat_thread = AsyncMock(return_value=thread)
         service._repo.list_chat_messages = AsyncMock(return_value=existing_messages)
         service._repo.get_next_chat_sequence_number = AsyncMock(side_effect=[11, 12])
+
         async def _persist_message(message):
             if message.id is None:
                 message.id = uuid4()
@@ -111,7 +113,9 @@ class TestRagChatService:
         service._repo.create_chat_message = AsyncMock(side_effect=_persist_message)
         service._repo.update_chat_thread = AsyncMock(side_effect=lambda current: current)
 
-        with patch("app.rag.service.RagRetrievalService.answer_policy_query", new=AsyncMock()) as mock_answer:
+        with patch(
+            "app.rag.service.RagRetrievalService.answer_policy_query", new=AsyncMock()
+        ) as mock_answer:
             mock_answer.return_value = MagicMock(
                 answer="Grounded answer",
                 debug=MagicMock(retrieval_log_id=uuid4()),
@@ -121,14 +125,19 @@ class TestRagChatService:
                         "answer": "Grounded answer",
                         "citations": [],
                         "evidence": [],
-                        "debug": {"retrieval_log_id": str(uuid4()), "confidence_status": "sufficient", "reranker_used": False},
+                        "debug": {
+                            "retrieval_log_id": str(uuid4()),
+                            "confidence_status": "sufficient",
+                            "reranker_used": False,
+                        },
                     }
                 ),
             )
-            await service.send_message(
-                thread_id,
-                RagChatMessageCreateRequest(content="latest question"),
-            )
+            with patch("app.rag.service.redis_set", new=AsyncMock()):
+                await service.send_message(
+                    thread_id,
+                    RagChatMessageCreateRequest(content="latest question"),
+                )
 
         conversation = mock_answer.call_args.args[0].conversation_messages
         assert len(conversation) == 8
@@ -164,7 +173,9 @@ class TestChatServiceSanitization:
         service._repo.update_chat_thread = AsyncMock(side_effect=lambda t: t)
 
         secret_answer = "The api_key=supersecretkeyvalue123456 is embedded here."
-        with patch("app.rag.service.RagRetrievalService.answer_policy_query", new=AsyncMock()) as mock_answer:
+        with patch(
+            "app.rag.service.RagRetrievalService.answer_policy_query", new=AsyncMock()
+        ) as mock_answer:
             mock_answer.return_value = MagicMock(
                 answer=secret_answer,
                 debug=MagicMock(retrieval_log_id=uuid4()),
@@ -174,7 +185,12 @@ class TestChatServiceSanitization:
                         "answer": secret_answer,
                         "citations": [],
                         "evidence": [],
-                        "debug": {"retrieval_log_id": str(uuid4()), "confidence_status": "sufficient", "reranker_used": False, "guardrail_blocked_reason": None},
+                        "debug": {
+                            "retrieval_log_id": str(uuid4()),
+                            "confidence_status": "sufficient",
+                            "reranker_used": False,
+                            "guardrail_blocked_reason": None,
+                        },
                     }
                 ),
             )
@@ -221,7 +237,9 @@ class TestChatServiceSanitization:
         async def capture_redis(key, value, ttl=None):
             redis_received.append(value)
 
-        with patch("app.rag.service.RagRetrievalService.answer_policy_query", new=AsyncMock()) as mock_answer:
+        with patch(
+            "app.rag.service.RagRetrievalService.answer_policy_query", new=AsyncMock()
+        ) as mock_answer:
             mock_answer.return_value = MagicMock(
                 answer=secret_answer,
                 debug=MagicMock(retrieval_log_id=uuid4()),
@@ -269,7 +287,13 @@ class TestChatServiceSanitization:
             role="assistant",
             content=raw_secret,
             sequence_number=1,
-            answer_payload={"status": "answered", "answer": raw_secret, "citations": [], "evidence": [], "debug": None},
+            answer_payload={
+                "status": "answered",
+                "answer": raw_secret,
+                "citations": [],
+                "evidence": [],
+                "debug": None,
+            },
             created_at=now,
         )
 
@@ -296,9 +320,7 @@ class TestChatServiceSanitization:
 class TestChatServicePiiSanitization:
     """Verify PII is stripped from chat persistence and cache paths (T043 PII extension)."""
 
-    async def test_send_message_redacts_email_in_answer_payload(
-        self, service, tenant_context
-    ):
+    async def test_send_message_redacts_email_in_answer_payload(self, service, tenant_context):
         thread_id = uuid4()
         now = datetime.now(timezone.utc)
         thread = RagChatThread(
@@ -323,7 +345,9 @@ class TestChatServicePiiSanitization:
         service._repo.update_chat_thread = AsyncMock(side_effect=lambda t: t)
 
         pii_answer = "Please contact owner@property.com or call 800-555-4321 for details."
-        with patch("app.rag.service.RagRetrievalService.answer_policy_query", new=AsyncMock()) as mock_answer:
+        with patch(
+            "app.rag.service.RagRetrievalService.answer_policy_query", new=AsyncMock()
+        ) as mock_answer:
             mock_answer.return_value = MagicMock(
                 answer=pii_answer,
                 debug=MagicMock(retrieval_log_id=uuid4()),
@@ -333,7 +357,12 @@ class TestChatServicePiiSanitization:
                         "answer": pii_answer,
                         "citations": [],
                         "evidence": [],
-                        "debug": {"retrieval_log_id": str(uuid4()), "confidence_status": "sufficient", "reranker_used": False, "guardrail_blocked_reason": None},
+                        "debug": {
+                            "retrieval_log_id": str(uuid4()),
+                            "confidence_status": "sufficient",
+                            "reranker_used": False,
+                            "guardrail_blocked_reason": None,
+                        },
                     }
                 ),
             )
@@ -351,9 +380,7 @@ class TestChatServicePiiSanitization:
         assert "owner@property.com" not in assistant_call.content
         assert "800-555-4321" not in assistant_call.content
 
-    async def test_send_message_redacts_pii_in_redis_cache(
-        self, service, tenant_context
-    ):
+    async def test_send_message_redacts_pii_in_redis_cache(self, service, tenant_context):
         thread_id = uuid4()
         now = datetime.now(timezone.utc)
         thread = RagChatThread(
@@ -383,7 +410,9 @@ class TestChatServicePiiSanitization:
         async def capture_redis(key, value, ttl=None):
             redis_received.append(value)
 
-        with patch("app.rag.service.RagRetrievalService.answer_policy_query", new=AsyncMock()) as mock_answer:
+        with patch(
+            "app.rag.service.RagRetrievalService.answer_policy_query", new=AsyncMock()
+        ) as mock_answer:
             mock_answer.return_value = MagicMock(
                 answer=pii_answer,
                 debug=MagicMock(retrieval_log_id=uuid4()),
@@ -407,9 +436,7 @@ class TestChatServicePiiSanitization:
         assert "agent@firm.com" not in redis_received[0]
         assert "[REDACTED_EMAIL]" in redis_received[0]
 
-    async def test_existing_secret_redaction_not_regressed(
-        self, service, tenant_context
-    ):
+    async def test_existing_secret_redaction_not_regressed(self, service, tenant_context):
         """Confirm Bearer token redaction from T043 still works alongside PII layer."""
         thread_id = uuid4()
         now = datetime.now(timezone.utc)
@@ -435,7 +462,9 @@ class TestChatServicePiiSanitization:
         service._repo.update_chat_thread = AsyncMock(side_effect=lambda t: t)
 
         secret_answer = "Use Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyMSJ9.SflKxwRJSMeKKF2QT4fw to authenticate."
-        with patch("app.rag.service.RagRetrievalService.answer_policy_query", new=AsyncMock()) as mock_answer:
+        with patch(
+            "app.rag.service.RagRetrievalService.answer_policy_query", new=AsyncMock()
+        ) as mock_answer:
             mock_answer.return_value = MagicMock(
                 answer=secret_answer,
                 debug=MagicMock(retrieval_log_id=uuid4()),

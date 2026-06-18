@@ -1,0 +1,32 @@
+{
+  "tenants": [
+    {
+      "tenant_fixture": "agency-a",
+      "name": "RAGAS Fixture Agency A",
+      "documents": [
+        {
+          "filename": "tenant-a-operations.txt",
+          "source_path": "tenant_a_operations.txt"
+        },
+        {
+          "filename": "tenant-a-security.txt",
+          "source_path": "tenant_a_security.txt"
+        }
+      ]
+    },
+    {
+      "tenant_fixture": "agency-b",
+      "name": "RAGAS Fixture Agency B",
+      "documents": [
+        {
+          "filename": "tenant-b-operations.txt",
+          "source_path": "tenant_b_operations.txt"
+        },
+        {
+          "filename": "tenant-b-security.txt",
+          "source_path": "tenant_b_security.txt"
+        }
+      ]
+    }
+  ]
+}

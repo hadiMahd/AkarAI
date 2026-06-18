@@ -1,5 +1,5 @@
-import asyncio
 import os
+import socket
 import uuid
 from collections.abc import AsyncGenerator
 from datetime import datetime, timezone
@@ -17,6 +17,16 @@ from app.common.rls import apply_rls_context_to_session
 # "Future attached to a different loop" when the next test runs on loop-B.
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
+
+
+def require_test_database() -> None:
+    host = _db_module.engine.url.host
+    port = _db_module.engine.url.port or 5432
+    try:
+        socket.getaddrinfo(host, port)
+    except OSError:
+        pytest.skip(f"test database host {host}:{port} is not reachable")
+
 
 _test_engine = create_async_engine(
     _db_module.engine.url,
@@ -43,6 +53,7 @@ class _TestAsyncSession:
         s = await self._session.__aenter__()
         if not self._wrapped:
             _orig_commit = s.commit
+
             async def _commit():
                 if s.in_transaction() and not s.is_active:
                     await s.rollback()
@@ -50,15 +61,20 @@ class _TestAsyncSession:
                 if not s.in_transaction():
                     await s.begin()
                 await apply_rls_context_to_session(
-                    s, role="platform_admin", is_platform_admin=True,
+                    s,
+                    role="platform_admin",
+                    is_platform_admin=True,
                 )
+
             s.commit = _commit
             self._wrapped = True
         # Ensure a transaction is active so set_config(..., true) persists
         if not s.in_transaction():
             await s.begin()
         await apply_rls_context_to_session(
-            s, role="platform_admin", is_platform_admin=True,
+            s,
+            role="platform_admin",
+            is_platform_admin=True,
         )
         return s
 
@@ -76,16 +92,9 @@ class _TestAsyncSessionFactory:
 
 _db_module.async_session_factory = _TestAsyncSessionFactory()
 
-from app.auth.models import Role, Permission, RolePermission
-from app.users.models import User
-from app.agencies.models import AgencyTenant, AgencyEmployeeMembership
+from app.agencies.models import AgencyEmployeeMembership, AgencyTenant
 from app.listings.models import Listing
-from app.leads.models import Lead, ReviewedLeadRecord
-from app.viewings.models import ListingViewingSlot, ScheduledViewing, ScheduledViewingStatusHistory
-from app.notifications.models import Notification
-from app.search.models import SearchLog
-from app.common.events import DomainEventLog, OutboxEvent, InboxEvent
-from app.rag.models import RagDocument, RagPage, RagChunk, RagRetrievalLog
+from app.users.models import User
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -102,6 +111,7 @@ async def cleanup_test_infra():
 @pytest.fixture(autouse=True)
 async def clear_rate_limits():
     from app.common.redis import redis_scan_delete
+
     count = await redis_scan_delete("ratelimit:*")
     print(f"[CLEAR_RATE_LIMITS] Cleared {count} keys", flush=True)
     yield
@@ -115,8 +125,9 @@ def anyio_backend():
 
 @pytest.fixture
 async def async_client():
-    from httpx import ASGITransport, AsyncClient
     from app.main import app
+    from httpx import ASGITransport, AsyncClient
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
@@ -126,6 +137,7 @@ async def async_client():
 async def db_session() -> AsyncGenerator:
     from app.common.database import async_session_factory
 
+    require_test_database()
     async with async_session_factory() as session:
         _orig_commit = session.commit
 
@@ -136,7 +148,9 @@ async def db_session() -> AsyncGenerator:
             if not session.in_transaction():
                 await session.begin()
             await apply_rls_context_to_session(
-                session, role="platform_admin", is_platform_admin=True,
+                session,
+                role="platform_admin",
+                is_platform_admin=True,
             )
 
         session.commit = _commit
@@ -149,9 +163,8 @@ async def db_session() -> AsyncGenerator:
 
 @pytest.fixture
 async def test_user(db_session):
-    from sqlalchemy import select as sa_select, text
     from app.common.security import hash_password
-    from app.users.models import User
+    from sqlalchemy import text
 
     uid = uuid.uuid4()
     email = f"test-{uid.hex[:8]}@example.com"
@@ -184,17 +197,17 @@ async def test_user(db_session):
 
 @pytest.fixture
 async def agency_admin_user(db_session, test_tenant):
-    from sqlalchemy import text
     from app.common.security import hash_password
-    from app.users.models import User
-    from app.agencies.models import AgencyEmployeeMembership
+    from sqlalchemy import text
 
     uid = uuid.uuid4()
     email = f"agency-admin-{uid.hex[:8]}@example.com"
     password = "TestPass123!"
     pw_hash = hash_password(password)
 
-    role_result = await db_session.execute(text("SELECT id FROM roles WHERE slug = 'agency_admin' LIMIT 1"))
+    role_result = await db_session.execute(
+        text("SELECT id FROM roles WHERE slug = 'agency_admin' LIMIT 1")
+    )
     role_row = role_result.fetchone()
     role_id = role_row[0] if role_row else None
 
@@ -235,17 +248,17 @@ async def agency_admin_user(db_session, test_tenant):
 
 @pytest.fixture
 async def support_user(db_session, test_tenant):
-    from sqlalchemy import text
     from app.common.security import hash_password
-    from app.users.models import User
-    from app.agencies.models import AgencyEmployeeMembership
+    from sqlalchemy import text
 
     uid = uuid.uuid4()
     email = f"support-{uid.hex[:8]}@example.com"
     password = "TestPass123!"
     pw_hash = hash_password(password)
 
-    role_result = await db_session.execute(text("SELECT id FROM roles WHERE slug = 'support_employee' LIMIT 1"))
+    role_result = await db_session.execute(
+        text("SELECT id FROM roles WHERE slug = 'support_employee' LIMIT 1")
+    )
     role_row = role_result.fetchone()
     role_id = role_row[0] if role_row else None
 
@@ -286,9 +299,6 @@ async def support_user(db_session, test_tenant):
 
 @pytest.fixture
 async def test_tenant(db_session):
-    from sqlalchemy import text
-    from app.agencies.models import AgencyTenant
-
     tid = uuid.uuid4()
     slug = f"test-tenant-{tid.hex[:8]}"
     tenant = AgencyTenant(
@@ -310,8 +320,6 @@ async def test_tenant(db_session):
 
 @pytest.fixture
 async def test_listing(db_session, test_tenant, agency_admin_user):
-    from app.listings.models import Listing
-
     user, _ = agency_admin_user
     lid = uuid.uuid4()
     listing = Listing(
@@ -344,5 +352,6 @@ async def test_listing(db_session, test_tenant, agency_admin_user):
 
     await db_session.rollback()
     from sqlalchemy import text
+
     await db_session.execute(text(f"DELETE FROM listings WHERE id = '{lid}'"))
     await db_session.commit()

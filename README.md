@@ -91,3 +91,20 @@ docker compose down
 # Reset local state (destroys volumes)
 docker compose down --volumes
 ```
+
+## Quality Pipeline
+
+The shared local/CI command map is documented in
+[`docs/quality-pipeline.md`](docs/quality-pipeline.md).
+
+Common entry points:
+
+```bash
+make quality-precommit
+make quality-backend
+make quality-user
+make quality-agency
+make quality-admin
+make quality-workers
+make quality-model-service
+```

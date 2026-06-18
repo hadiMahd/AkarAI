@@ -7,6 +7,7 @@ The client deliberately stays minimal — it focuses on:
 - consistent error envelopes
 - marketplace aggregate insight / audit log / role overview endpoints
 """
+
 from __future__ import annotations
 
 import os
@@ -123,8 +124,10 @@ class AdminAPIClient:
     # ── Auth helpers ──────────────────────────────────────────────────
 
     def login(self, email: str, password: str) -> dict[str, Any]:
-        return self._request("POST", "/auth/login", params=None) if False else self._post_json(
-            "/auth/login", {"email": email, "password": password}
+        return (
+            self._request("POST", "/auth/login", params=None)
+            if False
+            else self._post_json("/auth/login", {"email": email, "password": password})
         )
 
     def _post_json(self, path: str, body: dict[str, Any]) -> dict[str, Any]:
@@ -211,6 +214,27 @@ class AdminAPIClient:
 
     def get_role_overview(self, token: str) -> dict[str, Any]:
         return self._request("GET", "/api/v1/platform/roles/overview", token=token)
+
+    def list_rag_eval_runs(
+        self,
+        token: str,
+        *,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> dict[str, Any]:
+        return self._request(
+            "GET",
+            "/api/v1/platform/rag-evals/runs",
+            token=token,
+            params={"page": page, "page_size": page_size},
+        )
+
+    def get_rag_eval_run(self, token: str, run_id: str) -> dict[str, Any]:
+        return self._request(
+            "GET",
+            f"/api/v1/platform/rag-evals/runs/{run_id}",
+            token=token,
+        )
 
 
 __all__ = ["AdminAPIError", "AdminAPIClient"]

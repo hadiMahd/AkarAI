@@ -1,0 +1,19 @@
+Visitor parking is limited to two hours and requires a dashboard permit at all times.
+Short-stop loading access near the service entrance is limited to fifteen minutes and is not the same as visitor parking.
+After-hours building access is allowed only for agency admins and approved support employees with badge logs.
+Weekend support coverage runs from 10:00 to 14:00 Beirut time for critical tenant issues only, while weekday support follows the normal office schedule.
+=== PAGE BREAK ===
+Rental review packages must include government ID, proof of income, and the signed viewing summary before approval.
+Incomplete packages may be reviewed for formatting but must not be approved until all required documents are present.
+Duplicate leads must be merged under the oldest open lead and the newer record must reference the canonical lead ID.
+Agency profile settings can be edited only by agency admins.
+=== PAGE BREAK ===
+Complaints must be acknowledged within one business day and escalated to the duty manager if not resolved within two business days.
+Routine billing questions are not complaints unless the customer explicitly disputes a charge or service failure.
+Retrieval logs may be viewed only by agency admins and platform admins.
+When policy evidence is insufficient, staff must say they do not have enough policy evidence and avoid guessing.
+=== PAGE BREAK ===
+Processed policy documents are documents with status processed after ingestion completed successfully.
+Documents in pending or processing status must not be treated as approved policy evidence.
+Scanned PDFs are OCR processed before chunking, but the source documents remain private and tenant scoped.
+Customer phone numbers must be used only for service delivery and must not be copied into external notes without approval.

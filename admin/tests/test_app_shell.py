@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from admin.auth import AuthState
 from streamlit.errors import StreamlitSecretNotFoundError
+
+from admin.auth import AuthState
 
 
 class _FakeTab:
@@ -52,6 +53,7 @@ def test_main_authenticated_renders_four_tabs(monkeypatch):
     insights = MagicMock()
     audit = MagicMock()
     roles = MagicMock()
+    rag_evals = MagicMock()
     tabs_called = {}
 
     monkeypatch.setattr(app, "get_auth_state", lambda: auth)
@@ -60,6 +62,7 @@ def test_main_authenticated_renders_four_tabs(monkeypatch):
     monkeypatch.setattr(app, "render_marketplace_insights", insights)
     monkeypatch.setattr(app, "render_ai_audit_logs", audit)
     monkeypatch.setattr(app, "render_role_access_overview", roles)
+    monkeypatch.setattr(app, "render_rag_evals", rag_evals)
     monkeypatch.setattr(app, "render_sign_out_button", MagicMock())
     monkeypatch.setattr(app.st, "title", MagicMock())
     monkeypatch.setattr(app.st, "caption", MagicMock())
@@ -71,7 +74,7 @@ def test_main_authenticated_renders_four_tabs(monkeypatch):
 
     def fake_tabs(labels):
         tabs_called["labels"] = labels
-        return [_FakeTab(), _FakeTab(), _FakeTab(), _FakeTab()]
+        return [_FakeTab(), _FakeTab(), _FakeTab(), _FakeTab(), _FakeTab()]
 
     monkeypatch.setattr(app.st, "tabs", fake_tabs)
 
@@ -82,11 +85,13 @@ def test_main_authenticated_renders_four_tabs(monkeypatch):
         "Marketplace Insights",
         "AI Audit Logs",
         "Role & Access Overview",
+        "RAG Evals",
     ]
     home.assert_called_once_with(auth)
     insights.assert_called_once_with(auth)
     audit.assert_called_once_with(auth)
     roles.assert_called_once_with(auth)
+    rag_evals.assert_called_once_with(auth)
 
 
 def test_get_auth_state_rehydrates_from_cookies(monkeypatch):

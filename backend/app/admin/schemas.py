@@ -9,13 +9,13 @@ These schemas model the response shapes exposed by:
 The schemas intentionally stay close to the OpenAPI contract at
 ``specs/015-platform-admin-streamlit/contracts/platform-admin.openapi.yaml``.
 """
+
 from __future__ import annotations
 
 from datetime import date, datetime
 from typing import Any, Optional
 
 from pydantic import BaseModel, Field, model_validator
-
 
 # ---------------------------------------------------------------------------
 # Shared filter scope
@@ -121,6 +121,66 @@ class RoleOverviewResponse(BaseModel):
     items: list[RoleAccessSummary]
 
 
+# ---------------------------------------------------------------------------
+# RAG evals
+# ---------------------------------------------------------------------------
+
+
+class RagEvalRunListItem(BaseModel):
+    run_id: str
+    run_label: str
+    created_at: datetime
+    completed_at: Optional[datetime] = None
+    mode: str
+    total_examples: int = Field(ge=0)
+    passed_examples: int = Field(ge=0)
+    failed_examples: int = Field(ge=0)
+    faithfulness: Optional[float] = None
+    context_precision: Optional[float] = None
+    context_recall: Optional[float] = None
+    answer_relevancy: Optional[float] = None
+    hit_at_1: Optional[float] = None
+    hit_at_5: Optional[float] = None
+    tenant_leakage_count: int = Field(ge=0, default=0)
+    p95_latency_ms: Optional[float] = None
+    judge_failures: int = Field(ge=0, default=0)
+    threshold_failures: list[str] = Field(default_factory=list)
+    passed: bool
+
+
+class RagEvalExampleView(BaseModel):
+    example_id: str
+    query: str
+    tenant_fixture: str
+    expected_behavior: str
+    passed: bool
+    answer_status: Optional[str] = None
+    faithfulness: Optional[float] = None
+    context_precision: Optional[float] = None
+    context_recall: Optional[float] = None
+    answer_relevancy: Optional[float] = None
+    hit_at_1: Optional[bool] = None
+    hit_at_5: Optional[bool] = None
+    expected_source_match: Optional[bool] = None
+    leaked_sources: list[str] = Field(default_factory=list)
+    latency_ms: Optional[float] = None
+    failure_reasons: list[str] = Field(default_factory=list)
+
+
+class RagEvalRunDetail(BaseModel):
+    run: RagEvalRunListItem
+    examples: list[RagEvalExampleView] = Field(default_factory=list)
+
+
+class PaginatedRagEvalRunsResponse(BaseModel):
+    items: list[RagEvalRunListItem] = Field(default_factory=list)
+    page: int = Field(ge=1)
+    page_size: int = Field(ge=1)
+    total: int = Field(ge=0)
+    has_next: bool
+    has_previous: bool
+
+
 __all__ = [
     "RANGE_PRESETS",
     "DashboardFilterScope",
@@ -132,4 +192,8 @@ __all__ = [
     "PaginatedAuditLogResponse",
     "RoleAccessSummary",
     "RoleOverviewResponse",
+    "RagEvalRunListItem",
+    "RagEvalExampleView",
+    "RagEvalRunDetail",
+    "PaginatedRagEvalRunsResponse",
 ]

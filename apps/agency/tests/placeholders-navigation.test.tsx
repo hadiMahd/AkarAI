@@ -7,7 +7,8 @@ describe("Placeholder Routes & Navigation", () => {
   it("renders spam leads placeholder page", () => {
     renderWithProviders(<SpamLeadsPage />);
     expect(screen.getByRole("heading", { name: /spam leads/i })).toBeInTheDocument();
-    expect(screen.getByText(/feature coming soon/i)).toBeInTheDocument();
+    expect(screen.getByText(/manage flagged spam leads/i)).toBeInTheDocument();
+    expect(screen.getByText(/spam queue/i)).toBeInTheDocument();
   });
 
   it("renders policy documents placeholder page", () => {
