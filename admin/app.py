@@ -1,4 +1,5 @@
 """Streamlit entry point for the AkarAI platform admin dashboard."""
+
 from __future__ import annotations
 
 import os
@@ -20,7 +21,6 @@ from admin.components import (
 from admin.insights_view import render_marketplace_insights
 from admin.rag_evals_view import render_rag_evals
 from admin.role_access_view import render_role_access_overview
-
 
 st.set_page_config(
     page_title="AkarAI Platform Admin",
@@ -68,9 +68,7 @@ def _render_home(auth: AuthState) -> None:
         st.subheader("Backend status")
         try:
             resp = _client().get_current_actor(auth.token)
-            st.success(
-                f"Connected — {resp.get('actor', {}).get('email', 'session ok')}"
-            )
+            st.success(f"Connected — {resp.get('actor', {}).get('email', 'session ok')}")
         except Exception as exc:  # noqa: BLE001
             render_backend_error(exc)
     with lower_cols[1]:

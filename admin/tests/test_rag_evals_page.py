@@ -27,7 +27,14 @@ class TestRagEvalAPIClient:
         fake_session = MagicMock()
         fake_session.request.return_value = FakeResponse(
             status_code=200,
-            payload={"items": [], "page": 1, "page_size": 20, "total": 0, "has_next": False, "has_previous": False},
+            payload={
+                "items": [],
+                "page": 1,
+                "page_size": 20,
+                "total": 0,
+                "has_next": False,
+                "has_previous": False,
+            },
         )
         client._session = fake_session
 
@@ -40,7 +47,9 @@ class TestRagEvalAPIClient:
     def test_get_run_uses_expected_path(self):
         client = AdminAPIClient(base_url="http://b:8000")
         fake_session = MagicMock()
-        fake_session.request.return_value = FakeResponse(status_code=200, payload={"run": {}, "examples": []})
+        fake_session.request.return_value = FakeResponse(
+            status_code=200, payload={"run": {}, "examples": []}
+        )
         client._session = fake_session
 
         client.get_rag_eval_run("TOKEN", "run-1")

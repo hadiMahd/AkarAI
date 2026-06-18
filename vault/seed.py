@@ -137,8 +137,7 @@ def main() -> None:
     openrouter_api_key = dotenv.get("OPENROUTER_API_KEY", "").strip()
     openrouter_base_url = dotenv.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1").strip()
     openrouter_rerank_model = (
-        dotenv.get("OPENROUTER_RERANK_MODEL", "")
-        or dotenv.get("OPENROUTER_RERANKER_MODEL", "")
+        dotenv.get("OPENROUTER_RERANK_MODEL", "") or dotenv.get("OPENROUTER_RERANKER_MODEL", "")
     ).strip()
     openrouter_content_safety_model = dotenv.get("OPENROUTER_CONTENT_SAFETY_MODEL", "").strip()
     openrouter_source = []
@@ -170,12 +169,10 @@ def main() -> None:
 
     # Seed Azure OCR / Computer Vision config (optional)
     azure_cv_endpoint = (
-        dotenv.get("AZURE_CV_ENDPOINT", "")
-        or dotenv.get("AZURE_OCR_ENDPOINT", "")
+        dotenv.get("AZURE_CV_ENDPOINT", "") or dotenv.get("AZURE_OCR_ENDPOINT", "")
     ).strip()
     azure_cv_api_key = (
-        dotenv.get("AZURE_CV_API_KEY", "")
-        or dotenv.get("AZURE_OCR_API_KEY", "")
+        dotenv.get("AZURE_CV_API_KEY", "") or dotenv.get("AZURE_OCR_API_KEY", "")
     ).strip()
     azure_cv_source = []
     if azure_cv_endpoint:
@@ -199,7 +196,9 @@ def main() -> None:
     print(f"[seed] akarai/azure_cv seeded ({', '.join(azure_cv_source)})")
 
     # Seed Lead Model Service config (optional)
-    lead_model_service_url = dotenv.get("LEAD_MODEL_SERVICE_URL", "http://lead-model-service:8100").strip()
+    lead_model_service_url = dotenv.get(
+        "LEAD_MODEL_SERVICE_URL", "http://lead-model-service:8100"
+    ).strip()
     lead_model_service_callback_token = dotenv.get(
         "LEAD_MODEL_SERVICE_CALLBACK_TOKEN",
         "dev-callback-token-do-not-use-in-production",

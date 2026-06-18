@@ -3,12 +3,10 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 import pytest
-from httpx import AsyncClient
-from sqlalchemy import text
-
 from app.common.database import async_session_factory
 from app.common.rls import apply_rls_context_to_session
-
+from httpx import AsyncClient
+from sqlalchemy import text
 
 PLATFORM_ADMIN_EMAIL = "platform.admin@akarai.test"
 SUPPORT_EMAIL = "support@akarai.test"
@@ -21,7 +19,9 @@ async def _login(client: AsyncClient, email: str, password: str = "Test1234!") -
 
 
 async def _perm_id(db_session, key: str):
-    result = await db_session.execute(text("SELECT id FROM permissions WHERE key = :key"), {"key": key})
+    result = await db_session.execute(
+        text("SELECT id FROM permissions WHERE key = :key"), {"key": key}
+    )
     return result.scalar()
 
 
@@ -43,19 +43,25 @@ class TestPlatformRagEvalAccess:
         assert response.status_code == 403
 
     @pytest.mark.integration
-    async def test_platform_admin_without_dashboard_permission_is_rejected(self, async_client: AsyncClient):
+    async def test_platform_admin_without_dashboard_permission_is_rejected(
+        self, async_client: AsyncClient
+    ):
         async with async_session_factory() as session:
             await _apply_platform_context(session)
             permission_id = await _perm_id(session, "platform:dashboard_read")
             if permission_id is None:
                 pytest.skip("platform:dashboard_read permission not seeded")
 
-            role_result = await session.execute(text("SELECT id FROM roles WHERE slug = 'platform_admin'"))
+            role_result = await session.execute(
+                text("SELECT id FROM roles WHERE slug = 'platform_admin'")
+            )
             role_id = role_result.scalar()
             assert role_id is not None
 
             await session.execute(
-                text("DELETE FROM role_permissions WHERE role_id = :role_id AND permission_id = :permission_id"),
+                text(
+                    "DELETE FROM role_permissions WHERE role_id = :role_id AND permission_id = :permission_id"
+                ),
                 {"role_id": role_id, "permission_id": permission_id},
             )
             await session.commit()

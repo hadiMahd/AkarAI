@@ -1,22 +1,19 @@
 from __future__ import annotations
 
+import os
 import socket
 import sys
 import types
 import uuid
-import os
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from sqlalchemy import select
-from sqlalchemy.engine import make_url
-
-from app.common.database import async_session_factory
 from app.common.config import settings
+from app.common.database import async_session_factory
 from app.rag.evals import (
     BLOCKING_MODE,
-    EvalExample,
     MANUAL_MODE,
+    EvalExample,
     enforce_thresholds,
     evaluate_with_ragas,
     load_eval_examples,
@@ -25,8 +22,14 @@ from app.rag.evals import (
     seed_fixture_tenants,
 )
 from app.rag.models import RagDocument, RagEvaluationExample, RagEvaluationRun
-from app.rag.schemas import RagPolicyAnswer, RagRetrievalCitation, RagRetrievalDebug, RagRetrievalEvidence
-
+from app.rag.schemas import (
+    RagPolicyAnswer,
+    RagRetrievalCitation,
+    RagRetrievalDebug,
+    RagRetrievalEvidence,
+)
+from sqlalchemy import select
+from sqlalchemy.engine import make_url
 
 pytestmark = pytest.mark.anyio
 
@@ -218,8 +221,14 @@ async def test_run_eval_persists_results(tmp_path):
         ),
     ]
     answers = [
-        _answer(status="answered", answer_text="Visitor parking is limited to two hours and requires a dashboard permit."),
-        _answer(status="insufficient_evidence", answer_text="I do not have enough policy evidence to answer that."),
+        _answer(
+            status="answered",
+            answer_text="Visitor parking is limited to two hours and requires a dashboard permit.",
+        ),
+        _answer(
+            status="insufficient_evidence",
+            answer_text="I do not have enough policy evidence to answer that.",
+        ),
     ]
 
     with patch("app.rag.evals.get_embedding_provider", return_value=_DummyEmbeddingProvider()):
@@ -259,11 +268,15 @@ async def test_run_eval_persists_results(tmp_path):
     assert result["summary"]["threshold_failures"] == []
 
     async with async_session_factory() as session:
-        run_result = await session.execute(select(RagEvaluationRun).where(RagEvaluationRun.run_label == run_label))
+        run_result = await session.execute(
+            select(RagEvaluationRun).where(RagEvaluationRun.run_label == run_label)
+        )
         run = run_result.scalar_one()
         assert run.total_examples == 2
 
-        example_result = await session.execute(select(RagEvaluationExample).where(RagEvaluationExample.run_id == run.id))
+        example_result = await session.execute(
+            select(RagEvaluationExample).where(RagEvaluationExample.run_id == run.id)
+        )
         examples = list(example_result.scalars().all())
         assert len(examples) == 2
         assert all(example.id.startswith(f"{run_label}:") for example in examples)

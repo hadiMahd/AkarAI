@@ -4,6 +4,7 @@ All endpoints are gated by ``require_platform_dashboard_access`` which
 enforces BOTH the existing ``platform_admin`` role and the new
 ``platform:dashboard_read`` permission.
 """
+
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
@@ -23,7 +24,6 @@ from app.admin.schemas import (
 from app.admin.service import PlatformAdminService
 from app.auth.dependencies import require_platform_dashboard_access
 from app.common.dependencies import get_db_session
-
 
 router = APIRouter(prefix="/api/v1/platform", tags=["Platform Admin"])
 

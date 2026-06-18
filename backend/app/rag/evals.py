@@ -29,7 +29,6 @@ from app.rag.schemas import RagEvaluationExampleCreate, RagPolicyAnswer, RagRetr
 from app.rag.service import RagRetrievalService
 from app.users.models import User
 
-
 APP_ROOT = Path(__file__).resolve().parents[2]
 FIXTURE_ROOT = APP_ROOT / "tests" / "fixtures" / "rag_eval"
 DEFAULT_DATASET_PATH = FIXTURE_ROOT / "policy_retrieval_ragas.jsonl"
@@ -114,7 +113,9 @@ def _resolve_path(path: Path) -> Path:
     return path
 
 
-def load_eval_examples(path: Path = DEFAULT_DATASET_PATH, mode: str = BLOCKING_MODE) -> list[EvalExample]:
+def load_eval_examples(
+    path: Path = DEFAULT_DATASET_PATH, mode: str = BLOCKING_MODE
+) -> list[EvalExample]:
     if mode not in {BLOCKING_MODE, MANUAL_MODE}:
         raise ValueError(f"Unsupported evaluation mode: {mode}")
 
@@ -154,7 +155,9 @@ def _latency_stats(latencies_ms: list[float]) -> dict[str, float]:
         "max": round(sorted_values[-1], 1),
         "avg": round(sum(sorted_values) / len(sorted_values), 1),
         "p50": round(statistics.median(sorted_values), 1),
-        "p95": round(sorted_values[min(len(sorted_values) - 1, math.ceil(len(sorted_values) * 0.95) - 1)], 1),
+        "p95": round(
+            sorted_values[min(len(sorted_values) - 1, math.ceil(len(sorted_values) * 0.95) - 1)], 1
+        ),
     }
 
 
@@ -224,7 +227,12 @@ def summarize_results(
     ragas_rows: list[dict[str, Any]],
     judge_errors: list[str],
 ) -> tuple[list[RagEvaluationExampleCreate], dict[str, Any]]:
-    ragas_metric_fields = ("faithfulness", "context_precision", "context_recall", "answer_relevancy")
+    ragas_metric_fields = (
+        "faithfulness",
+        "context_precision",
+        "context_recall",
+        "answer_relevancy",
+    )
     answerable_examples = [example for example in examples if example.expected_behavior == "answer"]
     ragas_by_example = {
         example.id: ragas_rows[index] if index < len(ragas_rows) else {}
@@ -252,7 +260,9 @@ def summarize_results(
             tenant_leakage_examples.append(example.id)
 
         ragas_scores = ragas_by_example.get(example.id, {})
-        cleaned_scores = {field: _clean_metric(ragas_scores.get(field)) for field in ragas_metric_fields}
+        cleaned_scores = {
+            field: _clean_metric(ragas_scores.get(field)) for field in ragas_metric_fields
+        }
         if example.expected_behavior == "answer":
             for field, score in cleaned_scores.items():
                 if score is not None:
@@ -295,12 +305,18 @@ def summarize_results(
                     "latency_ms": round(latency_ms, 1),
                     "hit_at_1": hit_at_1 if example.expected_behavior == "answer" else None,
                     "hit_at_5": hit_at_5 if example.expected_behavior == "answer" else None,
-                    "expected_source_match": expected_source_match if example.expected_behavior == "answer" else None,
+                    "expected_source_match": expected_source_match
+                    if example.expected_behavior == "answer"
+                    else None,
                     "tenant_leakage": leaked,
                     "tenant_leakage_sources": leaked_sources,
-                    "ragas": cleaned_scores if example.expected_behavior == "answer" else {"skipped_reason": "refusal_case"},
+                    "ragas": cleaned_scores
+                    if example.expected_behavior == "answer"
+                    else {"skipped_reason": "refusal_case"},
                     "threshold_violations": threshold_violations,
-                    "retrieval_log_id": str(answer.debug.retrieval_log_id) if answer.debug else None,
+                    "retrieval_log_id": str(answer.debug.retrieval_log_id)
+                    if answer.debug
+                    else None,
                 },
             )
         )
@@ -341,7 +357,14 @@ def enforce_thresholds(summary: dict[str, Any], *, allow_judge_failures: bool = 
     metrics = summary["metrics"]
     latency_ms = summary["latency_ms"]
 
-    for metric_name in ("faithfulness", "context_precision", "context_recall", "answer_relevancy", "hit_at_1", "hit_at_5"):
+    for metric_name in (
+        "faithfulness",
+        "context_precision",
+        "context_recall",
+        "answer_relevancy",
+        "hit_at_1",
+        "hit_at_5",
+    ):
         if not _threshold_pass(metric_name, metrics.get(metric_name)):
             failures.append(metric_name)
 
@@ -446,7 +469,9 @@ async def evaluate_with_ragas(
             for field in ("faithfulness", "context_precision", "context_recall", "answer_relevancy")
         )
         if missing_score:
-            judge_errors.append(f"RAGAS row missing score for question: {row.get('question', '<unknown>')}")
+            judge_errors.append(
+                f"RAGAS row missing score for question: {row.get('question', '<unknown>')}"
+            )
     return raw_rows, judge_errors
 
 
@@ -459,7 +484,9 @@ async def _lookup_role_id(session: AsyncSession, role_slug: str) -> UUID:
 
 
 async def _cleanup_prior_fixtures(session: AsyncSession) -> None:
-    result = await session.execute(select(AgencyTenant.id).where(AgencyTenant.slug.like("ragas-fixture-%")))
+    result = await session.execute(
+        select(AgencyTenant.id).where(AgencyTenant.slug.like("ragas-fixture-%"))
+    )
     tenant_ids = list(result.scalars().all())
     if not tenant_ids:
         return
@@ -594,7 +621,10 @@ async def run_eval(
     examples = load_eval_examples(dataset_path, mode)
     manifest = load_fixture_manifest(manifest_path)
     run_label = run_label or f"ragas-{mode}-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}"
-    if any(example.expected_behavior == "answer" for example in examples) and not allow_judge_failures:
+    if (
+        any(example.expected_behavior == "answer" for example in examples)
+        and not allow_judge_failures
+    ):
         _require_azure_eval_config()
 
     async with session_factory() as seed_session:
@@ -636,7 +666,10 @@ async def run_eval(
                         "question": example.query,
                         "answer": answer.answer,
                         "ground_truth": example.reference_answer,
-                        "contexts": [evidence.parent_page_text or evidence.text_preview for evidence in answer.evidence],
+                        "contexts": [
+                            evidence.parent_page_text or evidence.text_preview
+                            for evidence in answer.evidence
+                        ],
                     }
                 )
 

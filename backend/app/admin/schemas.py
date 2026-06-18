@@ -9,13 +9,13 @@ These schemas model the response shapes exposed by:
 The schemas intentionally stay close to the OpenAPI contract at
 ``specs/015-platform-admin-streamlit/contracts/platform-admin.openapi.yaml``.
 """
+
 from __future__ import annotations
 
 from datetime import date, datetime
 from typing import Any, Optional
 
 from pydantic import BaseModel, Field, model_validator
-
 
 # ---------------------------------------------------------------------------
 # Shared filter scope

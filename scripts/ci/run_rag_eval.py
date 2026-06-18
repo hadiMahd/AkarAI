@@ -91,7 +91,10 @@ def _print_summary(summary: dict, run_id: str) -> None:
 async def _main() -> int:
     configure_secrets()
     args = _build_parser().parse_args()
-    run_label = args.run_label or f"ragas-{args.mode}-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}"
+    run_label = (
+        args.run_label
+        or f"ragas-{args.mode}-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}"
+    )
 
     result = await run_eval(
         async_session_factory,

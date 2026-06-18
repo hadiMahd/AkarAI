@@ -4,6 +4,7 @@ These tests intentionally do not require Docker or the backend database.
 They mock the ``requests`` calls made through ``admin.api_client`` and
 patch the Streamlit ``st`` module where needed.
 """
+
 from __future__ import annotations
 
 import importlib
@@ -13,7 +14,6 @@ import sys
 import types
 
 import pytest
-
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ADMIN_DIR = os.path.dirname(HERE)
@@ -76,4 +76,5 @@ class FakeResponse:
     def raise_for_status(self):
         if self.status_code >= 400:
             import requests
+
             raise requests.HTTPError(f"HTTP {self.status_code}")

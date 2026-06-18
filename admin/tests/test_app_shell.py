@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from admin.auth import AuthState
 from streamlit.errors import StreamlitSecretNotFoundError
+
+from admin.auth import AuthState
 
 
 class _FakeTab:

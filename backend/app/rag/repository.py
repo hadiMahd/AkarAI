@@ -2,9 +2,7 @@ from uuid import UUID
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
 
-from app.common.exceptions import NotFoundError
 from app.common.pagination import PaginationRequest
 from app.rag.models import (
     RagChatMessage,
@@ -41,9 +39,13 @@ class RagRepository:
         await self._session.flush()
         return document
 
-    async def list_documents(self, tenant_id: UUID, pagination: PaginationRequest) -> tuple[list[RagDocument], int]:
+    async def list_documents(
+        self, tenant_id: UUID, pagination: PaginationRequest
+    ) -> tuple[list[RagDocument], int]:
         base = select(RagDocument).where(RagDocument.tenant_id == tenant_id)
-        count_result = await self._session.execute(select(func.count()).select_from(base.subquery()))
+        count_result = await self._session.execute(
+            select(func.count()).select_from(base.subquery())
+        )
         total = int(count_result.scalar_one())
         result = await self._session.execute(
             base.order_by(RagDocument.created_at.desc())
@@ -53,7 +55,9 @@ class RagRepository:
         return list(result.scalars().all()), total
 
     async def get_document_for_worker(self, document_id: UUID) -> RagDocument | None:
-        result = await self._session.execute(select(RagDocument).where(RagDocument.id == document_id))
+        result = await self._session.execute(
+            select(RagDocument).where(RagDocument.id == document_id)
+        )
         return result.scalar_one_or_none()
 
     async def list_pages_for_document(self, document_id: UUID) -> list[RagPage]:
@@ -75,7 +79,9 @@ class RagRepository:
         await self._session.flush()
         return chunks
 
-    async def get_chunk_by_hash(self, tenant_id: UUID, document_id: UUID, content_hash: str) -> RagChunk | None:
+    async def get_chunk_by_hash(
+        self, tenant_id: UUID, document_id: UUID, content_hash: str
+    ) -> RagChunk | None:
         result = await self._session.execute(
             select(RagChunk).where(
                 RagChunk.tenant_id == tenant_id,
@@ -102,7 +108,9 @@ class RagRepository:
         )
         return list(result.scalars().all())
 
-    async def list_active_chunks(self, tenant_id: UUID, document_ids: list[UUID] | None = None) -> list[RagChunk]:
+    async def list_active_chunks(
+        self, tenant_id: UUID, document_ids: list[UUID] | None = None
+    ) -> list[RagChunk]:
         query = select(RagChunk).where(RagChunk.tenant_id == tenant_id, RagChunk.status == "active")
         if document_ids:
             query = query.where(RagChunk.document_id.in_(document_ids))
@@ -141,7 +149,9 @@ class RagRepository:
                 base = base.where(RagRetrievalLog.created_at >= filters.date_from)
             if filters.date_to:
                 base = base.where(RagRetrievalLog.created_at <= filters.date_to)
-        count_result = await self._session.execute(select(func.count()).select_from(base.subquery()))
+        count_result = await self._session.execute(
+            select(func.count()).select_from(base.subquery())
+        )
         total = int(count_result.scalar_one())
         result = await self._session.execute(
             base.order_by(RagRetrievalLog.created_at.desc(), RagRetrievalLog.id.desc())
@@ -155,7 +165,9 @@ class RagRepository:
         await self._session.flush()
         return run
 
-    async def create_evaluation_examples(self, examples: list[RagEvaluationExample]) -> list[RagEvaluationExample]:
+    async def create_evaluation_examples(
+        self, examples: list[RagEvaluationExample]
+    ) -> list[RagEvaluationExample]:
         if not examples:
             return []
         self._session.add_all(examples)
@@ -168,11 +180,11 @@ class RagRepository:
         pagination: PaginationRequest,
     ) -> tuple[list[RagEvaluationRun], int]:
         base = select(RagEvaluationRun).order_by(RagEvaluationRun.created_at.desc())
-        count_result = await self._session.execute(select(func.count()).select_from(base.subquery()))
-        total = int(count_result.scalar_one())
-        result = await self._session.execute(
-            base.offset(pagination.offset).limit(pagination.limit)
+        count_result = await self._session.execute(
+            select(func.count()).select_from(base.subquery())
         )
+        total = int(count_result.scalar_one())
+        result = await self._session.execute(base.offset(pagination.offset).limit(pagination.limit))
         return list(result.scalars().all()), total
 
     async def get_evaluation_run(self, run_id: UUID) -> RagEvaluationRun | None:
@@ -215,9 +227,7 @@ class RagRepository:
         rows = result.all()
         return [(r[0], r[1], float(r[2])) for r in rows]
 
-    async def get_chunks_by_ids(
-        self, tenant_id: UUID, chunk_ids: list[UUID]
-    ) -> list[RagChunk]:
+    async def get_chunks_by_ids(self, tenant_id: UUID, chunk_ids: list[UUID]) -> list[RagChunk]:
         if not chunk_ids:
             return []
         result = await self._session.execute(
@@ -317,8 +327,9 @@ class RagRepository:
 
     async def get_next_chat_sequence_number(self, thread_id: UUID) -> int:
         result = await self._session.execute(
-            select(func.coalesce(func.max(RagChatMessage.sequence_number), 0))
-            .where(RagChatMessage.thread_id == thread_id)
+            select(func.coalesce(func.max(RagChatMessage.sequence_number), 0)).where(
+                RagChatMessage.thread_id == thread_id
+            )
         )
         current = int(result.scalar_one())
         return current + 1

@@ -4,14 +4,12 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
-from httpx import AsyncClient
-
+from app.admin.service import PLATFORM_DASHBOARD_RAG_EVALS_CACHE_NAMESPACE
+from app.common.cache import cache_invalidate_namespace
 from app.common.database import async_session_factory
 from app.common.rls import apply_rls_context_to_session
-from app.common.cache import cache_invalidate_namespace
-from app.admin.service import PLATFORM_DASHBOARD_RAG_EVALS_CACHE_NAMESPACE
 from app.rag.models import RagEvaluationExample, RagEvaluationRun
-
+from httpx import AsyncClient
 
 PLATFORM_ADMIN_EMAIL = "platform.admin@akarai.test"
 AGENCY_ADMIN_EMAIL = "agency.admin@akarai.test"

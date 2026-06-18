@@ -8,12 +8,13 @@ The service is responsible for:
 - Reading the per-scope cache and emitting a ``stale`` hint to the UI
   when data is older than a short freshness window
 """
+
 from __future__ import annotations
 
 import hashlib
 import json
 import logging
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 from typing import Any, Optional
 from uuid import UUID
 
@@ -33,14 +34,13 @@ from app.admin.schemas import (
     RagEvalRunListItem,
     RoleOverviewResponse,
 )
-from app.audit.service import AuditService
 from app.audit.repository import AuditLogRepository
-from app.common.cache import cache_get, cache_set, cache_invalidate_namespace
+from app.audit.service import AuditService
+from app.common.cache import cache_get, cache_invalidate_namespace, cache_set
 from app.common.config import settings
 from app.common.exceptions import NotFoundError, ValidationError
 from app.common.pagination import PaginationRequest, PaginationResult
 from app.rag.repository import RagRepository
-
 
 logger = logging.getLogger(__name__)
 
@@ -190,9 +190,7 @@ class PlatformAdminService:
         *,
         actor_id: Optional[str] = None,
     ) -> RoleOverviewResponse:
-        cached = await cache_get(
-            PLATFORM_DASHBOARD_ROLES_CACHE_NAMESPACE, "overview:v1"
-        )
+        cached = await cache_get(PLATFORM_DASHBOARD_ROLES_CACHE_NAMESPACE, "overview:v1")
         if cached is not None and "items" in cached:
             response = RoleOverviewResponse.model_validate(cached)
             await self._audit_view(
@@ -287,7 +285,9 @@ class PlatformAdminService:
 
         run = await self._rag_repo.get_evaluation_run(run_id)
         if run is None:
-            raise NotFoundError(detail="RAG eval run not found", error_code="RAG_EVAL_RUN_NOT_FOUND")
+            raise NotFoundError(
+                detail="RAG eval run not found", error_code="RAG_EVAL_RUN_NOT_FOUND"
+            )
         examples = await self._rag_repo.list_evaluation_examples_by_run_id(run_id)
         response = RagEvalRunDetail(
             run=self._serialize_eval_run(run),

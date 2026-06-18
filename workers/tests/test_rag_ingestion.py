@@ -4,11 +4,12 @@ Tests the core chunking, DB persistence, re-ingestion dedup, and
 orphan cleanup logic while mocking MinIO, PyMuPDF, FastCDC, and
 the embedding provider to avoid runtime-image dependencies.
 """
+
 import hashlib
 import os
 import sys
-from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timezone
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -21,9 +22,9 @@ if os.path.isdir(_backend_root):
 
 os.environ.setdefault("APP_ENV", "testing")
 
+from app.agencies.models import AgencyTenant
 from app.common.database import async_session_factory, engine
 from app.common.rls import apply_rls_context_to_session
-from app.agencies.models import AgencyTenant
 from app.rag.models import RagChunk, RagDocument, RagPage
 
 
@@ -39,12 +40,16 @@ async def db_session():
                 await session.rollback()
             await _orig_commit()
             await apply_rls_context_to_session(
-                session, role="platform_admin", is_platform_admin=True,
+                session,
+                role="platform_admin",
+                is_platform_admin=True,
             )
 
         session.commit = _commit
         await apply_rls_context_to_session(
-            session, role="platform_admin", is_platform_admin=True,
+            session,
+            role="platform_admin",
+            is_platform_admin=True,
         )
         try:
             yield session
@@ -100,11 +105,13 @@ def _mock_create_chunks(pages: list[RagPage]) -> list[dict]:
         if not text.strip():
             continue
         h = hashlib.sha256(text.encode("utf-8")).hexdigest()
-        chunks.append({
-            "text": text,
-            "page_ids": [page.id],
-            "content_hash": h,
-        })
+        chunks.append(
+            {
+                "text": text,
+                "page_ids": [page.id],
+                "content_hash": h,
+            }
+        )
     return chunks
 
 
@@ -112,9 +119,7 @@ def _mock_create_chunks(pages: list[RagPage]) -> list[dict]:
 class TestRagIngestion:
     """T015, T016, T017: Worker RAG ingestion handler tests."""
 
-    async def _verify_document_processed(
-        self, db_session, document, expected_pages=2
-    ):
+    async def _verify_document_processed(self, db_session, document, expected_pages=2):
         from sqlalchemy import select
 
         await db_session.refresh(document)
@@ -148,18 +153,19 @@ class TestRagIngestion:
         """Run the handler with given mocks applied."""
         handler_path = "handlers.rag"
 
-        with patch.multiple(
-            handler_path,
-            get_rag_bucket=mocks["get_rag_bucket"],
-            download_object=mocks["download_object"],
-            upload_object=mocks["upload_object"],
-            delete_object=mocks["delete_object"],
-            get_embedding_provider=mocks["get_embedding_provider"],
-            extract_text_from_pdf=mocks["extract_text_from_pdf"],
-            create_chunks_from_pages=mocks["create_chunks_from_pages"],
-            apply_rls_context_to_session=AsyncMock(),
-        ), patch.object(
-            type(db_session), "close", MagicMock()
+        with (
+            patch.multiple(
+                handler_path,
+                get_rag_bucket=mocks["get_rag_bucket"],
+                download_object=mocks["download_object"],
+                upload_object=mocks["upload_object"],
+                delete_object=mocks["delete_object"],
+                get_embedding_provider=mocks["get_embedding_provider"],
+                extract_text_from_pdf=mocks["extract_text_from_pdf"],
+                create_chunks_from_pages=mocks["create_chunks_from_pages"],
+                apply_rls_context_to_session=AsyncMock(),
+            ),
+            patch.object(type(db_session), "close", MagicMock()),
         ):
             with patch(f"{handler_path}.async_session_factory") as mock_factory:
                 mock_factory.return_value.__aenter__.return_value = db_session
@@ -167,15 +173,15 @@ class TestRagIngestion:
 
                 from handlers.rag import handle_rag_document_uploaded
 
-                await handle_rag_document_uploaded({
-                    "document_id": str(document.id),
-                    "tenant_id": str(document.tenant_id),
-                    "blob_path": document.blob_path,
-                })
+                await handle_rag_document_uploaded(
+                    {
+                        "document_id": str(document.id),
+                        "tenant_id": str(document.tenant_id),
+                        "blob_path": document.blob_path,
+                    }
+                )
 
-    async def test_pending_document_creates_pages_and_chunks(
-        self, db_session, pending_document
-    ):
+    async def test_pending_document_creates_pages_and_chunks(self, db_session, pending_document):
         """T015: Worker processes a pending document, creating pages and chunks."""
         mocks = {
             "get_rag_bucket": MagicMock(),
@@ -183,7 +189,9 @@ class TestRagIngestion:
             "upload_object": MagicMock(),
             "delete_object": MagicMock(),
             "get_embedding_provider": MagicMock(
-                return_value=AsyncMock(embed=AsyncMock(return_value=[FAKE_EMBEDDING, FAKE_EMBEDDING]))
+                return_value=AsyncMock(
+                    embed=AsyncMock(return_value=[FAKE_EMBEDDING, FAKE_EMBEDDING])
+                )
             ),
             "extract_text_from_pdf": MagicMock(return_value=["page one text", "page two text"]),
             "create_chunks_from_pages": _mock_create_chunks,
@@ -193,9 +201,7 @@ class TestRagIngestion:
 
         await self._verify_document_processed(db_session, pending_document, expected_pages=2)
 
-    async def test_unchanged_document_reuses_chunks(
-        self, db_session, pending_document
-    ):
+    async def test_unchanged_document_reuses_chunks(self, db_session, pending_document):
         """T016: Re-ingesting an unchanged document reuses existing chunks
         instead of creating new ones or re-embedding."""
         from sqlalchemy import select
@@ -232,7 +238,9 @@ class TestRagIngestion:
         # Embedding provider should NOT be called (all hashes reused)
         reused_mocks = {**mocks}
         reused_mocks["get_embedding_provider"] = MagicMock(
-            return_value=AsyncMock(embed=AsyncMock(side_effect=RuntimeError("should not be called")))
+            return_value=AsyncMock(
+                embed=AsyncMock(side_effect=RuntimeError("should not be called"))
+            )
         )
 
         # Second ingestion (same content)
@@ -250,9 +258,7 @@ class TestRagIngestion:
         # No new chunk rows created
         assert second_active_ids == first_ids
 
-    async def test_modified_document_orphans_old_chunks(
-        self, db_session, pending_document
-    ):
+    async def test_modified_document_orphans_old_chunks(self, db_session, pending_document):
         """T017: Re-ingesting a modified document orphans the old, now-unused
         chunks. Active chunks contain the new content only."""
         from sqlalchemy import select

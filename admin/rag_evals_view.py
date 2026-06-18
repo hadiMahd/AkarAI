@@ -1,4 +1,5 @@
 """RAG eval results admin view."""
+
 from __future__ import annotations
 
 import os
@@ -8,7 +9,12 @@ import streamlit as st
 
 from admin.api_client import AdminAPIClient, AdminAPIError
 from admin.auth import AuthState
-from admin.components import render_backend_error, render_empty_state, render_loading, render_section
+from admin.components import (
+    render_backend_error,
+    render_empty_state,
+    render_loading,
+    render_section,
+)
 
 
 def _client() -> AdminAPIClient:
@@ -47,18 +53,14 @@ def _render_latest_summary(run: dict[str, Any]) -> None:
         top = st.columns([3, 1, 1])
         with top[0]:
             st.markdown(f"**Latest run: {run.get('run_label', 'Unnamed run')}**")
-            st.caption(
-                f"{_format_mode(run.get('mode'))} | Created {run.get('created_at', '-')}"
-            )
+            st.caption(f"{_format_mode(run.get('mode'))} | Created {run.get('created_at', '-')}")
         with top[1]:
             st.metric("State", state_text)
         with top[2]:
             st.metric("Examples", run.get("total_examples", 0))
 
         if state_tone == "error":
-            st.error(
-                "Threshold failures: " + ", ".join(run.get("threshold_failures", []))
-            )
+            st.error("Threshold failures: " + ", ".join(run.get("threshold_failures", [])))
         elif state_tone == "success":
             st.success("All blocking thresholds passed.")
         else:
@@ -115,7 +117,11 @@ def _render_example_rows(examples: list[dict[str, Any]]) -> None:
             "Passed": "Yes" if example.get("passed") else "No",
             "Answer status": example.get("answer_status") or "-",
             "Faithfulness": _format_metric(example.get("faithfulness")),
-            "Hit@5": "Yes" if example.get("hit_at_5") else "No" if example.get("hit_at_5") is not None else "-",
+            "Hit@5": "Yes"
+            if example.get("hit_at_5")
+            else "No"
+            if example.get("hit_at_5") is not None
+            else "-",
             "Latency": _format_ms(example.get("latency_ms")),
         }
         for example in examples
@@ -162,7 +168,10 @@ def render_rag_evals(auth: AuthState) -> None:
     render_section("Recent runs")
     _render_runs_table(items)
 
-    run_options = {f"{item.get('run_label')} ({_format_mode(item.get('mode'))})": item.get("run_id") for item in items}
+    run_options = {
+        f"{item.get('run_label')} ({_format_mode(item.get('mode'))})": item.get("run_id")
+        for item in items
+    }
     labels = list(run_options.keys())
     default_index = 0
     if selected_run_id:
@@ -170,7 +179,9 @@ def render_rag_evals(auth: AuthState) -> None:
             if run_options[label] == selected_run_id:
                 default_index = index
                 break
-    selected_label = st.selectbox("Inspect run", labels, index=default_index, key="rag_eval_run_select")
+    selected_label = st.selectbox(
+        "Inspect run", labels, index=default_index, key="rag_eval_run_select"
+    )
     current_run_id = run_options[selected_label]
     st.session_state["rag_eval_selected_run_id"] = current_run_id
 

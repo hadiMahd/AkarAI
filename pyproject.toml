@@ -12,6 +12,14 @@ select = [
   "F",
   "I",
 ]
+ignore = [
+  "E501",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"backend/tests/conftest.py" = ["E402"]
+"workers/tests/conftest.py" = ["E402"]
+"workers/tests/test_rag_ingestion.py" = ["E402"]
 
 [tool.ruff.format]
 quote-style = "double"

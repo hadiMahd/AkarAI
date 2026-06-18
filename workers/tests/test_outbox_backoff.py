@@ -5,7 +5,6 @@ from datetime import datetime, timezone
 
 import asyncpg
 import pytest
-
 from conftest import require_test_database
 from outbox import OUTBOX_DEAD_LETTER, OUTBOX_PENDING, claim_and_dispatch
 
@@ -13,7 +12,9 @@ from outbox import OUTBOX_DEAD_LETTER, OUTBOX_PENDING, claim_and_dispatch
 @pytest.fixture
 async def conn():
     require_test_database()
-    url = os.getenv("DATABASE_URL", "postgresql://akarai:akarai@postgres:5432/akarai").replace("+asyncpg", "")
+    url = os.getenv("DATABASE_URL", "postgresql://akarai:akarai@postgres:5432/akarai").replace(
+        "+asyncpg", ""
+    )
     conn = await asyncpg.connect(url, statement_cache_size=0)
     yield conn
     await conn.close()

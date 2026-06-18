@@ -7,6 +7,7 @@ The client deliberately stays minimal — it focuses on:
 - consistent error envelopes
 - marketplace aggregate insight / audit log / role overview endpoints
 """
+
 from __future__ import annotations
 
 import os
@@ -123,8 +124,10 @@ class AdminAPIClient:
     # ── Auth helpers ──────────────────────────────────────────────────
 
     def login(self, email: str, password: str) -> dict[str, Any]:
-        return self._request("POST", "/auth/login", params=None) if False else self._post_json(
-            "/auth/login", {"email": email, "password": password}
+        return (
+            self._request("POST", "/auth/login", params=None)
+            if False
+            else self._post_json("/auth/login", {"email": email, "password": password})
         )
 
     def _post_json(self, path: str, body: dict[str, Any]) -> dict[str, Any]:

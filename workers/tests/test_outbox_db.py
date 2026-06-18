@@ -9,7 +9,6 @@ from outbox import (
     OUTBOX_DEAD_LETTER,
     OUTBOX_DELIVERED,
     OUTBOX_PENDING,
-    OUTBOX_PROCESSING,
     claim_and_dispatch,
 )
 
@@ -17,7 +16,9 @@ from outbox import (
 @pytest.fixture
 async def conn():
     require_test_database()
-    url = os.getenv("DATABASE_URL", "postgresql://akarai:akarai@postgres:5432/akarai").replace("+asyncpg", "")
+    url = os.getenv("DATABASE_URL", "postgresql://akarai:akarai@postgres:5432/akarai").replace(
+        "+asyncpg", ""
+    )
     conn = await asyncpg.connect(url, statement_cache_size=0)
     yield conn
     await conn.close()
@@ -33,6 +34,7 @@ async def test_dispatches_registered_handler(conn):
     """)
 
     dispatched = []
+
     def test_handler(payload):
         dispatched.append(payload)
 
@@ -106,6 +108,7 @@ async def test_handler_exception_retries_then_dead_letter(conn):
     """)
 
     called = []
+
     def failing_handler(payload):
         called.append(payload)
         raise RuntimeError("boom")
@@ -144,7 +147,9 @@ async def test_retry_schedule_back_to_pending(conn):
 
     processed = await claim_and_dispatch(conn, {"foundation.test": flaky})
     assert processed is True
-    row = await conn.fetchrow("SELECT status, retry_count FROM outbox_events WHERE idempotency_key = 'ik-test-004'")
+    row = await conn.fetchrow(
+        "SELECT status, retry_count FROM outbox_events WHERE idempotency_key = 'ik-test-004'"
+    )
     assert row["status"] == OUTBOX_PENDING
     assert row["retry_count"] == 1
 
@@ -155,7 +160,9 @@ async def test_retry_schedule_back_to_pending(conn):
     # Second attempt after the scheduled retry becomes available.
     processed = await claim_and_dispatch(conn, {"foundation.test": flaky})
     assert processed is True
-    row = await conn.fetchrow("SELECT status, retry_count FROM outbox_events WHERE idempotency_key = 'ik-test-004'")
+    row = await conn.fetchrow(
+        "SELECT status, retry_count FROM outbox_events WHERE idempotency_key = 'ik-test-004'"
+    )
     assert row["status"] == OUTBOX_PENDING
     assert row["retry_count"] == 2
 
@@ -166,6 +173,8 @@ async def test_retry_schedule_back_to_pending(conn):
     # Third attempt (hits max_retries=3) -> dead_letter.
     processed = await claim_and_dispatch(conn, {"foundation.test": flaky})
     assert processed is True
-    row = await conn.fetchrow("SELECT status, retry_count FROM outbox_events WHERE idempotency_key = 'ik-test-004'")
+    row = await conn.fetchrow(
+        "SELECT status, retry_count FROM outbox_events WHERE idempotency_key = 'ik-test-004'"
+    )
     assert row["status"] == OUTBOX_DEAD_LETTER
     assert row["retry_count"] == 3
