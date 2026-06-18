@@ -28,6 +28,7 @@ def require_test_database() -> None:
     except OSError:
         pytest.skip(f"test database host {host}:{port} is not reachable")
 
+
 _test_engine = create_async_engine(
     _db_module.engine.url,
     poolclass=NullPool,
@@ -53,6 +54,7 @@ class _TestAsyncSession:
         s = await self._session.__aenter__()
         if not self._wrapped:
             _orig_commit = s.commit
+
             async def _commit():
                 if s.in_transaction() and not s.is_active:
                     await s.rollback()
@@ -62,6 +64,7 @@ class _TestAsyncSession:
                 await apply_rls_context_to_session(
                     s, role="platform_admin", is_platform_admin=True,
                 )
+
             s.commit = _commit
             self._wrapped = True
         # Ensure a transaction is active so set_config(..., true) persists
@@ -160,7 +163,7 @@ async def db_session() -> AsyncGenerator:
 
 @pytest.fixture
 async def test_user(db_session):
-    from sqlalchemy import select as sa_select, text
+    from sqlalchemy import text
     from app.common.security import hash_password
     from app.users.models import User
 
@@ -205,7 +208,9 @@ async def agency_admin_user(db_session, test_tenant):
     password = "TestPass123!"
     pw_hash = hash_password(password)
 
-    role_result = await db_session.execute(text("SELECT id FROM roles WHERE slug = 'agency_admin' LIMIT 1"))
+    role_result = await db_session.execute(
+        text("SELECT id FROM roles WHERE slug = 'agency_admin' LIMIT 1")
+    )
     role_row = role_result.fetchone()
     role_id = role_row[0] if role_row else None
 
@@ -256,7 +261,9 @@ async def support_user(db_session, test_tenant):
     password = "TestPass123!"
     pw_hash = hash_password(password)
 
-    role_result = await db_session.execute(text("SELECT id FROM roles WHERE slug = 'support_employee' LIMIT 1"))
+    role_result = await db_session.execute(
+        text("SELECT id FROM roles WHERE slug = 'support_employee' LIMIT 1")
+    )
     role_row = role_result.fetchone()
     role_id = role_row[0] if role_row else None
 
@@ -299,7 +306,6 @@ async def support_user(db_session, test_tenant):
 async def test_tenant(db_session):
     from sqlalchemy import text
     from app.agencies.models import AgencyTenant
-
     tid = uuid.uuid4()
     slug = f"test-tenant-{tid.hex[:8]}"
     tenant = AgencyTenant(
@@ -322,7 +328,6 @@ async def test_tenant(db_session):
 @pytest.fixture
 async def test_listing(db_session, test_tenant, agency_admin_user):
     from app.listings.models import Listing
-
     user, _ = agency_admin_user
     lid = uuid.uuid4()
     listing = Listing(

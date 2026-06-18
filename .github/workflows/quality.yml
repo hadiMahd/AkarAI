@@ -12,10 +12,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - uses: pre-commit/action@v3.0.1
+      - name: Install pre-commit
+        run: pip install pre-commit
+      - name: Run pre-commit quality slice
+        env:
+          PRECOMMIT_BASE_REF: main
+        run: make quality-precommit
 
   backend:
     runs-on: ubuntu-latest
