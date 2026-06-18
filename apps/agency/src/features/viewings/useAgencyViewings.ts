@@ -12,6 +12,11 @@ interface ScheduledViewing {
   scheduled_start_at: string;
   scheduled_end_at: string;
   notes: string | null;
+  listing_summary?: {
+    id: string;
+    title: string;
+    thumbnail_url?: string | null;
+  } | null;
   created_at: string;
   updated_at: string;
 }

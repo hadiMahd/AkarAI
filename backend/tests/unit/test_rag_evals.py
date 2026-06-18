@@ -280,3 +280,5 @@ async def test_run_eval_persists_results(tmp_path):
         examples = list(example_result.scalars().all())
         assert len(examples) == 2
         assert all(example.id.startswith(f"{run_label}:") for example in examples)
+        await session.delete(run)
+        await session.commit()

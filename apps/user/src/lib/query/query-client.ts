@@ -24,6 +24,7 @@ export const queryKeys = {
     saved: ["listings", "saved"] as const,
     media: (listingId: string) => ["listings", listingId, "media"] as const,
     slots: (listingId: string) => ["listings", listingId, "slots"] as const,
+    assistant: (listingId: string) => ["listings", listingId, "assistant"] as const,
   },
   profile: {
     inquiries: ["profile", "inquiries"] as const,

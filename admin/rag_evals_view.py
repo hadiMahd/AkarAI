@@ -52,7 +52,7 @@ def _render_latest_summary(run: dict[str, Any]) -> None:
     with st.container(border=True):
         top = st.columns([3, 1, 1])
         with top[0]:
-            st.markdown(f"**Latest run: {run.get('run_label', 'Unnamed run')}**")
+            st.markdown(f"**Latest full-suite run: {run.get('run_label', 'Unnamed run')}**")
             st.caption(f"{_format_mode(run.get('mode'))} | Created {run.get('created_at', '-')}")
         with top[1]:
             st.metric("State", state_text)
@@ -92,6 +92,7 @@ def _render_runs_table(items: list[dict[str, Any]]) -> None:
         {
             "Run": item.get("run_label"),
             "Mode": _format_mode(item.get("mode")),
+            "Class": item.get("run_classification", "unknown"),
             "State": _run_state(item)[0],
             "Created": item.get("created_at"),
             "Faithfulness": _format_metric(item.get("faithfulness")),
@@ -152,6 +153,7 @@ def render_rag_evals(auth: AuthState) -> None:
 
     with render_loading("Loading eval runs..."):
         try:
+            summary_payload = _client().list_rag_eval_runs(auth.token, page=1, page_size=50)
             runs_payload = _client().list_rag_eval_runs(auth.token, page=1, page_size=page_size)
         except AdminAPIError as exc:
             render_backend_error(exc)
@@ -162,8 +164,14 @@ def render_rag_evals(auth: AuthState) -> None:
         render_empty_state("No RAG eval results have been recorded yet.")
         return
 
-    latest = items[0]
-    _render_latest_summary(latest)
+    latest_full_suite = next(
+        (item for item in summary_payload.get("items", []) if item.get("run_classification") == "full_suite"),
+        None,
+    )
+    if latest_full_suite:
+        _render_latest_summary(latest_full_suite)
+    else:
+        st.warning("No full-suite blocking/manual benchmark run was found yet. Showing recent raw runs below.")
 
     render_section("Recent runs")
     _render_runs_table(items)

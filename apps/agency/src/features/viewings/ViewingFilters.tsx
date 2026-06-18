@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useAgencyViewings } from "./useAgencyViewings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -134,7 +135,26 @@ export function ViewingFilters() {
                           {viewing.status}
                         </span>
                       </td>
-                      <td className="py-3 px-2">{viewing.listing_id.substring(0, 8)}...</td>
+                      <td className="py-3 px-2">
+                        <div className="flex items-center gap-3">
+                          {viewing.listing_summary?.thumbnail_url ? (
+                            <img
+                              src={viewing.listing_summary.thumbnail_url}
+                              alt={viewing.listing_summary.title}
+                              className="h-10 w-10 rounded object-cover"
+                            />
+                          ) : null}
+                          <div className="min-w-0">
+                            <Link
+                              to={`/listings/${viewing.listing_id}`}
+                              className="font-medium text-foreground hover:underline"
+                            >
+                              {viewing.listing_summary?.title || viewing.listing_id}
+                            </Link>
+                            <p className="truncate text-xs text-muted-foreground">{viewing.listing_id}</p>
+                          </div>
+                        </div>
+                      </td>
                       <td className="py-3 px-2">{viewing.notes || "—"}</td>
                     </tr>
                   ))}

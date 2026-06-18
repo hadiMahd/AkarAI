@@ -96,6 +96,21 @@ class TestViewingSlotServiceValidation:
                 "capacity": 5,
             })
 
+    async def test_create_slot_requires_future_start_time(self, db_session, test_tenant, agency_admin_user, test_listing):
+        user, _ = agency_admin_user
+        ctx = _make_tenant(test_tenant.id, user.id)
+
+        starts = datetime.now(timezone.utc) + timedelta(minutes=2)
+        ends = starts + timedelta(hours=1)
+
+        svc = ViewingSlotService(db_session, ctx)
+        with pytest.raises(ValidationError, match="at least 5 minutes in the future"):
+            await svc.create_slot(test_listing.id, {
+                "starts_at": starts,
+                "ends_at": ends,
+                "capacity": 5,
+            })
+
     async def test_create_slot_support_employee_forbidden(self, db_session, test_tenant, support_user, test_listing):
         user, _ = support_user
         ctx = _make_tenant(test_tenant.id, user.id, role="support_employee")
@@ -171,6 +186,29 @@ class TestViewingSlotServiceValidation:
             await svc.update_slot(test_listing.id, slot.id, {
                 "starts_at": datetime.now(timezone.utc) + timedelta(hours=5),
                 "ends_at": datetime.now(timezone.utc) + timedelta(hours=3),
+            })
+
+    async def test_update_slot_requires_future_start_time(self, db_session, test_tenant, agency_admin_user, test_listing):
+        user, _ = agency_admin_user
+        ctx = _make_tenant(test_tenant.id, user.id)
+
+        slot = ListingViewingSlot(
+            listing_id=test_listing.id,
+            agency_tenant_id=test_tenant.id,
+            starts_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            ends_at=datetime.now(timezone.utc) + timedelta(hours=2),
+            capacity=3,
+            reserved_count=0,
+            status="active",
+            created_by_user_id=user.id,
+        )
+        db_session.add(slot)
+        await db_session.commit()
+
+        svc = ViewingSlotService(db_session, ctx)
+        with pytest.raises(ValidationError, match="at least 5 minutes in the future"):
+            await svc.update_slot(test_listing.id, slot.id, {
+                "starts_at": datetime.now(timezone.utc) + timedelta(minutes=2),
             })
 
     async def test_update_slot_not_found(self, db_session, test_tenant, agency_admin_user, test_listing):

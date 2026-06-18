@@ -39,6 +39,7 @@ export function ListingsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b">
+                    <th className="text-left py-3 px-2 font-medium">Photo</th>
                     <th className="text-left py-3 px-2 font-medium">Title</th>
                     <th className="text-left py-3 px-2 font-medium">Status</th>
                     <th className="text-left py-3 px-2 font-medium">Price</th>
@@ -49,6 +50,19 @@ export function ListingsPage() {
                 <tbody>
                   {listings.map((listing) => (
                     <tr key={listing.id} className="border-b">
+                      <td className="py-3 px-2">
+                        {listing.thumbnail_url ? (
+                          <img
+                            src={listing.thumbnail_url}
+                            alt={listing.title}
+                            className="h-14 w-20 rounded object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-14 w-20 items-center justify-center rounded bg-muted text-xs text-muted-foreground">
+                            No photo
+                          </div>
+                        )}
+                      </td>
                       <td className="py-3 px-2">{listing.title}</td>
                       <td className="py-3 px-2">
                         <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs ${

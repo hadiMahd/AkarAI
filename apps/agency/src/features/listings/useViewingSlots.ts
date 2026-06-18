@@ -73,3 +73,4 @@ export function useViewingSlots(listingId: string) {
 }
 
 export type { ViewingSlot, ViewingSlotCreateRequest };
+export { createViewingSlot };

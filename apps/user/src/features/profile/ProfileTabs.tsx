@@ -9,13 +9,14 @@ interface ProfileTabsProps {
 
 export function ProfileTabs({ activeTab, onTabChange }: ProfileTabsProps) {
   const tabs: Array<{ value: ProfileTab; label: string }> = [
+    { value: "profile", label: "Profile" },
     { value: "saved", label: "Saved Listings" },
     { value: "inquiries", label: "Submitted Inquiries" },
     { value: "viewings", label: "Scheduled Viewings" },
   ];
 
   return (
-    <div role="tablist" aria-label="Profile sections" className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3">
+    <div role="tablist" aria-label="Profile sections" className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
       {tabs.map((tab) => (
         <Button
           key={tab.value}

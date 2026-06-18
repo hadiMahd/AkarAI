@@ -23,6 +23,7 @@ export type ApiErrorContext =
   | "listing.load"
   | "listing.detail"
   | "listing.media"
+  | "listing.assistant"
   | "saved.toggle"
   | "compare.update"
   | "inquiry.submit"
@@ -253,6 +254,33 @@ function mapByContext(error: unknown, context: ApiErrorContext): MappedMessage |
 
     case "listing.media":
       return { message: "We couldn't load the photos. Try refreshing the page.", isSpecific: true };
+
+    case "listing.assistant":
+      if (status === 404) {
+        return {
+          message: "This listing is no longer available.",
+          isSpecific: true,
+        };
+      }
+      if (status === 401) {
+        return {
+          message: "Sign in to continue with that assistant action.",
+          isSpecific: true,
+        };
+      }
+      if (isRateLimited(error)) {
+        return {
+          message: "The listing assistant is busy right now. Wait a moment and try again.",
+          isSpecific: true,
+        };
+      }
+      if (status === 503 || (status != null && status >= 500)) {
+        return {
+          message: "The listing assistant is unavailable right now. Use the forms below or try again later.",
+          isSpecific: true,
+        };
+      }
+      return null;
 
     case "saved.toggle":
       if (status === 404) {

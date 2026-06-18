@@ -118,6 +118,11 @@ class Settings(BaseSettings):
     agency_ai_job_ttl_seconds: int = 86400
     agency_ai_max_tool_listing_results: int = 10
     agency_ai_max_tool_lead_results: int = 10
+    listing_assistant_max_context_chars: int = 3000
+    listing_assistant_max_slot_options: int = 8
+    listing_assistant_enable_langsmith_tracing: bool = False
+    langsmith_project: str = "akarai-listing-assistant"
+    langsmith_api_key: str = ""
 
     # Agency AI rate limits
     agency_ai_listing_draft_rate_limit_max_requests: int = 10

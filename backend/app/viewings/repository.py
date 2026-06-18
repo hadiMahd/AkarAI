@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -16,6 +16,21 @@ class ViewingSlotRepository(BaseRepository):
             .where(
                 ListingViewingSlot.listing_id == listing_id,
                 ListingViewingSlot.status == "active",
+            )
+            .order_by(ListingViewingSlot.starts_at)
+        )
+        result = await self.session.execute(q)
+        return list(result.scalars().all())
+
+    async def list_bookable_by_listing(self, listing_id: UUID) -> list[ListingViewingSlot]:
+        now = datetime.now(timezone.utc)
+        q = (
+            select(ListingViewingSlot)
+            .where(
+                ListingViewingSlot.listing_id == listing_id,
+                ListingViewingSlot.status == "active",
+                ListingViewingSlot.starts_at >= now,
+                ListingViewingSlot.reserved_count < ListingViewingSlot.capacity,
             )
             .order_by(ListingViewingSlot.starts_at)
         )

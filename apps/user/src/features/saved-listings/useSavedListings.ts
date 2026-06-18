@@ -8,17 +8,20 @@ import {
   type SavedListingWithDetails,
   type PaginatedSavedListingsResponse,
 } from "@/lib/api/auth";
+import { getSession } from "@/lib/session/auth-session";
 
 const SAVED_LISTINGS_QUERY_KEY = ["saved-listings"];
 const SAVED_LISTINGS_FULL_QUERY_KEY = ["saved-listings", "full"];
 
 export function useSavedListings() {
   const queryClient = useQueryClient();
+  const { accessToken } = getSession();
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: SAVED_LISTINGS_QUERY_KEY,
     queryFn: () => listSavedListings(1, 100),
     staleTime: 1000 * 60 * 5,
+    enabled: !!accessToken,
   });
 
   const savedListingIds = data?.items?.map((item) => item.listing_id) ?? [];
@@ -120,10 +123,13 @@ export function useSavedListings() {
 }
 
 export function useSavedListingsFull() {
+  const { accessToken } = getSession();
+
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: SAVED_LISTINGS_FULL_QUERY_KEY,
     queryFn: () => listSavedListingsWithDetails(1, 100),
     staleTime: 1000 * 60 * 5,
+    enabled: !!accessToken,
   });
 
   return {

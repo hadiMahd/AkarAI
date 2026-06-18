@@ -162,3 +162,40 @@ class AgencyAIJobRead(BaseModel):
             }
             return super().model_validate(data, *args, **kwargs)
         return super().model_validate(obj, *args, **kwargs)
+
+
+class ListingAssistantConversationMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(..., min_length=1, max_length=4000)
+
+    @field_validator("content")
+    @classmethod
+    def trim_content(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("content cannot be blank")
+        return value
+
+
+class ListingAssistantMessageRequest(BaseModel):
+    message: str = Field(..., min_length=1, max_length=4000)
+    conversation_messages: list[ListingAssistantConversationMessage] = Field(default_factory=list)
+
+    @field_validator("message")
+    @classmethod
+    def trim_message(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("message cannot be blank")
+        return value
+
+
+class ListingAssistantPendingAction(BaseModel):
+    type: Literal["lead_inquiry", "viewing_booking"]
+    payload: dict[str, Any]
+
+
+class ListingAssistantResponse(BaseModel):
+    assistant_message: str
+    pending_action: ListingAssistantPendingAction | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)

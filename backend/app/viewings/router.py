@@ -4,7 +4,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import get_current_actor, get_rls_db_session, get_tenant_context
+from app.auth.dependencies import (
+    get_current_actor,
+    get_optional_rls_db_session,
+    get_rls_db_session,
+    get_tenant_context,
+)
 from app.common.exceptions import RateLimitExceededError
 from app.common.pagination import PaginationRequest
 from app.common.rate_limit import check_phase4_rate_limit
@@ -75,13 +80,12 @@ agency_viewings_router = APIRouter(prefix="/agency/viewings", tags=["Viewings"])
 @booking_router.get("/listings/{listing_id}/viewing-slots", response_model=list[PublicViewingSlotResponse])
 async def list_public_viewing_slots(
     listing_id: UUID,
-    actor: dict = Depends(get_current_actor),
-    db: AsyncSession = Depends(get_rls_db_session),
+    db: AsyncSession = Depends(get_optional_rls_db_session),
 ):
     from app.viewings.repository import ViewingSlotRepository
 
     repo = ViewingSlotRepository(db)
-    return await repo.list_active_by_listing(listing_id)
+    return await repo.list_bookable_by_listing(listing_id)
 
 
 @booking_router.post("/listings/{listing_id}/viewings", response_model=ScheduledViewingResponse, status_code=201)

@@ -5,9 +5,12 @@ import { getSession, setSession } from "@/lib/session/auth-session";
 import { getMyProfile, updateMyProfile, type UpdateUserProfileRequest } from "@/lib/api/profile";
 
 export function useUserProfile() {
+  const { accessToken } = getSession();
+
   return useQuery({
     queryKey: queryKeys.user.profile,
     queryFn: getMyProfile,
+    enabled: !!accessToken,
   });
 }
 

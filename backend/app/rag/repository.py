@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.pagination import PaginationRequest
@@ -54,11 +54,23 @@ class RagRepository:
         )
         return list(result.scalars().all()), total
 
+    async def list_failed_documents(self, tenant_id: UUID | None = None) -> list[RagDocument]:
+        query = select(RagDocument).where(RagDocument.status == "failed")
+        if tenant_id is not None:
+            query = query.where(RagDocument.tenant_id == tenant_id)
+        result = await self._session.execute(query.order_by(RagDocument.created_at.desc()))
+        return list(result.scalars().all())
+
     async def get_document_for_worker(self, document_id: UUID) -> RagDocument | None:
         result = await self._session.execute(
             select(RagDocument).where(RagDocument.id == document_id)
         )
         return result.scalar_one_or_none()
+
+    async def hard_delete_document(self, document_id: UUID) -> None:
+        await self._session.execute(delete(RagChunk).where(RagChunk.document_id == document_id))
+        await self._session.execute(delete(RagPage).where(RagPage.document_id == document_id))
+        await self._session.execute(delete(RagDocument).where(RagDocument.id == document_id))
 
     async def list_pages_for_document(self, document_id: UUID) -> list[RagPage]:
         result = await self._session.execute(
@@ -186,6 +198,25 @@ class RagRepository:
         total = int(count_result.scalar_one())
         result = await self._session.execute(base.offset(pagination.offset).limit(pagination.limit))
         return list(result.scalars().all()), total
+
+    async def delete_evaluation_runs_by_label_patterns(self, patterns: list[str]) -> int:
+        if not patterns:
+            return 0
+
+        result = await self._session.execute(
+            select(RagEvaluationRun.id).where(
+                or_(*[RagEvaluationRun.run_label.ilike(pattern) for pattern in patterns])
+            )
+        )
+        run_ids = [row[0] for row in result.all()]
+        if not run_ids:
+            return 0
+
+        await self._session.execute(
+            delete(RagEvaluationExample).where(RagEvaluationExample.run_id.in_(run_ids))
+        )
+        await self._session.execute(delete(RagEvaluationRun).where(RagEvaluationRun.id.in_(run_ids)))
+        return len(run_ids)
 
     async def get_evaluation_run(self, run_id: UUID) -> RagEvaluationRun | None:
         result = await self._session.execute(

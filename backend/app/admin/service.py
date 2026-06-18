@@ -351,6 +351,11 @@ class PlatformAdminService:
             created_at=run.created_at,
             completed_at=run.completed_at,
             mode=summary.get("mode") or _infer_eval_mode(run.run_label),
+            run_classification=_classify_eval_run(
+                mode=summary.get("mode") or _infer_eval_mode(run.run_label),
+                total_examples=run.total_examples,
+                run_label=run.run_label,
+            ),
             total_examples=run.total_examples,
             passed_examples=run.passed_examples,
             failed_examples=run.failed_examples,
@@ -397,6 +402,15 @@ def _infer_eval_mode(run_label: str | None) -> str:
     if "manual" in label:
         return "manual"
     return "blocking"
+
+
+def _classify_eval_run(*, mode: str, total_examples: int, run_label: str | None) -> str:
+    label = (run_label or "").lower()
+    if (mode == "blocking" and total_examples == 20) or (mode == "manual" and total_examples == 40):
+        return "full_suite"
+    if label.startswith("ragas-test-run-") or label.startswith("int-test-eval-") or label.startswith("int-fail-eval-"):
+        return "test"
+    return "ad_hoc"
 
 
 def _to_float(value: Any) -> float | None:

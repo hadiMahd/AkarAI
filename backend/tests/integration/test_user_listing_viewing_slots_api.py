@@ -16,7 +16,7 @@ async def test_list_viewing_slots_for_listing(
 ):
     from app.viewings.models import ListingViewingSlot
 
-    user, password = test_user
+    user, _password = test_user
     slot_id = uuid.uuid4()
     slot = ListingViewingSlot(
         id=slot_id,
@@ -34,16 +34,8 @@ async def test_list_viewing_slots_for_listing(
     db_session.add(slot)
     await db_session.commit()
 
-    login_resp = await async_client.post(
-        "/auth/login",
-        json={"email": user.email, "password": password},
-    )
-    access_token = login_resp.json()["access_token"]
-    headers = {"Authorization": f"Bearer {access_token}"}
-
     response = await async_client.get(
         f"/listings/{test_listing.id}/viewing-slots",
-        headers=headers,
     )
 
     assert response.status_code == 200
@@ -71,7 +63,7 @@ async def test_list_viewing_slots_excludes_inactive(
 ):
     from app.viewings.models import ListingViewingSlot
 
-    user, password = test_user
+    user, _password = test_user
     inactive_slot_id = uuid.uuid4()
     inactive_slot = ListingViewingSlot(
         id=inactive_slot_id,
@@ -89,16 +81,8 @@ async def test_list_viewing_slots_excludes_inactive(
     db_session.add(inactive_slot)
     await db_session.commit()
 
-    login_resp = await async_client.post(
-        "/auth/login",
-        json={"email": user.email, "password": password},
-    )
-    access_token = login_resp.json()["access_token"]
-    headers = {"Authorization": f"Bearer {access_token}"}
-
     response = await async_client.get(
         f"/listings/{test_listing.id}/viewing-slots",
-        headers=headers,
     )
 
     assert response.status_code == 200
@@ -117,25 +101,15 @@ async def test_list_viewing_slots_unauthenticated(
 ):
     response = await async_client.get(f"/listings/{test_listing.id}/viewing-slots")
 
-    assert response.status_code == 401
+    assert response.status_code == 200
 
 
 async def test_list_viewing_slots_nonexistent_listing(
     async_client: AsyncClient,
-    test_user,
 ):
-    user, password = test_user
-    login_resp = await async_client.post(
-        "/auth/login",
-        json={"email": user.email, "password": password},
-    )
-    access_token = login_resp.json()["access_token"]
-    headers = {"Authorization": f"Bearer {access_token}"}
-
     fake_listing_id = uuid.uuid4()
     response = await async_client.get(
         f"/listings/{fake_listing_id}/viewing-slots",
-        headers=headers,
     )
 
     assert response.status_code == 200
@@ -152,7 +126,7 @@ async def test_viewing_slot_response_fields(
 ):
     from app.viewings.models import ListingViewingSlot
 
-    user, password = test_user
+    user, _password = test_user
     slot_id = uuid.uuid4()
     slot = ListingViewingSlot(
         id=slot_id,
@@ -170,16 +144,8 @@ async def test_viewing_slot_response_fields(
     db_session.add(slot)
     await db_session.commit()
 
-    login_resp = await async_client.post(
-        "/auth/login",
-        json={"email": user.email, "password": password},
-    )
-    access_token = login_resp.json()["access_token"]
-    headers = {"Authorization": f"Bearer {access_token}"}
-
     response = await async_client.get(
         f"/listings/{test_listing.id}/viewing-slots",
-        headers=headers,
     )
 
     assert response.status_code == 200
@@ -199,4 +165,83 @@ async def test_viewing_slot_response_fields(
 
     from sqlalchemy import text
     await db_session.execute(text(f"DELETE FROM listing_viewing_slots WHERE id = '{slot_id}'"))
+    await db_session.commit()
+
+
+async def test_list_viewing_slots_excludes_past_and_full_slots(
+    async_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user,
+    test_tenant,
+    test_listing,
+):
+    from app.viewings.models import ListingViewingSlot
+
+    user, _password = test_user
+    now = datetime.now(timezone.utc)
+    visible_slot_id = uuid.uuid4()
+    past_slot_id = uuid.uuid4()
+    full_slot_id = uuid.uuid4()
+
+    db_session.add_all(
+        [
+            ListingViewingSlot(
+                id=visible_slot_id,
+                listing_id=test_listing.id,
+                agency_tenant_id=test_tenant.id,
+                starts_at=now + timedelta(days=1),
+                ends_at=now + timedelta(days=1, hours=1),
+                capacity=2,
+                reserved_count=0,
+                status="active",
+                created_by_user_id=user.id,
+                created_at=now,
+                updated_at=now,
+            ),
+            ListingViewingSlot(
+                id=past_slot_id,
+                listing_id=test_listing.id,
+                agency_tenant_id=test_tenant.id,
+                starts_at=now - timedelta(hours=2),
+                ends_at=now - timedelta(hours=1),
+                capacity=2,
+                reserved_count=0,
+                status="active",
+                created_by_user_id=user.id,
+                created_at=now,
+                updated_at=now,
+            ),
+            ListingViewingSlot(
+                id=full_slot_id,
+                listing_id=test_listing.id,
+                agency_tenant_id=test_tenant.id,
+                starts_at=now + timedelta(days=2),
+                ends_at=now + timedelta(days=2, hours=1),
+                capacity=1,
+                reserved_count=1,
+                status="active",
+                created_by_user_id=user.id,
+                created_at=now,
+                updated_at=now,
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    response = await async_client.get(f"/listings/{test_listing.id}/viewing-slots")
+
+    assert response.status_code == 200
+    data = response.json()
+    slot_ids = {item["id"] for item in data}
+    assert str(visible_slot_id) in slot_ids
+    assert str(past_slot_id) not in slot_ids
+    assert str(full_slot_id) not in slot_ids
+
+    from sqlalchemy import text
+    await db_session.execute(
+        text(
+            "DELETE FROM listing_viewing_slots "
+            f"WHERE id IN ('{visible_slot_id}', '{past_slot_id}', '{full_slot_id}')"
+        )
+    )
     await db_session.commit()

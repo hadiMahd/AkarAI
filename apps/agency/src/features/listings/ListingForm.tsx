@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { AlertCircle, CheckCircle2, ShieldCheck } from "lucide-react";
+import { AlertCircle, Calendar, CheckCircle2, ShieldCheck, Trash2 } from "lucide-react";
 import { useAgencyListings, useListingDetail, uploadListingPhoto } from "./useAgencyListings";
 import { useListingCities } from "./useListingCities";
 import type { StagedListingPhoto } from "./listing-media";
+import type { DraftViewingSlot } from "./viewing-slot-draft";
+import { clearListingDraft, saveListingDraft } from "./listing-draft-storage";
 import { ListingAiWorkflow } from "./ListingAiWorkflow";
+import { createViewingSlot } from "./useViewingSlots";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +15,7 @@ import { getApiErrorMessage } from "@/lib/api/errors";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-type ListingFormData = {
+export type ListingFormData = {
   title: string;
   description: string;
   property_type: string;
@@ -52,11 +55,21 @@ const EMPTY_FORM: ListingFormData = {
   country: "",
 };
 
+function minViewingDateTimeLocal() {
+  const minimum = new Date(Date.now() + 5 * 60 * 1000);
+  minimum.setSeconds(0, 0);
+  return minimum.toISOString().slice(0, 16);
+}
+
 interface ListingFormProps {
   listingId?: string | null;
   onListingCreated?: (id: string) => void;
   stagedPhotos?: StagedListingPhoto[];
   onClearStagedPhotos?: () => void;
+  stagedViewingSlots?: DraftViewingSlot[];
+  onStagedViewingSlotsChange?: (slots: DraftViewingSlot[]) => void;
+  initialFormData?: Partial<ListingFormData> | null;
+  draftHydrated?: boolean;
 }
 
 export function ListingForm({
@@ -64,6 +77,10 @@ export function ListingForm({
   onListingCreated,
   stagedPhotos = [],
   onClearStagedPhotos,
+  stagedViewingSlots = [],
+  onStagedViewingSlotsChange,
+  initialFormData = null,
+  draftHydrated = true,
 }: ListingFormProps) {
   const { createListing, isCreating, createError, publishListing, isPublishing } = useAgencyListings();
   const {
@@ -79,7 +96,14 @@ export function ListingForm({
   const [formData, setFormData] = useState<ListingFormData>(EMPTY_FORM);
   const [successMessage, setSuccessMessage] = useState("");
   const [localError, setLocalError] = useState("");
+  const [slotDraft, setSlotDraft] = useState<DraftViewingSlot>({
+    id: "",
+    starts_at: "",
+    ends_at: "",
+    capacity: "1",
+  });
   const seededListingId = useRef<string | null>(null);
+  const restoredDraftApplied = useRef(false);
 
   useEffect(() => {
     if (!listing || listing.id === seededListingId.current) {
@@ -107,6 +131,30 @@ export function ListingForm({
     });
     seededListingId.current = listing.id;
   }, [listing]);
+
+  useEffect(() => {
+    if (listingId || restoredDraftApplied.current || !initialFormData) {
+      return;
+    }
+
+    setFormData((current) => ({
+      ...current,
+      ...initialFormData,
+    }));
+    restoredDraftApplied.current = true;
+  }, [initialFormData, listingId]);
+
+  useEffect(() => {
+    if (listingId || !draftHydrated) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      void saveListingDraft(formData, stagedPhotos, stagedViewingSlots);
+    }, 300);
+
+    return () => window.clearTimeout(timeout);
+  }, [draftHydrated, formData, listingId, stagedPhotos, stagedViewingSlots]);
 
   const buildPayload = () => ({
     ...formData,
@@ -158,8 +206,22 @@ export function ListingForm({
         );
       }
 
+      if (stagedViewingSlots.length > 0) {
+        await Promise.all(
+          stagedViewingSlots.map((slot) =>
+            createViewingSlot(created.id, {
+              starts_at: new Date(slot.starts_at).toISOString(),
+              ends_at: new Date(slot.ends_at).toISOString(),
+              capacity: parseInt(slot.capacity, 10),
+            }),
+          ),
+        );
+      }
+
       await publishListing(created.id);
+      await clearListingDraft();
       onClearStagedPhotos?.();
+      onStagedViewingSlotsChange?.([]);
       setSuccessMessage(`Listing submitted with ${safePhotos.length} photo(s).`);
     } catch {
       // handled by mutation state
@@ -177,12 +239,62 @@ export function ListingForm({
   };
 
   const isEditing = Boolean(listingId);
+  const minimumSlotStart = minViewingDateTimeLocal();
   const showSeparatePublishButton = isEditing && listing && listing.status !== "active";
   const submitLabel = isEditing ? "Save Changes" : "Submit Listing";
   const isSaving = isCreating || isUpdating;
   const availableCities = Array.from(
     new Set([...(cityOptions ?? []), ...(formData.city ? [formData.city] : [])]),
   ).sort((left, right) => left.localeCompare(right));
+
+  const handleDiscardDraft = async () => {
+    setFormData(EMPTY_FORM);
+    setSuccessMessage("");
+    setLocalError("");
+    setSlotDraft({ id: "", starts_at: "", ends_at: "", capacity: "1" });
+    onClearStagedPhotos?.();
+    onStagedViewingSlotsChange?.([]);
+    await clearListingDraft();
+  };
+
+  const handleAddViewingSlot = () => {
+    if (!slotDraft.starts_at || !slotDraft.ends_at) {
+      setLocalError("Add both a start and end time for the viewing slot.");
+      return;
+    }
+
+    if (new Date(slotDraft.starts_at) >= new Date(slotDraft.ends_at)) {
+      setLocalError("Viewing slot end time must be after the start time.");
+      return;
+    }
+
+    if (new Date(slotDraft.starts_at).getTime() < Date.now() + 5 * 60 * 1000) {
+      setLocalError("Viewing slot start time must be at least 5 minutes in the future.");
+      return;
+    }
+
+    if (parseInt(slotDraft.capacity, 10) < 1) {
+      setLocalError("Viewing slot capacity must be at least 1.");
+      return;
+    }
+
+    onStagedViewingSlotsChange?.([
+      ...stagedViewingSlots,
+      {
+        ...slotDraft,
+        id:
+          typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      },
+    ]);
+    setLocalError("");
+    setSlotDraft({ id: "", starts_at: "", ends_at: "", capacity: "1" });
+  };
+
+  const handleRemoveViewingSlot = (slotId: string) => {
+    onStagedViewingSlotsChange?.(stagedViewingSlots.filter((slot) => slot.id !== slotId));
+  };
 
   return (
     <Card>
@@ -431,10 +543,100 @@ export function ListingForm({
             </div>
           </div>
 
+          {!isEditing ? (
+            <div className="space-y-4 rounded-lg border p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="flex items-center gap-2 text-base font-semibold">
+                    <Calendar className="h-4 w-4" />
+                    Viewing Availability
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Add the dates and times buyers can book. They will be saved when you submit the listing.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="slot_starts_at">Start Time</Label>
+                  <Input
+                    id="slot_starts_at"
+                    type="datetime-local"
+                    value={slotDraft.starts_at}
+                    onChange={(e) => setSlotDraft({ ...slotDraft, starts_at: e.target.value })}
+                    min={minimumSlotStart}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="slot_ends_at">End Time</Label>
+                  <Input
+                    id="slot_ends_at"
+                    type="datetime-local"
+                    value={slotDraft.ends_at}
+                    onChange={(e) => setSlotDraft({ ...slotDraft, ends_at: e.target.value })}
+                    min={slotDraft.starts_at || minimumSlotStart}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="slot_capacity">Capacity</Label>
+                  <Input
+                    id="slot_capacity"
+                    type="number"
+                    min="1"
+                    value={slotDraft.capacity}
+                    onChange={(e) => setSlotDraft({ ...slotDraft, capacity: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <Button type="button" variant="outline" onClick={handleAddViewingSlot}>
+                Add Viewing Date
+              </Button>
+
+              {stagedViewingSlots.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No viewing dates added yet.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {stagedViewingSlots.map((slot) => (
+                    <div
+                      key={slot.id}
+                      className="flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm"
+                    >
+                      <div className="space-y-1">
+                        <p>
+                          {new Date(slot.starts_at).toLocaleString()} to{" "}
+                          {new Date(slot.ends_at).toLocaleString()}
+                        </p>
+                        <p className="text-muted-foreground">Capacity: {slot.capacity}</p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveViewingSlot(slot.id)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : null}
+
           <div className="flex flex-wrap items-center gap-3 pt-2">
             <Button type="submit" disabled={isSaving || isListingLoading}>
               {isSaving ? "Saving..." : submitLabel}
             </Button>
+            {!isEditing ? (
+              <Button type="button" variant="outline" onClick={() => void handleDiscardDraft()}>
+                Discard Draft
+              </Button>
+            ) : null}
             {showSeparatePublishButton && (
               <Button type="button" variant="outline" onClick={handlePublish} disabled={isPublishing}>
                 <ShieldCheck className="mr-2 h-4 w-4" />

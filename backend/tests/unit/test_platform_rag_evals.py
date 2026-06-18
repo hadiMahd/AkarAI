@@ -46,6 +46,35 @@ class TestPlatformRagEvalSerialization:
         assert payload.tenant_leakage_count == 0
         assert payload.p95_latency_ms == 3666.7
         assert payload.passed is True
+        assert payload.run_classification == "full_suite"
+
+    def test_serialize_eval_run_marks_test_and_ad_hoc_rows(self):
+        test_run = SimpleNamespace(
+            id=uuid4(),
+            run_label="ragas-test-run-1234",
+            created_at=datetime.now(timezone.utc),
+            completed_at=datetime.now(timezone.utc),
+            total_examples=2,
+            passed_examples=2,
+            failed_examples=0,
+            summary={"mode": "blocking", "judge_failures": 0, "threshold_failures": [], "metrics": {}, "latency_ms": {}},
+        )
+        ad_hoc_run = SimpleNamespace(
+            id=uuid4(),
+            run_label="manual-spot-check",
+            created_at=datetime.now(timezone.utc),
+            completed_at=datetime.now(timezone.utc),
+            total_examples=5,
+            passed_examples=5,
+            failed_examples=0,
+            summary={"mode": "manual", "judge_failures": 0, "threshold_failures": [], "metrics": {}, "latency_ms": {}},
+        )
+
+        test_payload = _service()._serialize_eval_run(test_run)
+        ad_hoc_payload = _service()._serialize_eval_run(ad_hoc_run)
+
+        assert test_payload.run_classification == "test"
+        assert ad_hoc_payload.run_classification == "ad_hoc"
 
     def test_serialize_eval_example_normalizes_summary(self):
         example = SimpleNamespace(

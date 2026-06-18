@@ -69,6 +69,7 @@ class ListingResponse(BaseModel):
     city: Optional[str] = None
     country: Optional[str] = None
     status: str
+    thumbnail_url: Optional[str] = None
     created_by_user_id: Optional[UUID] = None
     updated_by_user_id: Optional[UUID] = None
     created_at: datetime

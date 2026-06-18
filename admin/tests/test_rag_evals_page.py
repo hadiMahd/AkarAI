@@ -6,6 +6,7 @@ import pytest
 
 from admin.api_client import AdminAPIClient, AdminAPIError
 from admin.auth import AuthState
+from admin.rag_evals_view import _render_runs_table
 from tests.conftest import FakeResponse
 
 
@@ -76,3 +77,28 @@ class TestRagEvalView:
         with pytest.raises(AdminAPIError) as exc:
             client.get_rag_eval_run("TOKEN", "missing")
         assert exc.value.error_code == "RAG_EVAL_RUN_NOT_FOUND"
+
+    def test_runs_table_includes_classification(self, monkeypatch):
+        captured = {}
+
+        def fake_dataframe(rows, **_kwargs):
+            captured["rows"] = rows
+
+        monkeypatch.setattr("admin.rag_evals_view.st.dataframe", fake_dataframe)
+
+        _render_runs_table([
+            {
+                "run_label": "ragas-test-run-1234",
+                "mode": "blocking",
+                "run_classification": "test",
+                "passed": True,
+                "created_at": "2026-06-18T00:00:00Z",
+                "faithfulness": 0.9,
+                "hit_at_5": 1.0,
+                "tenant_leakage_count": 0,
+                "p95_latency_ms": 1234,
+                "threshold_failures": [],
+            }
+        ])
+
+        assert captured["rows"][0]["Class"] == "test"

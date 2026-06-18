@@ -93,7 +93,6 @@ class _TestAsyncSessionFactory:
 _db_module.async_session_factory = _TestAsyncSessionFactory()
 
 from app.agencies.models import AgencyEmployeeMembership, AgencyTenant
-from app.listings.models import Listing
 from app.users.models import User
 
 
@@ -124,13 +123,21 @@ def anyio_backend():
 
 
 @pytest.fixture
-async def async_client():
+async def async_client(db_session):
     from app.main import app
+    from app.common.database import get_db
     from httpx import ASGITransport, AsyncClient
 
+    async def _override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = _override_get_db
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        yield client
+    try:
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            yield client
+    finally:
+        app.dependency_overrides.pop(get_db, None)
 
 
 @pytest.fixture
@@ -139,12 +146,19 @@ async def db_session() -> AsyncGenerator:
 
     require_test_database()
     async with async_session_factory() as session:
-        _orig_commit = session.commit
+        if not session.in_transaction():
+            await session.begin()
+        await apply_rls_context_to_session(
+            session,
+            role="platform_admin",
+            is_platform_admin=True,
+        )
 
         async def _commit():
             if session.in_transaction() and not session.is_active:
                 await session.rollback()
-            await _orig_commit()
+                await session.begin()
+            await session.flush()
             if not session.in_transaction():
                 await session.begin()
             await apply_rls_context_to_session(
@@ -156,9 +170,9 @@ async def db_session() -> AsyncGenerator:
         session.commit = _commit
         try:
             yield session
-        except Exception:
-            await session.rollback()
-            raise
+        finally:
+            if session.in_transaction():
+                await session.rollback()
 
 
 @pytest.fixture

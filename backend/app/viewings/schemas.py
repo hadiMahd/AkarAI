@@ -57,6 +57,12 @@ class ViewingBookingRequest(BaseModel):
     notes: Optional[str] = None
 
 
+class ViewingListingSummary(BaseModel):
+    id: UUID
+    title: str
+    thumbnail_url: Optional[str] = None
+
+
 class ScheduledViewingResponse(BaseModel):
     id: UUID
     agency_tenant_id: UUID
@@ -67,6 +73,7 @@ class ScheduledViewingResponse(BaseModel):
     scheduled_start_at: datetime
     scheduled_end_at: datetime
     notes: Optional[str] = None
+    listing_summary: Optional[ViewingListingSummary] = None
     created_at: datetime
     updated_at: datetime
 

@@ -258,6 +258,28 @@ class RagDocumentService:
             size=pagination.page_size,
         )
 
+    async def hard_delete_document(self, document: RagDocument) -> None:
+        try:
+            delete_object(get_rag_bucket(), document.blob_path)
+        except Exception:
+            logger.warning("Failed to delete RAG blob during hard delete", exc_info=True)
+
+        pages = await self._repo.list_pages_for_document(document.id)
+        for page in pages:
+            try:
+                delete_object(get_rag_bucket(), page.blob_path)
+            except Exception:
+                logger.warning("Failed to delete RAG page blob during hard delete", exc_info=True)
+
+        await self._repo.hard_delete_document(document.id)
+
+    async def purge_failed_documents(self, *, tenant_id: UUID | None = None) -> int:
+        documents = await self._repo.list_failed_documents(tenant_id=tenant_id)
+        for document in documents:
+            await self.hard_delete_document(document)
+        await self._session.commit()
+        return len(documents)
+
 
 class RagRetrievalService:
     def __init__(self, session, tenant: TenantContext | None = None):

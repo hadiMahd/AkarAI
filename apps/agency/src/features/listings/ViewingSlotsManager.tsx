@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { useParams, Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useViewingSlots } from "@/features/listings/useViewingSlots";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,15 +7,28 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, Plus, Trash2, ArrowLeft } from "lucide-react";
 
-export function ViewingSlotsManager() {
-  const { listingId } = useParams();
-  const { slots, isLoading, createSlot, isCreating, deactivateSlot, isDeactivating } = useViewingSlots(listingId || "");
+function minViewingDateTimeLocal() {
+  const minimum = new Date(Date.now() + 5 * 60 * 1000);
+  minimum.setSeconds(0, 0);
+  return minimum.toISOString().slice(0, 16);
+}
+
+interface ViewingSlotsManagerProps {
+  listingId?: string | null;
+  embedded?: boolean;
+}
+
+export function ViewingSlotsManager({ listingId: listingIdProp = null, embedded = false }: ViewingSlotsManagerProps) {
+  const { listingId: routeListingId } = useParams();
+  const listingId = listingIdProp ?? routeListingId ?? "";
+  const { slots, isLoading, createSlot, isCreating, deactivateSlot, isDeactivating } = useViewingSlots(listingId);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     starts_at: "",
     ends_at: "",
     capacity: "1",
   });
+  const minimumSlotStart = minViewingDateTimeLocal();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -41,7 +54,9 @@ export function ViewingSlotsManager() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">Viewing Slots</h2>
-          <p className="text-muted-foreground">Manage viewing slots for this listing</p>
+          <p className="text-muted-foreground">
+            Manage the dates and time windows buyers can book for this listing.
+          </p>
         </div>
         <Button onClick={() => setShowForm(!showForm)}>
           <Plus className="h-4 w-4 mr-2" />
@@ -64,6 +79,7 @@ export function ViewingSlotsManager() {
                     type="datetime-local"
                     value={formData.starts_at}
                     onChange={(e) => setFormData({ ...formData, starts_at: e.target.value })}
+                    min={minimumSlotStart}
                     required
                   />
                 </div>
@@ -74,6 +90,7 @@ export function ViewingSlotsManager() {
                     type="datetime-local"
                     value={formData.ends_at}
                     onChange={(e) => setFormData({ ...formData, ends_at: e.target.value })}
+                    min={formData.starts_at || minimumSlotStart}
                     required
                   />
                 </div>
@@ -169,12 +186,14 @@ export function ViewingSlotsManager() {
         </CardContent>
       </Card>
 
-      <Button variant="outline" asChild>
-        <Link to="/listings">
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Listings
-        </Link>
-      </Button>
+      {!embedded ? (
+        <Button variant="outline" asChild>
+          <Link to="/listings">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Listings
+          </Link>
+        </Button>
+      ) : null}
     </div>
   );
 }

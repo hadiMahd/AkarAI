@@ -132,6 +132,7 @@ class RagEvalRunListItem(BaseModel):
     created_at: datetime
     completed_at: Optional[datetime] = None
     mode: str
+    run_classification: str
     total_examples: int = Field(ge=0)
     passed_examples: int = Field(ge=0)
     failed_examples: int = Field(ge=0)

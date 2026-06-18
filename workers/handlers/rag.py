@@ -14,6 +14,7 @@ from app.common.rls import apply_rls_context_to_session
 from app.common.storage import delete_object, download_object, get_rag_bucket, upload_object
 import app.agencies.models  # noqa: F401 - load agency_tenants metadata for RAG FKs
 from app.rag.models import RagChunk, RagDocument, RagPage
+from app.rag.repository import RagRepository
 
 logger = logging.getLogger("worker.rag")
 RAG_WORKER_ACTOR_ID = uuid5(NAMESPACE_DNS, "akarai-rag-worker")
@@ -44,6 +45,29 @@ async def handle_rag_document_uploaded(payload: dict) -> None:
                 is_platform_admin=False,
             )
 
+        async def hard_delete_failed_document(document: RagDocument | None) -> None:
+            if document is None:
+                return
+
+            try:
+                delete_object(get_rag_bucket(), document.blob_path)
+            except Exception:
+                logger.warning("Failed to delete original blob for failed RAG document %s", document.id, exc_info=True)
+
+            try:
+                repo = RagRepository(session)
+                pages = await repo.list_pages_for_document(document.id)
+                for page in pages:
+                    try:
+                        delete_object(get_rag_bucket(), page.blob_path)
+                    except Exception:
+                        logger.warning("Failed to delete page blob for failed RAG document %s", document.id, exc_info=True)
+                await repo.hard_delete_document(document.id)
+                await session.commit()
+            except Exception:
+                logger.warning("Failed to hard-delete failed RAG document %s", document.id, exc_info=True)
+                await session.rollback()
+
         await apply_worker_rls_context()
 
         try:
@@ -66,8 +90,7 @@ async def handle_rag_document_uploaded(payload: dict) -> None:
             pages_data = extract_text_from_pdf(pdf_bytes)
 
             if not pages_data:
-                document.status = "failed"
-                await session.commit()
+                await hard_delete_failed_document(document)
                 logger.warning("No text extracted from document %s", document_id)
                 return
 
@@ -97,8 +120,7 @@ async def handle_rag_document_uploaded(payload: dict) -> None:
 
             if not chunks_data:
                 _cleanup_page_blobs(bucket, page_blob_paths)
-                document.status = "failed"
-                await session.commit()
+                await hard_delete_failed_document(document)
                 logger.warning("No chunks created from document %s", document_id)
                 return
 
@@ -145,8 +167,7 @@ async def handle_rag_document_uploaded(payload: dict) -> None:
                         e,
                     )
                     _cleanup_page_blobs(bucket, page_blob_paths)
-                    document.status = "failed"
-                    await session.commit()
+                    await hard_delete_failed_document(document)
                     return
 
             # === SUCCESS PATH ===
@@ -221,9 +242,7 @@ async def handle_rag_document_uploaded(payload: dict) -> None:
                     select(RagDocument).where(RagDocument.id == document_uuid)
                 )
                 document = result.scalar_one_or_none()
-                if document:
-                    document.status = "failed"
-                    await session.commit()
+                await hard_delete_failed_document(document)
             except Exception:
                 pass
             raise

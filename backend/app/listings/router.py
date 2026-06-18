@@ -8,6 +8,8 @@ from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.listing_user_assistant import ListingUserAssistantService
+from app.ai.schemas import ListingAssistantMessageRequest, ListingAssistantResponse
 from app.auth.dependencies import (
     get_current_actor,
     get_optional_current_actor,
@@ -51,6 +53,7 @@ from app.listings.service import ListingService, build_thumbnail_map
 from app.listings.repository import ListingRepository
 
 router = APIRouter(prefix="/agency/listings", tags=["Agency Listings"])
+assistant_router = APIRouter(prefix="/api/v1/listings", tags=["Listing Assistant"])
 
 
 @router.get("", response_model=PaginatedListingsResponse)
@@ -63,8 +66,13 @@ async def list_tenant_listings(
     pp = PaginationRequest(page=page, page_size=page_size)
     svc = ListingService(db, tenant)
     result = await svc.list_tenant_listings(pp)
+    items = [ListingResponse.model_validate(item) for item in result.items]
+    if items:
+        thumb_map = await build_thumbnail_map(db, [item.id for item in items])
+        for item in items:
+            item.thumbnail_url = thumb_map.get(item.id)
     return PaginatedListingsResponse(
-        items=result.items,
+        items=items,
         page=result.page,
         page_size=result.page_size,
         total=result.total,
@@ -80,7 +88,9 @@ async def create_listing(
     db: AsyncSession = Depends(get_db_session),
 ):
     svc = ListingService(db, tenant)
-    return await svc.create_listing(body.model_dump())
+    listing = ListingResponse.model_validate(await svc.create_listing(body.model_dump()))
+    listing.thumbnail_url = None
+    return listing
 
 
 @router.post("/photos/validate", response_model=ListingPhotoPreflightResponse)
@@ -104,7 +114,10 @@ async def get_listing(
     db: AsyncSession = Depends(get_db_session),
 ):
     svc = ListingService(db, tenant)
-    return await svc.get_listing(listing_id)
+    listing = ListingResponse.model_validate(await svc.get_listing(listing_id))
+    thumb_map = await build_thumbnail_map(db, [listing_id])
+    listing.thumbnail_url = thumb_map.get(listing_id)
+    return listing
 
 
 @router.patch("/{listing_id}", response_model=ListingResponse)
@@ -115,7 +128,12 @@ async def update_listing(
     db: AsyncSession = Depends(get_db_session),
 ):
     svc = ListingService(db, tenant)
-    return await svc.update_listing(listing_id, body.model_dump(exclude_none=True))
+    listing = ListingResponse.model_validate(
+        await svc.update_listing(listing_id, body.model_dump(exclude_none=True))
+    )
+    thumb_map = await build_thumbnail_map(db, [listing_id])
+    listing.thumbnail_url = thumb_map.get(listing_id)
+    return listing
 
 
 @router.delete("/{listing_id}", status_code=204)
@@ -382,6 +400,17 @@ async def public_get_listing(
     serializable = response.model_dump(mode="json")
     await cache_set(LISTING_SEARCH_NAMESPACE, f"detail:{listing_id}", serializable, ttl=300)
     return response
+
+
+@assistant_router.post("/{listing_id}/assistant/messages", response_model=ListingAssistantResponse)
+async def send_listing_assistant_message(
+    listing_id: UUID,
+    body: ListingAssistantMessageRequest,
+    actor: Optional[dict] = Depends(get_optional_current_actor),
+    db: AsyncSession = Depends(get_optional_rls_db_session),
+):
+    service = ListingUserAssistantService(db, actor=actor)
+    return await service.send_message(listing_id, body)
 
 
 @public_router.get("/{listing_id}/media", response_model=list[PublicListingMediaResponse])

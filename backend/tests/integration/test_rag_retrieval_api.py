@@ -414,6 +414,8 @@ class TestRagEvaluationPersistence:
         )
         assert total >= 1
         assert any(r.run_label == run_label for r in runs)
+        await db_session.delete(run)
+        await db_session.commit()
 
     async def test_evaluation_run_with_failed_examples(
         self, async_client: AsyncClient, db_session, test_tenant, agency_admin_user
@@ -477,3 +479,5 @@ class TestRagEvaluationPersistence:
         assert run.failed_examples == 1
         assert run.summary["pass_rate"] == 0.5
         assert "latency_ms" in run.summary
+        await db_session.delete(run)
+        await db_session.commit()

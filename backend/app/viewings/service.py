@@ -1,7 +1,8 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.exceptions import NotFoundError, ForbiddenError, ValidationError, ConflictError
@@ -13,6 +14,9 @@ from app.viewings.models import ListingViewingSlot, ScheduledViewing, ScheduledV
 from app.viewings.repository import ViewingSlotRepository, ScheduledViewingRepository, ViewingStatusHistoryRepository
 from app.listings.models import Listing
 from app.listings.repository import ListingRepository
+from app.listings.service import build_thumbnail_map
+
+_MIN_SLOT_LEAD_TIME = timedelta(minutes=5)
 
 
 class ViewingSlotService:
@@ -44,6 +48,7 @@ class ViewingSlotService:
         ends_at = data["ends_at"]
         if starts_at >= ends_at:
             raise ValidationError(detail="ends_at must be after starts_at")
+        self._validate_future_slot_start(starts_at)
 
         slot = ListingViewingSlot(
             listing_id=listing_id,
@@ -84,6 +89,7 @@ class ViewingSlotService:
 
         if slot.starts_at >= slot.ends_at:
             raise ValidationError(detail="ends_at must be after starts_at")
+        self._validate_future_slot_start(slot.starts_at)
 
         await self._session.flush()
         await write_domain_event_log(
@@ -111,6 +117,14 @@ class ViewingSlotService:
             agency_tenant_id=ctx.tenant_id, actor_user_id=ctx.actor_id,
             payload={"slot_id": str(slot_id)},
         )
+
+    def _validate_future_slot_start(self, starts_at: datetime) -> None:
+        starts_at_utc = starts_at.astimezone(timezone.utc)
+        minimum_start = datetime.now(timezone.utc) + _MIN_SLOT_LEAD_TIME
+        if starts_at_utc < minimum_start:
+            raise ValidationError(
+                detail="Viewing slot start time must be at least 5 minutes in the future."
+            )
 
 
 class ViewingBookingService:
@@ -208,7 +222,45 @@ class ViewingBookingService:
             ctx.tenant_id, offset=pagination.offset, limit=pagination.limit,
             status=status, listing_id=listing_id, date_from=date_from, date_to=date_to,
         )
-        return PaginationResult(items=items, total=total, pagination=pagination)
+        serialized_items = await self._attach_listing_summaries(items)
+        return PaginationResult(items=serialized_items, total=total, pagination=pagination)
+
+    async def _attach_listing_summaries(self, items: list[ScheduledViewing]) -> list[dict]:
+        if not items:
+            return []
+
+        listing_ids = list({item.listing_id for item in items})
+        result = await self._session.execute(
+            select(Listing).where(Listing.id.in_(listing_ids))
+        )
+        listing_map = {listing.id: listing for listing in result.scalars().all()}
+        thumbnail_map = await build_thumbnail_map(self._session, listing_ids)
+
+        serialized: list[dict] = []
+        for item in items:
+            payload = {
+                "id": item.id,
+                "agency_tenant_id": item.agency_tenant_id,
+                "listing_id": item.listing_id,
+                "viewing_slot_id": item.viewing_slot_id,
+                "user_id": item.user_id,
+                "status": item.status,
+                "scheduled_start_at": item.scheduled_start_at,
+                "scheduled_end_at": item.scheduled_end_at,
+                "notes": item.notes,
+                "created_at": item.created_at,
+                "updated_at": item.updated_at,
+                "listing_summary": None,
+            }
+            listing = listing_map.get(item.listing_id)
+            if listing is not None:
+                payload["listing_summary"] = {
+                    "id": listing.id,
+                    "title": listing.title,
+                    "thumbnail_url": thumbnail_map.get(listing.id),
+                }
+            serialized.append(payload)
+        return serialized
 
     async def get_tenant_viewing(self, viewing_id: UUID) -> ScheduledViewing:
         ctx = require_tenant(self._tenant)
@@ -216,7 +268,8 @@ class ViewingBookingService:
         if viewing is None:
             raise NotFoundError(detail="Scheduled viewing not found")
         ensure_tenant_match(self._tenant, viewing.agency_tenant_id)
-        return viewing
+        enriched = await self._attach_listing_summaries([viewing])
+        return enriched[0]
 
     async def update_viewing_status(self, viewing_id: UUID, new_status: str, reason: Optional[str] = None) -> ScheduledViewing:
         from app.common.domain import VIEWING_STATUS_TRANSITIONS, VALID_VIEWING_STATUSES

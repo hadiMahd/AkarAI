@@ -4,6 +4,7 @@ import { useListingMedia } from "@/features/listings/useListingMedia";
 import { useSavedListings } from "@/features/saved-listings/useSavedListings";
 import { useSessionComparison } from "@/features/comparison/sessionComparison";
 import { InquiryForm } from "@/features/inquiries/InquiryForm";
+import { ListingAssistantWidget } from "@/features/listing-assistant/ListingAssistantWidget";
 import { BookingForm } from "@/features/viewings/BookingForm";
 import { LoadingSkeleton } from "@/components/LoadingSkeleton";
 import { ErrorState } from "@/components/ErrorState";
@@ -225,6 +226,11 @@ export function ListingDetailPage() {
           </Card>
         </div>
       </div>
+
+      <ListingAssistantWidget
+        listingId={listing.id}
+        listingTitle={listing.title}
+      />
     </div>
   );
 }

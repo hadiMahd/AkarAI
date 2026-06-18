@@ -161,6 +161,7 @@ from app.agencies.router import router as agencies_router
 from app.listings.router import (
     router as listings_router,
     public_router as public_listings_router,
+    assistant_router as listing_assistant_router,
     saved_router as saved_listings_router,
     comparison_router as comparison_sessions_router,
 )
@@ -176,6 +177,7 @@ from app.rag.router import retrieval_router as rag_retrieval_router
 app.include_router(agencies_router)
 app.include_router(listings_router)
 app.include_router(public_listings_router)
+app.include_router(listing_assistant_router)
 app.include_router(saved_listings_router)
 app.include_router(comparison_sessions_router)
 app.include_router(viewings_router)

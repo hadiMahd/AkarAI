@@ -74,28 +74,29 @@ describe("Profile Auth and Ownership", () => {
     renderWithProviders(<ProfilePage />);
 
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: /saved listings/i })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: /^profile$/i })).toBeInTheDocument();
     });
 
+    expect(screen.getByRole("tab", { name: /saved listings/i })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /submitted inquiries/i })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /scheduled viewings/i })).toBeInTheDocument();
   });
 
-  it("shows saved listings tab content by default", async () => {
+  it("shows profile form by default", async () => {
     renderWithProviders(<ProfilePage />);
 
     await waitFor(() => {
-      expect(screen.getByText(/you haven't saved any listings yet/i)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /save profile/i })).toBeInTheDocument();
     });
   });
 
-  it("shows the editable profile section", async () => {
-    renderWithProviders(<ProfilePage />);
+  it("respects tab deep links", async () => {
+    renderWithProviders(<ProfilePage />, { route: "/profile?tab=viewings" });
 
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: /saved listings/i })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: /scheduled viewings/i })).toHaveAttribute("aria-selected", "true");
     });
 
-    expect(screen.getByRole("button", { name: /save profile/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /save profile/i })).not.toBeInTheDocument();
   });
 });

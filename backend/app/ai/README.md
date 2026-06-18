@@ -15,6 +15,34 @@ This module defines provider interfaces and their concrete implementations via A
 - `SpamClassifierProvider` — spam detection
 - `LeadClassifierProvider` — lead scoring/classification
 
+## Listing Page User Assistant
+
+`app.ai.listing_user_assistant.ListingUserAssistantService` powers the public
+listing-page assistant route at `POST /api/v1/listings/{listing_id}/assistant/messages`.
+It is intentionally constrained to:
+
+- answer from the current listing facts only
+- summarize the current listing's active viewing slots
+- prepare an inquiry draft without submitting it
+- prepare a viewing-booking proposal without booking it
+
+The browser never calls providers directly. The backend runs a LangGraph
+tool-calling agent backed by LangChain `AzureChatOpenAI`. The graph exposes
+three tools only:
+
+- `get_listing_context`
+- `send_inquiry`
+- `schedule_viewing`
+
+`send_inquiry` and `schedule_viewing` are prepare-only tools. They never write
+leads or bookings directly; the frontend still requires explicit confirmation
+and then reuses the existing inquiry and viewing mutation APIs. When enabled,
+LangSmith tracing is controlled by:
+
+- `LISTING_ASSISTANT_ENABLE_LANGSMITH_TRACING`
+- `LANGSMITH_PROJECT`
+- `LANGSMITH_API_KEY`
+
 ## Registry
 
 `registry.py` provides `register_provider`, `get_provider`, `get_chat_provider`, `get_stt_provider`, `get_ocr_provider`, and related helpers. The primary chat provider is configured via the `AI_PRIMARY_PROVIDER` environment variable (default: `azure_openai`). The OCR provider is selected via `OCR_PROVIDER` (default: `azure_computer_vision_read`).

@@ -225,7 +225,7 @@ describe("ListingDetailPage", () => {
     expect(screen.queryByLabelText(/contact phone/i)).not.toBeInTheDocument();
   });
 
-  it("does not render AI widget, chatbot, or match score", async () => {
+  it("renders the listing assistant without legacy AI chrome", async () => {
     setupListingMock();
     renderWithProviders(<ListingDetailPage />);
 
@@ -233,7 +233,7 @@ describe("ListingDetailPage", () => {
       expect(screen.getAllByText("Test Property").length).toBeGreaterThan(0);
     });
 
-    expect(screen.queryByText(/ai search/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/listing assistant/i)).toBeInTheDocument();
     expect(screen.queryByText(/chatbot/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/match score/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/microphone/i)).not.toBeInTheDocument();

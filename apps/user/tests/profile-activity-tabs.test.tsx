@@ -16,7 +16,7 @@ vi.mock("../src/lib/api/client", async () => {
 const mockUseAuth = vi.mocked(useAuth);
 const mockApiClient = vi.mocked(apiClient);
 
-function renderWithProviders(ui: React.ReactElement) {
+function renderWithProviders(ui: React.ReactElement, route = "/profile") {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -25,7 +25,7 @@ function renderWithProviders(ui: React.ReactElement) {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={["/profile"]}>
+      <MemoryRouter initialEntries={[route]}>
         <Routes>
           <Route path="/profile" element={ui} />
         </Routes>
@@ -74,22 +74,20 @@ describe("Profile Activity Tabs", () => {
     renderWithProviders(<ProfilePage />);
 
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: /saved listings/i })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: /^profile$/i })).toBeInTheDocument();
     });
 
+    expect(screen.getByRole("tab", { name: /saved listings/i })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /submitted inquiries/i })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /scheduled viewings/i })).toBeInTheDocument();
   });
 
-  it("shows saved listings tab by default", async () => {
+  it("shows profile tab by default", async () => {
     renderWithProviders(<ProfilePage />);
 
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: /saved listings/i })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: /^profile$/i })).toHaveAttribute("aria-selected", "true");
     });
-
-    const savedTab = screen.getByRole("tab", { name: /saved listings/i });
-    expect(savedTab).toHaveAttribute("aria-selected", "true");
   });
 
   it("switches to inquiries tab when clicked", async () => {
@@ -118,14 +116,25 @@ describe("Profile Activity Tabs", () => {
     expect(viewingsTab).toHaveAttribute("aria-selected", "true");
   });
 
-  it("shows profile contact form", async () => {
+  it("keeps profile fields out of activity tabs", async () => {
+    renderWithProviders(<ProfilePage />, "/profile?tab=inquiries");
+
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: /submitted inquiries/i })).toHaveAttribute("aria-selected", "true");
+    });
+
+    expect(screen.queryByRole("button", { name: /save profile/i })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^name$/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^phone$/i)).not.toBeInTheDocument();
+  });
+
+  it("shows profile contact form inside the profile tab", async () => {
     renderWithProviders(<ProfilePage />);
 
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: /saved listings/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /save profile/i })).toBeInTheDocument();
     });
 
-    expect(screen.getByRole("button", { name: /save profile/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/^name$/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/^phone$/i)).toBeInTheDocument();
   });
