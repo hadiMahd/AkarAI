@@ -1,6 +1,6 @@
 # AkarAI
 
-![AkarAI Logo](docs/artifacts/logo/Hadi_Mahdi_AqarAi.png)
+![AkarAI Logo](docs/artifacts/logo/aqarai-logo.png)
 
 AkarAI is an AI-first, multi-tenant real estate platform for Lebanon. It combines a FastAPI modular monolith, React user and agency apps, a Streamlit platform-admin surface, background workers, RAG-based policy assistance, media validation pipelines, and dedicated ML inference for lead processing.
 
