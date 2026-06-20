@@ -1,5 +1,7 @@
 # AkarAI
 
+![AkarAI Logo](docs/artifacts/logo/Hadi_Mahdi_AqarAi.png)
+
 AkarAI is an AI-first, multi-tenant real estate platform for Lebanon. It combines a FastAPI modular monolith, React user and agency apps, a Streamlit platform-admin surface, background workers, RAG-based policy assistance, media validation pipelines, and dedicated ML inference for lead processing.
 
 This README is the project entry point. If you want the deeper technical breakdown, start with:
@@ -41,6 +43,8 @@ This README is the project entry point. If you want the deeper technical breakdo
 ## Architecture At A Glance
 
 The system uses a modular monolith instead of early microservices. That keeps transactions, tenant isolation, and shared security rules in one place while still allowing independent runtime surfaces.
+
+![AkarAI System Flow](docs/artifacts/system-flow/system-flow.png)
 
 ```text
 User / Agency / Admin UIs

@@ -103,8 +103,8 @@ export function TransactionsForecastChart() {
             <div className="text-xl font-semibold">{formatValue(data.latest_actual_value)}</div>
           </div>
           <div className="rounded-md border p-3">
-            <div className="text-xs text-muted-foreground">Model</div>
-            <div className="text-xl font-semibold uppercase">{data.model_name}</div>
+            <div className="text-xs text-muted-foreground">Predicted Avg</div>
+            <div className="text-xl font-semibold">{formatValue(data.forecast_value)}</div>
           </div>
           <div className="rounded-md border p-3">
             <div className="text-xs text-muted-foreground">Window</div>

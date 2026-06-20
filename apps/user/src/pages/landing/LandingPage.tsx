@@ -11,7 +11,8 @@ export function LandingPage() {
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       <header className="container mx-auto px-4 py-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">
-          <span className="text-primary">Akar</span>AI
+          <span className="text-primary">Aqar</span>
+          <span className="text-foreground">Ai</span>
         </h1>
         {isAuthenticated ? (
           <Button asChild>
@@ -101,7 +102,7 @@ export function LandingPage() {
       </main>
 
       <footer className="container mx-auto px-4 py-8 text-center text-sm text-muted-foreground">
-        <p>&copy; 2026 AkarAI. All rights reserved.</p>
+        <p>&copy; 2026 AqarAi. All rights reserved.</p>
       </footer>
     </div>
   );

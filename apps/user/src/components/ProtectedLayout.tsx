@@ -64,8 +64,9 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-8">
-            <Link to="/home" className="flex items-center gap-2 font-bold text-xl text-foreground">
-              <span className="text-primary">Akar</span>AI
+            <Link to="/home" className="font-bold text-xl">
+              <span className="text-primary">Aqar</span>
+              <span className="text-foreground">Ai</span>
             </Link>
             <nav className="hidden md:flex items-center gap-1">
               {navigation.map((item) => {

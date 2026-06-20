@@ -65,7 +65,7 @@ def require_dashboard_access(client_factory: Callable[[], AdminAPIClient] | None
 def render_login_form(client: AdminAPIClient) -> None:
     st.subheader("Sign in")
     st.caption(
-        "Use the same platform-admin credentials you use elsewhere in AkarAI."
+        "Use the same platform-admin credentials you use elsewhere in AqarAi."
     )
     with st.form("platform_admin_login", clear_on_submit=False):
         email = st.text_input("Email", key="platform_admin_email")

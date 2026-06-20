@@ -1,4 +1,4 @@
-"""Streamlit entry point for the AkarAI platform admin dashboard."""
+"""Streamlit entry point for the AqarAi platform admin dashboard."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ from admin.rag_evals_view import render_rag_evals
 from admin.role_access_view import render_role_access_overview
 
 st.set_page_config(
-    page_title="AkarAI Platform Admin",
+    page_title="AqarAi Platform Admin",
     page_icon="🏢",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -86,7 +86,7 @@ def _render_home(auth: AuthState) -> None:
 def main() -> None:
     state = get_auth_state()
     if state is None:
-        st.title("AkarAI Platform Admin")
+        st.title("AqarAi Platform Admin")
         st.caption("Sign in to access the marketplace oversight dashboard.")
         render_login_form(_client())
         return
@@ -96,7 +96,7 @@ def main() -> None:
     except st.runtime.scriptrunner.StopException:
         return
 
-    st.title("AkarAI Platform Admin")
+    st.title("AqarAi Platform Admin")
     st.caption("Read-only marketplace oversight for platform administrators.")
 
     with st.sidebar:
