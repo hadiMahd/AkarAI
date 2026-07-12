@@ -18,6 +18,7 @@ from app.rag.evals import (
     DEFAULT_TOP_K,
     MANUAL_MODE,
     run_eval,
+    should_configure_vault_secrets,
 )
 
 
@@ -89,7 +90,8 @@ def _print_summary(summary: dict, run_id: str) -> None:
 
 
 async def _main() -> int:
-    configure_secrets()
+    if should_configure_vault_secrets():
+        configure_secrets()
     args = _build_parser().parse_args()
     run_label = (
         args.run_label

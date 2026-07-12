@@ -20,6 +20,7 @@ from app.rag.evals import (
     load_fixture_manifest,
     run_eval,
     seed_fixture_tenants,
+    should_configure_vault_secrets,
 )
 from app.rag.models import RagDocument, RagEvaluationExample, RagEvaluationRun
 from app.rag.schemas import (
@@ -32,6 +33,13 @@ from sqlalchemy import select
 from sqlalchemy.engine import make_url
 
 pytestmark = pytest.mark.anyio
+
+
+def test_ci_no_vault_flag_prevents_fallback_when_azure_config_is_incomplete(monkeypatch):
+    monkeypatch.setenv("RAG_EVAL_SKIP_VAULT", "1")
+    monkeypatch.delenv("AZURE_OPENAI_API_KEY", raising=False)
+
+    assert should_configure_vault_secrets() is False
 
 
 class _DummyEmbeddingProvider:

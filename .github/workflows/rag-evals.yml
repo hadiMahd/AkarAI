@@ -23,6 +23,20 @@ on:
 jobs:
   rag-evals:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: akarai
+          POSTGRES_PASSWORD: akarai
+          POSTGRES_DB: akarai
+        options: >-
+          --health-cmd "pg_isready -U akarai -d akarai"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -35,13 +49,19 @@ jobs:
             backend/requirements.backend.txt
       - name: Install backend deps
         run: pip install -r backend/requirements.txt
+      - name: Migrate evaluation database
+        env:
+          DATABASE_SYNC_URL: postgresql+psycopg2://akarai:akarai@localhost:5432/akarai
+        run: cd backend && alembic upgrade head
       - name: Run live RAGAS evaluation
         env:
           USE_RAGAS_EVALS: "1"
+          RAG_EVAL_SKIP_VAULT: "1"
           RAG_EVAL_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.rag_eval_mode || 'blocking' }}
-          RAG_EVAL_ALLOW_JUDGE_FAILURES: ${{ github.event_name == 'workflow_dispatch' && inputs.allow_judge_failures || '0' }}
+          RAG_EVAL_ALLOW_JUDGE_FAILURES: ${{ github.event_name == 'workflow_dispatch' && inputs.allow_judge_failures && '1' || '0' }}
           AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
           AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
           AZURE_OPENAI_CHAT_DEPLOYMENT: ${{ secrets.AZURE_OPENAI_CHAT_DEPLOYMENT }}
           AZURE_OPENAI_EMBEDDING_DEPLOYMENT: ${{ secrets.AZURE_OPENAI_EMBEDDING_DEPLOYMENT }}
+          PGBOUNCER_DATABASE_URL: postgresql+asyncpg://akarai:akarai@localhost:5432/akarai
         run: make quality-rag-eval

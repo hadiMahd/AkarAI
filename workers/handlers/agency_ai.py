@@ -15,8 +15,9 @@ from __future__ import annotations
 import logging
 from uuid import UUID
 
-import asyncpg
 import app.users.models  # noqa: F401 - load users metadata for audit foreign keys
+import asyncpg
+from outbox import NonRetryableEventError
 
 logger = logging.getLogger("worker.agency_ai")
 
@@ -31,18 +32,23 @@ async def handle_agency_ai_spec_sheet_uploaded(
     blob_path = payload.get("blob_path")
     content_type = payload.get("content_type")
     if not job_id or not blob_path:
-        logger.error("Missing job_id or blob_path in payload: %s", payload)
-        return
+        raise NonRetryableEventError(
+            "agency_ai.spec_sheet_uploaded payload is missing required fields"
+        )
 
-    job_uuid = UUID(job_id)
+    try:
+        job_uuid = UUID(job_id)
+    except ValueError as exc:
+        raise NonRetryableEventError("agency_ai.spec_sheet_uploaded job_id is invalid") from exc
     logger.info("Running spec extraction for job %s", job_id)
 
     try:
+        from uuid import NAMESPACE_DNS, uuid5
+
         from app.ai.service import AgencyAIService
         from app.common.database import async_session_factory
         from app.common.rls import apply_rls_context_to_session
         from app.common.storage import delete_object, download_object, get_rag_bucket
-        from uuid import uuid5, NAMESPACE_DNS
 
         WORKER_ACTOR = uuid5(NAMESPACE_DNS, "akarai-agency-ai-worker")
 
@@ -50,26 +56,27 @@ async def handle_agency_ai_spec_sheet_uploaded(
         file_bytes = download_object(bucket, blob_path)
 
         async with async_session_factory() as session:
-            try:
-                job_row = await conn.fetchrow(
-                    "SELECT tenant_id FROM agency_ai_jobs WHERE id = $1::uuid",
-                    job_id,
-                )
-            except Exception:
-                job_row = None
+            job_row = await conn.fetchrow(
+                "SELECT tenant_id, status FROM agency_ai_jobs WHERE id = $1::uuid",
+                job_id,
+            )
 
-            tenant_id = job_row["tenant_id"] if job_row else None
-            if tenant_id is not None:
-                try:
-                    await apply_rls_context_to_session(
-                        session,
-                        tenant_id=UUID(str(tenant_id)),
-                        user_id=WORKER_ACTOR,
-                        role="agency_ai_worker",
-                        is_platform_admin=False,
-                    )
-                except Exception:
-                    pass
+            if job_row is None:
+                raise NonRetryableEventError(f"Agency AI job {job_id} no longer exists")
+            if job_row["status"] in {"completed", "failed", "blocked"}:
+                logger.info("Agency AI job %s is already terminal", job_id)
+                return
+
+            tenant_id = job_row["tenant_id"]
+            if tenant_id is None:
+                raise NonRetryableEventError(f"Agency AI job {job_id} is missing a tenant")
+            await apply_rls_context_to_session(
+                session,
+                tenant_id=UUID(str(tenant_id)),
+                user_id=WORKER_ACTOR,
+                role="agency_ai_worker",
+                is_platform_admin=False,
+            )
 
             service = AgencyAIService(session)
             await service.run_spec_extraction(
@@ -84,3 +91,27 @@ async def handle_agency_ai_spec_sheet_uploaded(
     except Exception:
         logger.exception("Failed to process spec sheet for job %s", job_id)
         raise
+
+
+async def finalize_agency_ai_spec_sheet_dead_letter(
+    conn: asyncpg.Connection,
+    payload: dict,
+    _event_id: str,
+    failure: dict,
+) -> None:
+    job_id = payload.get("job_id")
+    if not job_id:
+        return
+    try:
+        UUID(str(job_id))
+    except ValueError:
+        return
+    await conn.execute(
+        """
+        UPDATE agency_ai_jobs
+        SET status = 'failed', completed_at = NOW(), error_message = $1
+        WHERE id = $2::uuid AND status NOT IN ('completed', 'blocked')
+        """,
+        str(failure["error"])[:1024],
+        str(job_id),
+    )

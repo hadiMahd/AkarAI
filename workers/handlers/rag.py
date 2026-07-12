@@ -4,33 +4,38 @@ import hashlib
 import logging
 from uuid import NAMESPACE_DNS, UUID, uuid4, uuid5
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
+import app.agencies.models  # noqa: F401 - load agency_tenants metadata for RAG FKs
 from app.ai.registry import get_embedding_provider
 from app.common.config import settings
 from app.common.database import async_session_factory
 from app.common.rls import apply_rls_context_to_session
 from app.common.storage import delete_object, download_object, get_rag_bucket, upload_object
-import app.agencies.models  # noqa: F401 - load agency_tenants metadata for RAG FKs
 from app.rag.models import RagChunk, RagDocument, RagPage
 from app.rag.repository import RagRepository
+from outbox import NonRetryableEventError
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger("worker.rag")
 RAG_WORKER_ACTOR_ID = uuid5(NAMESPACE_DNS, "akarai-rag-worker")
 
 
-async def handle_rag_document_uploaded(payload: dict) -> None:
+async def handle_rag_document_uploaded(_conn, payload: dict, _event_id: str) -> None:
     document_id = payload.get("document_id")
     tenant_id = payload.get("tenant_id")
     blob_path = payload.get("blob_path")
 
     if not all([document_id, tenant_id, blob_path]):
         logger.error("Missing required fields in payload: %s", payload)
-        raise ValueError("Missing required fields in RAG upload payload")
+        raise NonRetryableEventError("rag.document_uploaded payload is missing required fields")
 
-    document_uuid = UUID(document_id)
-    tenant_uuid = UUID(tenant_id)
+    try:
+        document_uuid = UUID(document_id)
+        tenant_uuid = UUID(tenant_id)
+    except ValueError as exc:
+        raise NonRetryableEventError(
+            "rag.document_uploaded payload contains invalid UUIDs"
+        ) from exc
     logger.info("Processing RAG document %s", document_id)
 
     async with async_session_factory() as session:
@@ -52,7 +57,11 @@ async def handle_rag_document_uploaded(payload: dict) -> None:
             try:
                 delete_object(get_rag_bucket(), document.blob_path)
             except Exception:
-                logger.warning("Failed to delete original blob for failed RAG document %s", document.id, exc_info=True)
+                logger.warning(
+                    "Failed to delete original blob for failed RAG document %s",
+                    document.id,
+                    exc_info=True,
+                )
 
             try:
                 repo = RagRepository(session)
@@ -61,11 +70,17 @@ async def handle_rag_document_uploaded(payload: dict) -> None:
                     try:
                         delete_object(get_rag_bucket(), page.blob_path)
                     except Exception:
-                        logger.warning("Failed to delete page blob for failed RAG document %s", document.id, exc_info=True)
+                        logger.warning(
+                            "Failed to delete page blob for failed RAG document %s",
+                            document.id,
+                            exc_info=True,
+                        )
                 await repo.hard_delete_document(document.id)
                 await session.commit()
             except Exception:
-                logger.warning("Failed to hard-delete failed RAG document %s", document.id, exc_info=True)
+                logger.warning(
+                    "Failed to hard-delete failed RAG document %s", document.id, exc_info=True
+                )
                 await session.rollback()
 
         await apply_worker_rls_context()
@@ -77,8 +92,11 @@ async def handle_rag_document_uploaded(payload: dict) -> None:
             document = result.scalar_one_or_none()
 
             if not document:
-                logger.error("Document %s not found", document_id)
-                raise ValueError(f"Document {document_id} not found")
+                raise NonRetryableEventError(f"RAG document {document_id} no longer exists")
+
+            if document.status == "processed" and document.blob_path == blob_path:
+                logger.info("RAG document %s was already processed", document_id)
+                return
 
             document.status = "processing"
             await session.commit()
@@ -91,20 +109,15 @@ async def handle_rag_document_uploaded(payload: dict) -> None:
 
             if not pages_data:
                 await hard_delete_failed_document(document)
-                logger.warning("No text extracted from document %s", document_id)
-                return
+                raise NonRetryableEventError(f"RAG document {document_id} has no extractable text")
 
             # Build new-page objects in memory (NOT added to session yet).
             # IDs are generated client-side by uuid4 so they are available
             # without a flush.
             new_pages: list[RagPage] = []
             for page_num, page_text in enumerate(pages_data, start=1):
-                page_blob_path = (
-                    f"rag-vault/{tenant_id}/{document_id}/pages/page_{page_num}.txt"
-                )
-                upload_object(
-                    bucket, page_blob_path, page_text.encode("utf-8"), "text/plain"
-                )
+                page_blob_path = f"rag-vault/{tenant_id}/{document_id}/pages/page_{page_num}.txt"
+                upload_object(bucket, page_blob_path, page_text.encode("utf-8"), "text/plain")
                 page_blob_paths.append(page_blob_path)
                 page = RagPage(
                     id=uuid4(),
@@ -121,8 +134,7 @@ async def handle_rag_document_uploaded(payload: dict) -> None:
             if not chunks_data:
                 _cleanup_page_blobs(bucket, page_blob_paths)
                 await hard_delete_failed_document(document)
-                logger.warning("No chunks created from document %s", document_id)
-                return
+                raise NonRetryableEventError(f"RAG document {document_id} produced no chunks")
 
             # Build lookup: content_hash → chunk data (with new page_ids)
             chunks_by_hash: dict[str, dict] = {}
@@ -167,8 +179,9 @@ async def handle_rag_document_uploaded(payload: dict) -> None:
                         e,
                     )
                     _cleanup_page_blobs(bucket, page_blob_paths)
-                    await hard_delete_failed_document(document)
-                    return
+                    raise RuntimeError(
+                        f"Embedding generation failed for document {document_id}"
+                    ) from e
 
             # === SUCCESS PATH ===
             # Only now do we modify pages/chunks in the database.
@@ -212,16 +225,13 @@ async def handle_rag_document_uploaded(payload: dict) -> None:
 
                 await session.flush()
 
-            orphaned_count = await orphan_chunks_not_in_set(
-                session, document_uuid, active_hashes
-            )
+            orphaned_count = await orphan_chunks_not_in_set(session, document_uuid, active_hashes)
 
             document.status = "processed"
             await session.commit()
 
             logger.info(
-                "Processed document %s: %d pages, %d chunks "
-                "(%d new, %d reused, %d orphaned)",
+                "Processed document %s: %d pages, %d chunks (%d new, %d reused, %d orphaned)",
                 document_id,
                 len(new_pages),
                 len(chunks_by_hash),
@@ -231,20 +241,9 @@ async def handle_rag_document_uploaded(payload: dict) -> None:
             )
 
         except Exception as e:
-            logger.exception(
-                "Failed to process RAG document %s: %s", document_id, e
-            )
+            logger.exception("Failed to process RAG document %s: %s", document_id, e)
             _cleanup_page_blobs(get_rag_bucket(), page_blob_paths)
             await session.rollback()
-            try:
-                await apply_worker_rls_context()
-                result = await session.execute(
-                    select(RagDocument).where(RagDocument.id == document_uuid)
-                )
-                document = result.scalar_one_or_none()
-                await hard_delete_failed_document(document)
-            except Exception:
-                pass
             raise
 
 
@@ -314,9 +313,7 @@ def create_chunks_from_pages(pages: list[RagPage]) -> list[dict]:
             if not chunk_text.strip():
                 continue
 
-            content_hash = hashlib.sha256(
-                chunk_text.encode("utf-8")
-            ).hexdigest()
+            content_hash = hashlib.sha256(chunk_text.encode("utf-8")).hexdigest()
 
             chunks_data.append(
                 {

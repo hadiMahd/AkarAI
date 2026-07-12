@@ -4,36 +4,31 @@ transitions, and listing draft generation without a database."""
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
-
 from app.ai.jobs import (
-    JOB_STATUS_BLOCKED,
     JOB_STATUS_COMPLETED,
     JOB_STATUS_FAILED,
     JOB_STATUS_PROCESSING,
     JOB_STATUS_QUEUED,
-    JOB_TYPE_LISTING_DRAFT,
     JOB_TYPE_OCR_EXTRACTION,
     mark_completed,
     mark_failed,
     mark_processing,
     new_job,
 )
+from app.ai.models import AgencyAIJob
 from app.ai.ocr import extract_listing_specs, extract_listing_specs_via_llm
 from app.ai.schemas import ExtractedListingSpecs
-from app.ai.models import AgencyAIJob
 from app.ai.service import (
     AgencyAIService,
-    _validate_ocr_upload,
     _parse_json_object,
     _public_listing_snapshot,
+    _validate_ocr_upload,
 )
-
 
 # Note: this is a pure-Python test file; we do not patch async DB
 # operations so we don't trigger the redis-dependent conftest fixtures.
@@ -62,8 +57,7 @@ class TestExtractListingSpecs:
 
     def test_extracts_villa_with_sqft_and_floor(self):
         result = extract_listing_specs(
-            "Villa for sale, 4 bedrooms, 3 bathrooms, 2500 sqft, "
-            "floor 2, fully furnished"
+            "Villa for sale, 4 bedrooms, 3 bathrooms, 2500 sqft, floor 2, fully furnished"
         )
         assert result["bedrooms"] == 4
         assert result["bathrooms"] == 3
@@ -76,17 +70,14 @@ class TestExtractListingSpecs:
 
     def test_extracts_address(self):
         result = extract_listing_specs(
-            "Apartment in Beirut, 2 bedrooms, 1 bathroom, 80 sqm, "
-            "address: 123 Hamra Street"
+            "Apartment in Beirut, 2 bedrooms, 1 bathroom, 80 sqm, address: 123 Hamra Street"
         )
         assert result["address"] == "123 Hamra Street"
         assert result["bedrooms"] == 2
         assert result["source_snippets"]["address"].lower().startswith("address")
 
     def test_extracts_parking(self):
-        result = extract_listing_specs(
-            "Apartment with 1 parking, 3 bedrooms, 2 bathrooms"
-        )
+        result = extract_listing_specs("Apartment with 1 parking, 3 bedrooms, 2 bathrooms")
         assert result["parking"] == 1
         assert result["source_snippets"]["parking"] == "1 parking"
 
@@ -157,7 +148,9 @@ class TestExtractListingSpecs:
             }
         )
         with patch("app.ai.ocr.get_chat_provider", return_value=mock_provider):
-            result = await extract_listing_specs_via_llm("four bedrooms, 2 bath, 140 sqm in Tripoli")
+            result = await extract_listing_specs_via_llm(
+                "four bedrooms, 2 bath, 140 sqm in Tripoli"
+            )
 
         assert result["bedrooms"] == 4
         assert result["bathrooms"] == 2
@@ -195,6 +188,7 @@ class TestValidateOcrUpload:
 
     def test_oversized_pdf_rejected(self):
         from app.common.exceptions import AppException
+
         data = b"x" * (11 * 1024 * 1024)
         with pytest.raises(AppException) as exc:
             _validate_ocr_upload(data, "application/pdf", "big.pdf")
@@ -202,6 +196,7 @@ class TestValidateOcrUpload:
 
     def test_unsupported_type_rejected(self):
         from app.common.exceptions import AppException
+
         data = b"abc" * 100
         with pytest.raises(AppException) as exc:
             _validate_ocr_upload(data, "application/zip", "specs.zip")
@@ -209,6 +204,7 @@ class TestValidateOcrUpload:
 
     def test_empty_bytes_rejected(self):
         from app.common.exceptions import AppException
+
         with pytest.raises(AppException) as exc:
             _validate_ocr_upload(b"   \n  ", "application/pdf", "empty.pdf")
         assert exc.value.error_code == "OCR_EMPTY"
@@ -241,6 +237,7 @@ class TestParseJsonObject:
 class TestJobStateMachine:
     def _make_job(self):
         from app.ai.models import AgencyAIJob
+
         return AgencyAIJob(
             id=uuid4(),
             job_type=JOB_TYPE_OCR_EXTRACTION,
@@ -286,6 +283,29 @@ class TestJobStateMachine:
         mark_completed(job, {"status": "blocked", "reason": "policy_violation"})
         assert job.status == JOB_STATUS_COMPLETED
         assert job.result_payload == {"status": "blocked", "reason": "policy_violation"}
+
+
+class TestSpecExtractionRetries:
+    async def test_provider_failure_propagates_without_terminal_job_state(self):
+        job = AgencyAIJob(
+            id=uuid4(),
+            job_type=JOB_TYPE_OCR_EXTRACTION,
+            status=JOB_STATUS_QUEUED,
+            tenant_id=uuid4(),
+            actor_user_id=uuid4(),
+        )
+        session = MagicMock()
+        session.execute = AsyncMock(return_value=MagicMock(scalar_one_or_none=lambda: job))
+        session.flush = AsyncMock()
+        session.commit = AsyncMock()
+        provider = MagicMock()
+        provider.extract_text = AsyncMock(side_effect=RuntimeError("OCR unavailable"))
+
+        with patch("app.ai.service.get_ocr_provider", return_value=provider):
+            with pytest.raises(RuntimeError, match="OCR unavailable"):
+                await AgencyAIService(session).run_spec_extraction(job.id, file_bytes=b"spec")
+
+        assert job.status == JOB_STATUS_PROCESSING
 
 
 # ── Listing snapshot helper ─────────────────────────────────────────────────

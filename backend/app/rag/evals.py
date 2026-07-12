@@ -40,6 +40,12 @@ BLOCKING_EXAMPLE_COUNT = 20
 MANUAL_EXAMPLE_COUNT = 40
 DEFAULT_TOP_K = 5
 DEFAULT_LATENCY_MAX_MS = 15000
+AZURE_EVAL_ENV_VARS = (
+    "AZURE_OPENAI_ENDPOINT",
+    "AZURE_OPENAI_API_KEY",
+    "AZURE_OPENAI_CHAT_DEPLOYMENT",
+    "AZURE_OPENAI_EMBEDDING_DEPLOYMENT",
+)
 
 THRESHOLDS = {
     "faithfulness": 0.70,
@@ -51,6 +57,12 @@ THRESHOLDS = {
     "tenant_leakage_count": 0,
     "p95_latency_ms": DEFAULT_LATENCY_MAX_MS,
 }
+
+
+def should_configure_vault_secrets() -> bool:
+    return os.getenv("RAG_EVAL_SKIP_VAULT") != "1" and not all(
+        os.getenv(name) for name in AZURE_EVAL_ENV_VARS
+    )
 
 
 @contextmanager

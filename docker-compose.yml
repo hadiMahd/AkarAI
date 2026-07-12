@@ -286,6 +286,7 @@ services:
       VAULT_TOKEN: root
       BACKEND_URL: http://backend:8000
       LEAD_MODEL_SERVICE_CALLBACK_TOKEN: ${LEAD_MODEL_SERVICE_CALLBACK_TOKEN:-dev-callback-token-do-not-use-in-production}
+      OUTBOX_LEASE_SECONDS: ${OUTBOX_LEASE_SECONDS:-900}
     restart: unless-stopped
     depends_on:
       pgbouncer:

@@ -174,11 +174,13 @@ class TestRagIngestion:
                 from handlers.rag import handle_rag_document_uploaded
 
                 await handle_rag_document_uploaded(
+                    None,
                     {
                         "document_id": str(document.id),
                         "tenant_id": str(document.tenant_id),
                         "blob_path": document.blob_path,
-                    }
+                    },
+                    "event-1",
                 )
 
     async def test_pending_document_creates_pages_and_chunks(self, db_session, pending_document):
