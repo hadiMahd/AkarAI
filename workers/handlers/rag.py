@@ -15,22 +15,26 @@ from app.common.storage import delete_object, download_object, get_rag_bucket, u
 import app.agencies.models  # noqa: F401 - load agency_tenants metadata for RAG FKs
 from app.rag.models import RagChunk, RagDocument, RagPage
 from app.rag.repository import RagRepository
+from outbox import NonRetryableEventError
 
 logger = logging.getLogger("worker.rag")
 RAG_WORKER_ACTOR_ID = uuid5(NAMESPACE_DNS, "akarai-rag-worker")
 
 
-async def handle_rag_document_uploaded(payload: dict) -> None:
+async def handle_rag_document_uploaded(_conn, payload: dict, _event_id: str) -> None:
     document_id = payload.get("document_id")
     tenant_id = payload.get("tenant_id")
     blob_path = payload.get("blob_path")
 
     if not all([document_id, tenant_id, blob_path]):
         logger.error("Missing required fields in payload: %s", payload)
-        raise ValueError("Missing required fields in RAG upload payload")
+        raise NonRetryableEventError("rag.document_uploaded payload is missing required fields")
 
-    document_uuid = UUID(document_id)
-    tenant_uuid = UUID(tenant_id)
+    try:
+        document_uuid = UUID(document_id)
+        tenant_uuid = UUID(tenant_id)
+    except ValueError as exc:
+        raise NonRetryableEventError("rag.document_uploaded payload contains invalid UUIDs") from exc
     logger.info("Processing RAG document %s", document_id)
 
     async with async_session_factory() as session:
@@ -77,8 +81,11 @@ async def handle_rag_document_uploaded(payload: dict) -> None:
             document = result.scalar_one_or_none()
 
             if not document:
-                logger.error("Document %s not found", document_id)
-                raise ValueError(f"Document {document_id} not found")
+                raise NonRetryableEventError(f"RAG document {document_id} no longer exists")
+
+            if document.status == "processed" and document.blob_path == blob_path:
+                logger.info("RAG document %s was already processed", document_id)
+                return
 
             document.status = "processing"
             await session.commit()
@@ -91,8 +98,7 @@ async def handle_rag_document_uploaded(payload: dict) -> None:
 
             if not pages_data:
                 await hard_delete_failed_document(document)
-                logger.warning("No text extracted from document %s", document_id)
-                return
+                raise NonRetryableEventError(f"RAG document {document_id} has no extractable text")
 
             # Build new-page objects in memory (NOT added to session yet).
             # IDs are generated client-side by uuid4 so they are available
@@ -121,8 +127,7 @@ async def handle_rag_document_uploaded(payload: dict) -> None:
             if not chunks_data:
                 _cleanup_page_blobs(bucket, page_blob_paths)
                 await hard_delete_failed_document(document)
-                logger.warning("No chunks created from document %s", document_id)
-                return
+                raise NonRetryableEventError(f"RAG document {document_id} produced no chunks")
 
             # Build lookup: content_hash → chunk data (with new page_ids)
             chunks_by_hash: dict[str, dict] = {}
@@ -167,8 +172,7 @@ async def handle_rag_document_uploaded(payload: dict) -> None:
                         e,
                     )
                     _cleanup_page_blobs(bucket, page_blob_paths)
-                    await hard_delete_failed_document(document)
-                    return
+                    raise RuntimeError(f"Embedding generation failed for document {document_id}") from e
 
             # === SUCCESS PATH ===
             # Only now do we modify pages/chunks in the database.
@@ -236,15 +240,6 @@ async def handle_rag_document_uploaded(payload: dict) -> None:
             )
             _cleanup_page_blobs(get_rag_bucket(), page_blob_paths)
             await session.rollback()
-            try:
-                await apply_worker_rls_context()
-                result = await session.execute(
-                    select(RagDocument).where(RagDocument.id == document_uuid)
-                )
-                document = result.scalar_one_or_none()
-                await hard_delete_failed_document(document)
-            except Exception:
-                pass
             raise
 
 

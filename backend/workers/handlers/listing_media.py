@@ -14,6 +14,10 @@ import asyncpg
 logger = logging.getLogger("worker.listing_media")
 
 
+class NonRetryableEventError(ValueError):
+    """Backend test shim equivalent of the worker terminal-event error."""
+
+
 async def handle_listing_image_uploaded(
     conn: asyncpg.Connection,
     payload: dict,
@@ -36,8 +40,7 @@ async def handle_listing_image_uploaded(
     file_size_bytes = payload.get("file_size_bytes", 0)
 
     if not all([listing_id, listing_photo_id, agency_tenant_id, object_key]):
-        logger.error("Missing required fields in image_uploaded payload: %s", payload)
-        return
+        raise NonRetryableEventError("listing.image_uploaded payload is missing required fields")
 
     try:
         bucket = get_media_bucket()
@@ -113,6 +116,7 @@ async def handle_listing_image_uploaded(
             "failed",
             {"error": str(e)},
         )
+        raise
 
 
 async def _run_nsfw_moderation(file_bytes: bytes, content_type: str | None = None) -> dict:

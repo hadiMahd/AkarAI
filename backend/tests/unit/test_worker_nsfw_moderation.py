@@ -37,8 +37,8 @@ class TestNSFWModerationHandler:
                 assert image_arg.endswith(".png")
 
     @pytest.mark.anyio
-    async def test_moderation_missing_token_fail_closed(self):
-        """Test that missing HF token causes fail-closed moderation."""
+    async def test_moderation_missing_token_raises_for_retry(self):
+        """A configuration failure must not be recorded as an NSFW verdict."""
         with patch.dict(os.environ, {"APP_ENV": "testing"}, clear=True):
             from workers.handlers.listing_media import _run_nsfw_moderation
             from app.common.config import Settings, configure_secrets
@@ -48,18 +48,14 @@ class TestNSFWModerationHandler:
             configure_secrets(target=s)
 
             with patch("huggingface_hub.InferenceClient") as mock_client_class:
-                with patch("app.common.config.settings", s):
-                    result = await _run_nsfw_moderation(b"\x00" * 100)
+                with patch("app.common.config.settings", s), pytest.raises(RuntimeError, match="not configured"):
+                    await _run_nsfw_moderation(b"\x00" * 100)
 
-                # Should reject without even calling InferenceClient
                 mock_client_class.assert_not_called()
-                assert result["rejected"] is True
-                assert result["score"] == 1.0
-                assert result["label"] == "moderation_failed"
 
     @pytest.mark.anyio
-    async def test_moderation_service_error_fail_closed(self):
-        """Test that service errors cause fail-closed moderation."""
+    async def test_moderation_service_error_raises_for_retry(self):
+        """A transient provider error must be retried by the outbox."""
         with patch.dict(os.environ, {"APP_ENV": "testing"}, clear=True):
             from workers.handlers.listing_media import _run_nsfw_moderation
             from app.common.config import Settings, configure_secrets
@@ -73,16 +69,12 @@ class TestNSFWModerationHandler:
                 mock_client_class.return_value = mock_client
                 mock_client.image_classification.side_effect = Exception("Service unavailable")
 
-                with patch("app.common.config.settings", s):
-                    result = await _run_nsfw_moderation(b"\x00" * 100)
-
-                assert result["rejected"] is True
-                assert result["score"] == 1.0
-                assert result["label"] == "moderation_failed"
+                with patch("app.common.config.settings", s), pytest.raises(Exception, match="Service unavailable"):
+                    await _run_nsfw_moderation(b"\x00" * 100)
 
     @pytest.mark.anyio
-    async def test_moderation_auth_error_fail_closed(self):
-        """Test that auth errors (401) cause fail-closed moderation."""
+    async def test_moderation_auth_error_raises_for_retry(self):
+        """An auth outage must not become a false NSFW decision."""
         with patch.dict(os.environ, {"APP_ENV": "testing"}, clear=True):
             from workers.handlers.listing_media import _run_nsfw_moderation
             from app.common.config import Settings, configure_secrets
@@ -96,12 +88,8 @@ class TestNSFWModerationHandler:
                 mock_client_class.return_value = mock_client
                 mock_client.image_classification.side_effect = Exception("401 Unauthorized")
 
-                with patch("app.common.config.settings", s):
-                    result = await _run_nsfw_moderation(b"\x00" * 100)
-
-                assert result["rejected"] is True
-                assert result["score"] == 1.0
-                assert result["label"] == "moderation_failed"
+                with patch("app.common.config.settings", s), pytest.raises(Exception, match="401 Unauthorized"):
+                    await _run_nsfw_moderation(b"\x00" * 100)
 
     @pytest.mark.anyio
     async def test_moderation_safe_image_passes(self):

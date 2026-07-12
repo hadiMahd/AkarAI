@@ -170,26 +170,11 @@ class AgencyAIService:
         await self._repo.update_job(job)
         await self._session.commit()
 
-        try:
-            ocr_provider = get_ocr_provider()
-            text = await ocr_provider.extract_text(
-                file_bytes,
-                content_type=content_type or "application/octet-stream",
-            )
-        except Exception as exc:
-            logger.exception("OCR provider failed for job %s", job_id)
-            mark_failed(job, f"ocr_failed: {exc}")
-            await self._audit_event(
-                actor_user_id=job.actor_user_id,
-                tenant_id=job.tenant_id,
-                action="agency_ai.ocr_failed",
-                resource_id=str(job.id),
-                result="failed",
-                metadata={"error": str(exc)[:240]},
-            )
-            await self._repo.update_job(job)
-            await self._session.commit()
-            return
+        ocr_provider = get_ocr_provider()
+        text = await ocr_provider.extract_text(
+            file_bytes,
+            content_type=content_type or "application/octet-stream",
+        )
 
         if not text or not text.strip():
             mark_failed(job, "ocr_unavailable_or_unreadable")

@@ -288,6 +288,29 @@ class TestJobStateMachine:
         assert job.result_payload == {"status": "blocked", "reason": "policy_violation"}
 
 
+class TestSpecExtractionRetries:
+    async def test_provider_failure_propagates_without_terminal_job_state(self):
+        job = AgencyAIJob(
+            id=uuid4(),
+            job_type=JOB_TYPE_OCR_EXTRACTION,
+            status=JOB_STATUS_QUEUED,
+            tenant_id=uuid4(),
+            actor_user_id=uuid4(),
+        )
+        session = MagicMock()
+        session.execute = AsyncMock(return_value=MagicMock(scalar_one_or_none=lambda: job))
+        session.flush = AsyncMock()
+        session.commit = AsyncMock()
+        provider = MagicMock()
+        provider.extract_text = AsyncMock(side_effect=RuntimeError("OCR unavailable"))
+
+        with patch("app.ai.service.get_ocr_provider", return_value=provider):
+            with pytest.raises(RuntimeError, match="OCR unavailable"):
+                await AgencyAIService(session).run_spec_extraction(job.id, file_bytes=b"spec")
+
+        assert job.status == JOB_STATUS_PROCESSING
+
+
 # ── Listing snapshot helper ─────────────────────────────────────────────────
 
 

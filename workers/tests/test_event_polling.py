@@ -27,6 +27,7 @@ def test_worker_handler_registry(monkeypatch):
     }.issubset(set(wm.EVENT_HANDLERS))
     assert "agency_ai.spec_sheet_uploaded" in wm.EVENT_HANDLERS
     assert "lead.created" in wm.EVENT_HANDLERS
+    assert {"agency_ai.spec_sheet_uploaded", "lead.created"}.issubset(wm.DEAD_LETTER_HANDLERS)
 
 
 def test_foundation_test_handler_exists(monkeypatch):

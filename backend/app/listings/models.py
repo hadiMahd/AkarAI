@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.common.database import Base
@@ -93,6 +93,9 @@ class ComparisonItem(Base):
 
 class ListingPhotoDerivative(Base):
     __tablename__ = "listing_photo_derivatives"
+    __table_args__ = (
+        UniqueConstraint("listing_photo_metadata_id", "variant_name", name="uq_listing_photo_derivative_variant"),
+    )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     listing_photo_metadata_id = Column(UUID(as_uuid=True), ForeignKey("listing_photo_metadata.id", ondelete="CASCADE"), nullable=False)

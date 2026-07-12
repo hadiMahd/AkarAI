@@ -27,17 +27,13 @@ async def run_nsfw_moderation(file_bytes: bytes, content_type: str | None = None
     - score: float
     - label: str
 
-    The helper is fail-closed. Any moderation outage or auth issue rejects the
-    image rather than allowing it through.
+    Provider failures raise so the outbox can retry them. A rejection is only
+    returned when the provider actually classifies the image as NSFW.
     """
     from app.common.config import settings
 
     if not settings.hf_token:
-        logger.error(
-            "NSFW moderation skipped — HF_TOKEN not configured in Vault "
-            "(akarai/ai.hf_token), rejecting upload (fail-closed)"
-        )
-        return {"rejected": True, "score": 1.0, "label": "moderation_failed"}
+        raise RuntimeError("NSFW moderation is not configured")
 
     try:
         from huggingface_hub import InferenceClient
@@ -81,14 +77,6 @@ async def run_nsfw_moderation(file_bytes: bytes, content_type: str | None = None
             "score": float(nsfw_score),
             "label": "nsfw" if rejected else "safe",
         }
-    except Exception as exc:
-        error_msg = str(exc).lower()
-        if "401" in error_msg or "unauthorized" in error_msg or "authentication" in error_msg:
-            logger.error(
-                "NSFW moderation auth failed — check HF_TOKEN in Vault "
-                "(akarai/ai.hf_token): %s",
-                exc,
-            )
-        else:
-            logger.error("NSFW moderation service error, rejecting upload (fail-closed): %s", exc)
-        return {"rejected": True, "score": 1.0, "label": "moderation_failed"}
+    except Exception:
+        logger.exception("NSFW moderation service failed")
+        raise

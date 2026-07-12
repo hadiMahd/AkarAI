@@ -1,7 +1,7 @@
 """Worker and model-service retry pipeline tests for lead processing."""
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
@@ -11,25 +11,25 @@ class TestLeadCreatedHandler:
     async def test_handler_skips_empty_message(self):
         from handlers.leads import handle_lead_created
 
-        result = await handle_lead_created({
+        result = await handle_lead_created(None, {
             "lead_id": str(uuid4()),
             "tenant_id": str(uuid4()),
             "message": "",
             "name": "Test",
             "email": "test@example.com",
-        })
+        }, "event-1")
         assert result["status"] == "skipped_empty_message"
         assert result["spam_label"] == "spam"
 
     async def test_handler_skips_whitespace_only_message(self):
         from handlers.leads import handle_lead_created
 
-        result = await handle_lead_created({
+        result = await handle_lead_created(None, {
             "lead_id": str(uuid4()),
             "tenant_id": str(uuid4()),
             "message": "   \n  \t  ",
             "name": "Test",
-        })
+        }, "event-2")
         assert result["status"] == "skipped_empty_message"
 
     async def test_handler_forwards_non_empty_message(self):
@@ -39,53 +39,26 @@ class TestLeadCreatedHandler:
             "level_result": {"label": "hot", "status": "completed"},
         })):
             from handlers.leads import handle_lead_created
-            result = await handle_lead_created({
+            result = await handle_lead_created(None, {
                 "lead_id": str(uuid4()),
                 "tenant_id": str(uuid4()),
                 "message": "I am interested in this property, please call me",
                 "name": "Test Buyer",
                 "email": "buyer@example.com",
-            })
+            }, "event-3")
             assert result["status"] == "classified"
             assert result["spam_result"]["label"] == "not_spam"
 
-    async def test_handler_fail_open_on_error(self):
-        from unittest.mock import AsyncMock
+    async def test_handler_propagates_model_service_failure(self):
         with patch("handlers.lead_processing_client.forward_to_model_service", new=AsyncMock(side_effect=RuntimeError("Service down"))):
-            with patch("handlers.leads._post_fail_open_callback", new=AsyncMock()):
-                from handlers.leads import handle_lead_created
-                result = await handle_lead_created({
+            from handlers.leads import handle_lead_created
+
+            with pytest.raises(RuntimeError, match="Service down"):
+                await handle_lead_created(None, {
                     "lead_id": str(uuid4()),
                     "tenant_id": str(uuid4()),
                     "message": "Test message",
-                })
-                assert result["status"] == "fail_open_completed"
-                assert "error" in result
-
-    @pytest.mark.asyncio
-    async def test_fail_open_callback_raises_for_backend_error(self):
-        response = Mock()
-        response.raise_for_status.side_effect = RuntimeError("backend rejected callback")
-
-        client = AsyncMock()
-        client.post.return_value = response
-
-        client_factory = AsyncMock()
-        client_factory.__aenter__.return_value = client
-        client_factory.__aexit__.return_value = None
-
-        with patch("handlers.leads.httpx.AsyncClient", return_value=client_factory):
-            from handlers.leads import _post_fail_open_callback
-
-            with pytest.raises(RuntimeError, match="backend rejected callback"):
-                await _post_fail_open_callback(
-                    lead_id=str(uuid4()),
-                    tenant_id=str(uuid4()),
-                    stage="spam",
-                    label="not_spam",
-                    details={"reason": "test"},
-                    idempotency_key="worker_failopen_test_spam",
-                )
+                }, "event-4")
 
 
 class TestModelServiceClient:
