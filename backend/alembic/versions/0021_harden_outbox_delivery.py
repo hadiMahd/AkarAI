@@ -5,10 +5,10 @@ Revises: 0020
 Create Date: 2026-07-12
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
 
+from alembic import op
 
 revision: str = "0021"
 down_revision: str | None = "0020"
@@ -19,14 +19,25 @@ LEASE_SECONDS = 900
 
 
 def upgrade() -> None:
-    op.add_column("outbox_events", sa.Column("claimed_at", sa.DateTime(timezone=True), nullable=True))
-    op.add_column("outbox_events", sa.Column("lease_expires_at", sa.DateTime(timezone=True), nullable=True))
+    op.add_column(
+        "outbox_events", sa.Column("claimed_at", sa.DateTime(timezone=True), nullable=True)
+    )
+    op.add_column(
+        "outbox_events", sa.Column("lease_expires_at", sa.DateTime(timezone=True), nullable=True)
+    )
     op.add_column("outbox_events", sa.Column("claim_token", UUID(as_uuid=True), nullable=True))
-    op.add_column("inbox_events", sa.Column("lease_expires_at", sa.DateTime(timezone=True), nullable=True))
+    op.add_column(
+        "inbox_events", sa.Column("lease_expires_at", sa.DateTime(timezone=True), nullable=True)
+    )
     op.add_column("inbox_events", sa.Column("claim_token", UUID(as_uuid=True), nullable=True))
     op.add_column(
         "media_audit_logs",
-        sa.Column("outbox_event_id", UUID(as_uuid=True), sa.ForeignKey("outbox_events.id", ondelete="SET NULL"), nullable=True),
+        sa.Column(
+            "outbox_event_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("outbox_events.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
     )
 
     # Preserve a live worker's ownership while making genuinely abandoned work reclaimable.
@@ -77,7 +88,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_constraint("uq_listing_photo_derivative_variant", "listing_photo_derivatives", type_="unique")
+    op.drop_constraint(
+        "uq_listing_photo_derivative_variant", "listing_photo_derivatives", type_="unique"
+    )
     op.drop_index("uq_media_audit_logs_outbox_event", table_name="media_audit_logs")
     op.drop_index("ix_inbox_events_processing_lease", table_name="inbox_events")
     op.drop_index("ix_outbox_events_processing_lease", table_name="outbox_events")

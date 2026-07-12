@@ -37,13 +37,20 @@ async def handle_listing_image_uploaded(
 
     logger.info(
         "Processing listing image: photo=%s listing=%s tenant=%s",
-        listing_photo_id, listing_id, agency_tenant_id,
+        listing_photo_id,
+        listing_id,
+        agency_tenant_id,
     )
 
     try:
         # Step 1: Run NSFW moderation
-        from app.common.storage import download_object, get_media_bucket, generate_derivative_object_key, upload_object
         from app.common.media import calculate_blur_score, process_image_for_derivative
+        from app.common.storage import (
+            download_object,
+            generate_derivative_object_key,
+            get_media_bucket,
+            upload_object,
+        )
 
         bucket = get_media_bucket()
         file_bytes = download_object(bucket, object_key)
@@ -54,13 +61,18 @@ async def handle_listing_image_uploaded(
         if moderation_result["rejected"]:
             async with conn.transaction():
                 await _update_photo_status(
-                    conn, listing_photo_id, "rejected",
+                    conn,
+                    listing_photo_id,
+                    "rejected",
                     moderation_label=moderation_result["label"],
                     moderation_score=moderation_result["score"],
                 )
                 await _write_audit_log(
-                    conn, listing_photo_id, agency_tenant_id,
-                    "listing.image_rejected", "rejected",
+                    conn,
+                    listing_photo_id,
+                    agency_tenant_id,
+                    "listing.image_rejected",
+                    "rejected",
                     {"reason": moderation_result["label"], "score": moderation_result["score"]},
                     event_id,
                 )
@@ -83,7 +95,9 @@ async def handle_listing_image_uploaded(
 
         async with conn.transaction():
             await _update_photo_status(
-                conn, listing_photo_id, new_status,
+                conn,
+                listing_photo_id,
+                new_status,
                 moderation_label=moderation_result.get("label", "safe"),
                 moderation_score=moderation_result["score"],
                 quality_score=quality_score,
@@ -93,20 +107,31 @@ async def handle_listing_image_uploaded(
                 file_size_bytes=file_size_bytes,
             )
             await _create_derivative_record(
-                conn, listing_photo_id, derivative_key,
-                width, height, len(derivative_bytes),
+                conn,
+                listing_photo_id,
+                derivative_key,
+                width,
+                height,
+                len(derivative_bytes),
             )
-            audit_event = "listing.image_warning" if blur_detected else "listing.image_derivative_created"
+            audit_event = (
+                "listing.image_warning" if blur_detected else "listing.image_derivative_created"
+            )
             await _write_audit_log(
-                conn, listing_photo_id, agency_tenant_id,
-                audit_event, new_status,
+                conn,
+                listing_photo_id,
+                agency_tenant_id,
+                audit_event,
+                new_status,
                 {"quality_score": quality_score, "blur_detected": blur_detected},
                 event_id,
             )
 
         logger.info(
             "Image processed: photo=%s status=%s quality_score=%.2f",
-            listing_photo_id, new_status, quality_score,
+            listing_photo_id,
+            new_status,
+            quality_score,
         )
 
     except Exception as e:
@@ -114,8 +139,11 @@ async def handle_listing_image_uploaded(
         async with conn.transaction():
             await _update_photo_status(conn, listing_photo_id, "failed")
             await _write_audit_log(
-                conn, listing_photo_id, agency_tenant_id,
-                "listing.image_processing_failed", "failed",
+                conn,
+                listing_photo_id,
+                agency_tenant_id,
+                "listing.image_processing_failed",
+                "failed",
                 {"error": str(e)},
                 event_id,
             )
@@ -158,7 +186,7 @@ async def _update_photo_status(
     if file_size_bytes is not None:
         update_fields["file_size_bytes"] = file_size_bytes
 
-    set_clause = ", ".join(f"{k} = ${i+2}" for i, k in enumerate(update_fields))
+    set_clause = ", ".join(f"{k} = ${i + 2}" for i, k in enumerate(update_fields))
     query = f"UPDATE listing_photo_metadata SET {set_clause} WHERE id = $1"
     values = [photo_id] + list(update_fields.values())
     await conn.execute(query, *values)
@@ -186,7 +214,13 @@ async def _create_derivative_record(
             file_size_bytes = EXCLUDED.file_size_bytes,
             is_public_safe = EXCLUDED.is_public_safe
         """,
-        photo_id, "optimized", object_key, "webp", width, height, file_size_bytes,
+        photo_id,
+        "optimized",
+        object_key,
+        "webp",
+        width,
+        height,
+        file_size_bytes,
     )
 
 
@@ -201,6 +235,7 @@ async def _write_audit_log(
 ) -> None:
     """Write an audit log entry."""
     import json
+
     await conn.execute(
         """
         INSERT INTO media_audit_logs
@@ -209,5 +244,10 @@ async def _write_audit_log(
         ON CONFLICT (outbox_event_id, event_name) WHERE outbox_event_id IS NOT NULL DO UPDATE
         SET result = EXCLUDED.result, details = EXCLUDED.details
         """,
-        tenant_id, photo_id, event_id, event_name, result, json.dumps(details),
+        tenant_id,
+        photo_id,
+        event_id,
+        event_name,
+        result,
+        json.dumps(details),
     )

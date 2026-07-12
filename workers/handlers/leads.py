@@ -1,4 +1,5 @@
 """Worker handler for lead.created — forwards to model service for classification."""
+
 from __future__ import annotations
 
 import logging
@@ -9,6 +10,7 @@ import asyncpg
 from outbox import NonRetryableEventError
 
 logger = logging.getLogger("worker.handlers.leads")
+
 
 async def handle_lead_created(_conn, payload: dict[str, Any], _event_id: str) -> dict[str, Any]:
     """Forward lead to the model service for two-stage classification."""

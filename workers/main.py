@@ -12,12 +12,12 @@ import signal
 import sys
 from typing import Callable
 
+import asyncpg
+
 # Add backend package root to Python path so worker code can import app.common.*.
 _backend_root_path = os.path.join(os.path.dirname(__file__), "..", "backend")
 if os.path.isdir(_backend_root_path):
     sys.path.insert(0, os.path.abspath(_backend_root_path))
-
-import asyncpg
 
 logging.basicConfig(
     level=logging.INFO,
@@ -50,6 +50,7 @@ def register_job(name: str):
     def decorator(fn):
         JOBS[name] = fn
         return fn
+
     return decorator
 
 
@@ -71,6 +72,7 @@ def register_event_handler(event_name: str):
     def decorator(fn):
         EVENT_HANDLERS[event_name] = fn
         return fn
+
     return decorator
 
 
@@ -78,6 +80,7 @@ def register_dead_letter_handler(event_name: str):
     def decorator(fn):
         DEAD_LETTER_HANDLERS[event_name] = fn
         return fn
+
     return decorator
 
 
@@ -90,6 +93,7 @@ def _load_secrets() -> None:
     """Load secrets from Vault before handlers are imported."""
     try:
         from app.common.config import configure_secrets
+
         configure_secrets()
         logger.info("Secrets loaded from Vault")
     except Exception as e:
@@ -104,6 +108,7 @@ _load_secrets()
 # Import and register listing media handlers
 try:
     from handlers.listing_media import handle_listing_image_uploaded
+
     register_event_handler("listing.image_uploaded")(handle_listing_image_uploaded)
 except ImportError as e:
     logger.warning("Could not import listing media handlers: %s", e)
@@ -111,21 +116,29 @@ except ImportError as e:
 # Import and register RAG handlers
 try:
     from handlers.rag import handle_rag_document_uploaded
+
     register_event_handler("rag.document_uploaded")(handle_rag_document_uploaded)
 except ImportError as e:
     logger.warning("Could not import RAG handlers: %s", e)
 
 # Import and register agency AI handlers
 try:
-    from handlers.agency_ai import finalize_agency_ai_spec_sheet_dead_letter, handle_agency_ai_spec_sheet_uploaded
+    from handlers.agency_ai import (
+        finalize_agency_ai_spec_sheet_dead_letter,
+        handle_agency_ai_spec_sheet_uploaded,
+    )
+
     register_event_handler("agency_ai.spec_sheet_uploaded")(handle_agency_ai_spec_sheet_uploaded)
-    register_dead_letter_handler("agency_ai.spec_sheet_uploaded")(finalize_agency_ai_spec_sheet_dead_letter)
+    register_dead_letter_handler("agency_ai.spec_sheet_uploaded")(
+        finalize_agency_ai_spec_sheet_dead_letter
+    )
 except ImportError as e:
     logger.warning("Could not import agency AI handlers: %s", e)
 
 # Import and register lead processing handlers
 try:
     from handlers.leads import finalize_lead_created_dead_letter, handle_lead_created
+
     register_event_handler("lead.created")(handle_lead_created)
     register_dead_letter_handler("lead.created")(finalize_lead_created_dead_letter)
 except ImportError as e:
@@ -142,7 +155,9 @@ async def _poll_loop() -> None:
     try:
         while not shutdown_flag:
             try:
-                processed = await claim_and_dispatch(conn, EVENT_HANDLERS, lease_conn, DEAD_LETTER_HANDLERS)
+                processed = await claim_and_dispatch(
+                    conn, EVENT_HANDLERS, lease_conn, DEAD_LETTER_HANDLERS
+                )
                 if not processed:
                     await asyncio.sleep(1)
             except Exception:

@@ -1,5 +1,5 @@
 import { fireEvent, screen } from "@testing-library/react";
-import { vi } from "vitest";
+import { afterEach, vi } from "vitest";
 import { renderWithProviders } from "./test-utils";
 import { ListingForm } from "@/features/listings/ListingForm";
 import type { DraftViewingSlot } from "@/features/listings/viewing-slot-draft";
@@ -35,7 +35,13 @@ vi.mock("@/features/listings/useViewingSlots", () => ({
 }));
 
 describe("listing create viewing slots", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("lets the user stage viewing dates while creating a listing", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-01T00:00:00Z"));
     const handleChange = vi.fn();
     const stagedSlots: DraftViewingSlot[] = [];
 

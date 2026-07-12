@@ -1,7 +1,17 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.common.database import Base
@@ -11,7 +21,9 @@ class Listing(Base):
     __tablename__ = "listings"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    agency_tenant_id = Column(UUID(as_uuid=True), ForeignKey("agency_tenants.id", ondelete="CASCADE"), nullable=False)
+    agency_tenant_id = Column(
+        UUID(as_uuid=True), ForeignKey("agency_tenants.id", ondelete="CASCADE"), nullable=False
+    )
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     property_type = Column(String(64), nullable=True)
@@ -30,10 +42,16 @@ class Listing(Base):
     city = Column(String(128), nullable=True)
     country = Column(String(128), nullable=True)
     status = Column(String(16), default="inactive", nullable=False)
-    created_by_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    updated_by_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_by_user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    updated_by_user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
     archived_at = Column(DateTime(timezone=True), nullable=True)
 
 
@@ -41,8 +59,12 @@ class ListingPhotoMetadata(Base):
     __tablename__ = "listing_photo_metadata"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    listing_id = Column(UUID(as_uuid=True), ForeignKey("listings.id", ondelete="CASCADE"), nullable=False)
-    agency_tenant_id = Column(UUID(as_uuid=True), ForeignKey("agency_tenants.id", ondelete="CASCADE"), nullable=False)
+    listing_id = Column(
+        UUID(as_uuid=True), ForeignKey("listings.id", ondelete="CASCADE"), nullable=False
+    )
+    agency_tenant_id = Column(
+        UUID(as_uuid=True), ForeignKey("agency_tenants.id", ondelete="CASCADE"), nullable=False
+    )
     object_key = Column(String(512), nullable=False)
     caption = Column(String(512), nullable=True)
     alt_text = Column(String(512), nullable=True)
@@ -57,7 +79,9 @@ class ListingPhotoMetadata(Base):
     moderation_score = Column(Numeric(4, 3), nullable=True)
     quality_score = Column(Numeric(10, 4), nullable=True)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
 
 
 class SavedListing(Base):
@@ -65,7 +89,9 @@ class SavedListing(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    listing_id = Column(UUID(as_uuid=True), ForeignKey("listings.id", ondelete="CASCADE"), nullable=False)
+    listing_id = Column(
+        UUID(as_uuid=True), ForeignKey("listings.id", ondelete="CASCADE"), nullable=False
+    )
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
     deleted_at = Column(DateTime(timezone=True), nullable=True)
 
@@ -77,7 +103,9 @@ class ComparisonSession(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     name = Column(String(255), nullable=False)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
     deleted_at = Column(DateTime(timezone=True), nullable=True)
 
 
@@ -85,8 +113,12 @@ class ComparisonItem(Base):
     __tablename__ = "comparison_items"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    comparison_session_id = Column(UUID(as_uuid=True), ForeignKey("comparison_sessions.id", ondelete="CASCADE"), nullable=False)
-    listing_id = Column(UUID(as_uuid=True), ForeignKey("listings.id", ondelete="CASCADE"), nullable=False)
+    comparison_session_id = Column(
+        UUID(as_uuid=True), ForeignKey("comparison_sessions.id", ondelete="CASCADE"), nullable=False
+    )
+    listing_id = Column(
+        UUID(as_uuid=True), ForeignKey("listings.id", ondelete="CASCADE"), nullable=False
+    )
     position = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
 
@@ -94,11 +126,17 @@ class ComparisonItem(Base):
 class ListingPhotoDerivative(Base):
     __tablename__ = "listing_photo_derivatives"
     __table_args__ = (
-        UniqueConstraint("listing_photo_metadata_id", "variant_name", name="uq_listing_photo_derivative_variant"),
+        UniqueConstraint(
+            "listing_photo_metadata_id", "variant_name", name="uq_listing_photo_derivative_variant"
+        ),
     )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    listing_photo_metadata_id = Column(UUID(as_uuid=True), ForeignKey("listing_photo_metadata.id", ondelete="CASCADE"), nullable=False)
+    listing_photo_metadata_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("listing_photo_metadata.id", ondelete="CASCADE"),
+        nullable=False,
+    )
     variant_name = Column(String(64), nullable=False)
     object_key = Column(String(512), nullable=False)
     format = Column(String(16), nullable=False)

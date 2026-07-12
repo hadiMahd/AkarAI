@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -19,6 +20,18 @@ from app.rag.evals import (
     MANUAL_MODE,
     run_eval,
 )
+
+_AZURE_EVAL_ENV_VARS = (
+    "AZURE_OPENAI_ENDPOINT",
+    "AZURE_OPENAI_API_KEY",
+    "AZURE_OPENAI_CHAT_DEPLOYMENT",
+    "AZURE_OPENAI_EMBEDDING_DEPLOYMENT",
+)
+
+
+def _has_direct_azure_eval_config() -> bool:
+    """Return whether CI has supplied every Azure setting needed by the evaluator."""
+    return all(os.environ.get(name) for name in _AZURE_EVAL_ENV_VARS)
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -89,7 +102,8 @@ def _print_summary(summary: dict, run_id: str) -> None:
 
 
 async def _main() -> int:
-    configure_secrets()
+    if not _has_direct_azure_eval_config():
+        configure_secrets()
     args = _build_parser().parse_args()
     run_label = (
         args.run_label

@@ -119,7 +119,9 @@ async def _run_handler_with_heartbeat(
 ) -> None:
     heartbeat = None
     if lease_conn is not None:
-        heartbeat = asyncio.create_task(_heartbeat_claim(lease_conn, event_id, claim_token, consumer_name))
+        heartbeat = asyncio.create_task(
+            _heartbeat_claim(lease_conn, event_id, claim_token, consumer_name)
+        )
     try:
         invocation = _invoke_handler(handler, conn, payload, event_id)
         if inspect.isawaitable(invocation):
@@ -131,7 +133,9 @@ async def _run_handler_with_heartbeat(
                 await heartbeat
 
 
-def _invoke_handler(handler: Any, conn: asyncpg.Connection, payload: dict[str, Any], event_id: str) -> Any:
+def _invoke_handler(
+    handler: Any, conn: asyncpg.Connection, payload: dict[str, Any], event_id: str
+) -> Any:
     parameter_count = len(inspect.signature(handler).parameters)
     if parameter_count <= 1:
         return handler(payload)
@@ -314,7 +318,9 @@ async def _claim_inbox_event(
     return INBOX_PROCESSING if reclaimed is not None else None
 
 
-async def _mark_inbox_consumed(conn: asyncpg.Connection, event_id: str, consumer_name: str, claim_token: str) -> bool:
+async def _mark_inbox_consumed(
+    conn: asyncpg.Connection, event_id: str, consumer_name: str, claim_token: str
+) -> bool:
     status = await conn.execute(
         """
         UPDATE inbox_events
@@ -422,7 +428,9 @@ async def _retry_or_dead_letter(
             event["retry_count"],
             last_error=error,
         )
-    return await _dead_letter_event(conn, event, error, dead_letter_handlers, retry_count=event["retry_count"] + 1)
+    return await _dead_letter_event(
+        conn, event, error, dead_letter_handlers, retry_count=event["retry_count"] + 1
+    )
 
 
 async def _dead_letter_event(

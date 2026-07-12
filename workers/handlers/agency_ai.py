@@ -15,8 +15,8 @@ from __future__ import annotations
 import logging
 from uuid import UUID
 
-import asyncpg
 import app.users.models  # noqa: F401 - load users metadata for audit foreign keys
+import asyncpg
 from outbox import NonRetryableEventError
 
 logger = logging.getLogger("worker.agency_ai")
@@ -32,7 +32,9 @@ async def handle_agency_ai_spec_sheet_uploaded(
     blob_path = payload.get("blob_path")
     content_type = payload.get("content_type")
     if not job_id or not blob_path:
-        raise NonRetryableEventError("agency_ai.spec_sheet_uploaded payload is missing required fields")
+        raise NonRetryableEventError(
+            "agency_ai.spec_sheet_uploaded payload is missing required fields"
+        )
 
     try:
         job_uuid = UUID(job_id)
@@ -41,11 +43,12 @@ async def handle_agency_ai_spec_sheet_uploaded(
     logger.info("Running spec extraction for job %s", job_id)
 
     try:
+        from uuid import NAMESPACE_DNS, uuid5
+
         from app.ai.service import AgencyAIService
         from app.common.database import async_session_factory
         from app.common.rls import apply_rls_context_to_session
         from app.common.storage import delete_object, download_object, get_rag_bucket
-        from uuid import uuid5, NAMESPACE_DNS
 
         WORKER_ACTOR = uuid5(NAMESPACE_DNS, "akarai-agency-ai-worker")
 

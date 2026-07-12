@@ -12,8 +12,8 @@ from outbox import (
     OUTBOX_PENDING,
     OUTBOX_PROCESSING,
     NonRetryableEventError,
-    _mark_delivered,
     _heartbeat_claim,
+    _mark_delivered,
     claim_and_dispatch,
 )
 
@@ -298,7 +298,9 @@ async def test_two_workers_cannot_claim_the_same_event(conn):
         VALUES (gen_random_uuid(), 'foundation.test', 'two-workers-001', '{}', 'pending', NOW())
         """
     )
-    url = os.getenv("DATABASE_URL", "postgresql://akarai:akarai@postgres:5432/akarai").replace("+asyncpg", "")
+    url = os.getenv("DATABASE_URL", "postgresql://akarai:akarai@postgres:5432/akarai").replace(
+        "+asyncpg", ""
+    )
     second_conn = await asyncpg.connect(url, statement_cache_size=0)
     started = asyncio.Event()
     release = asyncio.Event()
@@ -343,9 +345,13 @@ async def test_heartbeat_renews_outbox_and_inbox_leases(conn, monkeypatch):
     )
     monkeypatch.setattr(outbox, "HEARTBEAT_SECONDS", 0.01)
     monkeypatch.setattr(outbox, "LEASE_SECONDS", 60)
-    url = os.getenv("DATABASE_URL", "postgresql://akarai:akarai@postgres:5432/akarai").replace("+asyncpg", "")
+    url = os.getenv("DATABASE_URL", "postgresql://akarai:akarai@postgres:5432/akarai").replace(
+        "+asyncpg", ""
+    )
     lease_conn = await asyncpg.connect(url, statement_cache_size=0)
-    heartbeat = asyncio.create_task(_heartbeat_claim(lease_conn, event["id"], event["claim_token"], "worker:foundation.test"))
+    heartbeat = asyncio.create_task(
+        _heartbeat_claim(lease_conn, event["id"], event["claim_token"], "worker:foundation.test")
+    )
     await asyncio.sleep(0.05)
     heartbeat.cancel()
     with pytest.raises(asyncio.CancelledError):
@@ -388,7 +394,9 @@ async def test_expired_claim_runs_finalizer_before_dead_letter(conn):
     assert processed is False
     assert finalizations[0][0] == {"name": "test"}
     assert finalizations[0][2]["retry_count"] == 3
-    row = await conn.fetchrow("SELECT status, retry_count FROM outbox_events WHERE idempotency_key = 'expired-finalizer-001'")
+    row = await conn.fetchrow(
+        "SELECT status, retry_count FROM outbox_events WHERE idempotency_key = 'expired-finalizer-001'"
+    )
     assert row["status"] == OUTBOX_DEAD_LETTER
     assert row["retry_count"] == 3
 
@@ -475,7 +483,9 @@ async def test_agency_ai_dead_letter_finalizer_marks_job_failed(conn):
         {"error": "OCR unavailable", "retry_count": 3},
     )
 
-    row = await conn.fetchrow("SELECT status, error_message, completed_at FROM agency_ai_jobs WHERE id = $1::uuid", job)
+    row = await conn.fetchrow(
+        "SELECT status, error_message, completed_at FROM agency_ai_jobs WHERE id = $1::uuid", job
+    )
     assert row["status"] == "failed"
     assert row["error_message"] == "OCR unavailable"
     assert row["completed_at"] is not None

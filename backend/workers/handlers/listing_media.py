@@ -96,7 +96,9 @@ async def handle_listing_image_uploaded(
             len(derivative_bytes),
         )
 
-        audit_event = "listing.image_warning" if blur_detected else "listing.image_derivative_created"
+        audit_event = (
+            "listing.image_warning" if blur_detected else "listing.image_derivative_created"
+        )
         await _write_audit_log(
             conn,
             listing_photo_id,

@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, JSON, String, Text, select, update
+from sqlalchemy import JSON, Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.common.database import Base, async_session_factory
@@ -61,7 +61,9 @@ class OutboxEvent(Base):
     idempotency_key = Column(String(128), unique=True, nullable=False)
     payload = Column(JSON, nullable=False)
     status = Column(String(16), default=OUTBOX_PENDING, nullable=False)
-    available_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc), nullable=False)
+    available_at = Column(
+        DateTime(timezone=True), default=datetime.now(timezone.utc), nullable=False
+    )
     claimed_at = Column(DateTime(timezone=True), nullable=True)
     lease_expires_at = Column(DateTime(timezone=True), nullable=True)
     claim_token = Column(UUID(as_uuid=True), nullable=True)
@@ -70,7 +72,12 @@ class OutboxEvent(Base):
     max_retries = Column(Integer, default=3, nullable=False)
     last_error = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc), nullable=False)
-    updated_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=datetime.now(timezone.utc),
+        onupdate=datetime.now(timezone.utc),
+        nullable=False,
+    )
 
 
 class InboxEvent(Base):
@@ -81,13 +88,20 @@ class InboxEvent(Base):
     consumer_name = Column(String(128), nullable=False)
     idempotency_key = Column(String(128), nullable=False)
     status = Column(String(16), default=INBOX_PROCESSING, nullable=False)
-    received_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc), nullable=False)
+    received_at = Column(
+        DateTime(timezone=True), default=datetime.now(timezone.utc), nullable=False
+    )
     lease_expires_at = Column(DateTime(timezone=True), nullable=True)
     claim_token = Column(UUID(as_uuid=True), nullable=True)
     processed_at = Column(DateTime(timezone=True), nullable=True)
     last_error = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc), nullable=False)
-    updated_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=datetime.now(timezone.utc),
+        onupdate=datetime.now(timezone.utc),
+        nullable=False,
+    )
 
 
 async def publish_outbox_event(
@@ -152,8 +166,12 @@ class DomainEventLog(Base):
     __tablename__ = "domain_event_logs"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    agency_tenant_id = Column(UUID(as_uuid=True), ForeignKey("agency_tenants.id", ondelete="SET NULL"), nullable=True)
-    actor_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    agency_tenant_id = Column(
+        UUID(as_uuid=True), ForeignKey("agency_tenants.id", ondelete="SET NULL"), nullable=True
+    )
+    actor_user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     event_name = Column(String(128), nullable=False)
     aggregate_type = Column(String(64), nullable=True)
     aggregate_id = Column(String(64), nullable=True)
@@ -186,10 +204,20 @@ class MediaAuditLog(Base):
     __tablename__ = "media_audit_logs"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    agency_tenant_id = Column(UUID(as_uuid=True), ForeignKey("agency_tenants.id", ondelete="SET NULL"), nullable=False)
-    actor_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    listing_photo_metadata_id = Column(UUID(as_uuid=True), ForeignKey("listing_photo_metadata.id", ondelete="SET NULL"), nullable=False)
-    outbox_event_id = Column(UUID(as_uuid=True), ForeignKey("outbox_events.id", ondelete="SET NULL"), nullable=True)
+    agency_tenant_id = Column(
+        UUID(as_uuid=True), ForeignKey("agency_tenants.id", ondelete="SET NULL"), nullable=False
+    )
+    actor_user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    listing_photo_metadata_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("listing_photo_metadata.id", ondelete="SET NULL"),
+        nullable=False,
+    )
+    outbox_event_id = Column(
+        UUID(as_uuid=True), ForeignKey("outbox_events.id", ondelete="SET NULL"), nullable=True
+    )
     event_name = Column(String(128), nullable=False)
     result = Column(String(32), nullable=True)
     details = Column(JSON, nullable=True)

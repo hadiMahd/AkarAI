@@ -20,8 +20,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.ai.guardrails import generate_guardrailed_agency_text
 from app.ai.jobs import (
     JOB_STATUS_BLOCKED,
-    JOB_STATUS_COMPLETED,
-    JOB_STATUS_FAILED,
     JOB_STATUS_PROCESSING,
     JOB_STATUS_QUEUED,
     JOB_TYPE_COMPARISON_SUMMARY,
@@ -49,14 +47,13 @@ from app.ai.schemas import (
     SpecExtractionJobAcceptedResponse,
     SpecExtractionResultResponse,
 )
+from app.audit.repository import AuditLogRepository
+from app.audit.service import AuditService
 from app.common.config import settings
 from app.common.events import publish_outbox_event_in_session
 from app.common.exceptions import AppException, ForbiddenError, NotFoundError
 from app.common.storage import build_object_path, get_rag_bucket, upload_object
 from app.common.tenant import TenantContext, require_tenant
-from app.audit.repository import AuditLogRepository
-from app.audit.service import AuditService
-from app.leads.models import Lead
 from app.leads.repository import LeadRepository
 from app.listings.repository import ListingRepository
 
@@ -423,9 +420,7 @@ class AgencyAIService:
             user_parts.append("Listing snapshot:")
             user_parts.append(json.dumps(listing_snapshot, default=str)[:4000])
         if channel == "email":
-            user_parts.append(
-                "Return compact JSON with keys: subject (string) and body (string)."
-            )
+            user_parts.append("Return compact JSON with keys: subject (string) and body (string).")
         else:
             user_parts.append("Return compact JSON with keys: body (string) only.")
         user_prompt = "\n\n".join(user_parts)
@@ -482,7 +477,9 @@ class AgencyAIService:
 
         subject = None
         if channel == "email":
-            subject = str(payload.get("subject") or "").strip()[:255] or "Regarding your property inquiry"
+            subject = (
+                str(payload.get("subject") or "").strip()[:255] or "Regarding your property inquiry"
+            )
 
         draft = LeadReplyDraft(
             lead_id=lead_id,
@@ -604,9 +601,7 @@ class AgencyAIService:
                 lines.append(f"  Location: {location}")
             return "\n".join(lines)
 
-        prose_listings = "\n\n".join(
-            _snap_to_prose(snap, i) for i, snap in enumerate(snapshots)
-        )
+        prose_listings = "\n\n".join(_snap_to_prose(snap, i) for i, snap in enumerate(snapshots))
         user_prompt = (
             f"{prose_listings}\n\n"
             "Return compact JSON with keys: "
@@ -669,9 +664,7 @@ class AgencyAIService:
             if str(item).strip()
         ][:8]
         best_fit = [
-            str(item).strip()
-            for item in (payload.get("best_fit_notes") or [])
-            if str(item).strip()
+            str(item).strip() for item in (payload.get("best_fit_notes") or []) if str(item).strip()
         ][:8]
 
         record = ComparisonSummary(
@@ -872,5 +865,6 @@ def _public_listing_snapshot(listing: Any) -> dict[str, Any]:
         "furnishing": (listing.furnishing or "").strip() or None,
         "location": ", ".join(
             part for part in [listing.address, listing.city, listing.country] if part
-        ) or None,
+        )
+        or None,
     }
